@@ -1,0 +1,46 @@
+---
+interface Props {
+  href?: string;
+  class?: string;
+}
+
+const { href, class: className } = Astro.props;
+const classes = ['tag', className].filter(Boolean).join(' ');
+---
+
+{
+  href ? (
+    <a href={href} class={classes}>
+      <slot />
+    </a>
+  ) : (
+    <span class={classes}>
+      <slot />
+    </span>
+  )
+}
+
+<style>
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xs) var(--space-sm);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+    min-height: 28px;
+    min-width: 44px;
+  }
+
+  a.tag:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+</style>
