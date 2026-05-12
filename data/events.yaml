@@ -1,0 +1,23 @@
+- date: "2024-08-09"
+  title: "創新智能醫療應用研討會"
+  organization: "國防醫學院"
+  attendees: 36
+  type: "seminar"
+
+- date: "2024-12-20"
+  title: "醫療領域ESG研討會"
+  organization: "國軍臺中總醫院"
+  attendees: 23
+  type: "seminar"
+
+- date: "2025-04-28"
+  title: "ISO 14064-1 授證儀式"
+  organization: "國軍桃園總醫院"
+  attendees: 20
+  type: "certification"
+
+- date: "2025-10-21"
+  title: "授證儀式暨ESG成果發表"
+  organization: "國軍高雄總醫院"
+  attendees: 38
+  type: "certification"
