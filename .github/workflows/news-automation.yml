@@ -1,0 +1,55 @@
+name: News Automation
+
+on:
+  schedule:
+    - cron: "0 22,10 * * *"  # UTC = TPE 06:00, 18:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate news articles
+        id: generate
+        run: pnpm tsx scripts/generate-news.ts
+      - name: Fetch images for new articles
+        run: pnpm tsx scripts/fetch-images.ts --collection news --new-only
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/content/news/ src/assets/images/auto/news/ data/processed-sources.json
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "news: auto-generated $(date -u +%Y-%m-%d)"
+          git push
+      - name: Create PR for non-converged drafts
+        if: steps.generate.outputs.has_drafts == 'true'
+        run: |
+          BRANCH="news/review-$(date -u +%Y%m%d-%H%M)"
+          git checkout -b "$BRANCH"
+          git add src/content/news/
+          git diff --cached --quiet && exit 0
+          git commit -m "news: drafts pending review $(date -u +%Y-%m-%d)"
+          git push origin "$BRANCH"
+          gh pr create --title "News: reviewer 未收斂，需人工審核 $(date -u +%Y-%m-%d)" \
+            --body "以下新聞經 3 次 reviewer 迴圈仍未收斂，已標記為 draft: true。" \
+            --base main --label "needs-review"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
