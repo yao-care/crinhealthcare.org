@@ -37,7 +37,7 @@ jobs:
           args: --offline --no-progress --root-dir dist dist/
           fail: false
         continue-on-error: true
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist/
 
