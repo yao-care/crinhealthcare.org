@@ -1,0 +1,89 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+  href?: string;
+  label?: string;
+}
+
+const {
+  title = '加入國際醫療減碳協會',
+  description = '與我們一起推動台灣醫療產業的永續發展，共同達成淨零排放目標。',
+  href = '/join/',
+  label = '立即加入',
+} = Astro.props;
+---
+
+<section class="cta-banner">
+  <div class="container cta-banner__inner">
+    <div class="cta-banner__text">
+      <h2 class="cta-banner__title">{title}</h2>
+      <p class="cta-banner__desc">{description}</p>
+    </div>
+    <a href={href} class="cta-banner__btn">{label}</a>
+  </div>
+</section>
+
+<style>
+  .cta-banner {
+    background-color: var(--color-primary);
+    padding-block: var(--space-2xl);
+  }
+
+  .cta-banner__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-xl);
+  }
+
+  .cta-banner__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .cta-banner__title {
+    font-size: var(--text-2xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-paper);
+    line-height: var(--leading-tight);
+  }
+
+  .cta-banner__desc {
+    font-size: var(--text-base);
+    color: var(--color-primary-pale);
+    line-height: var(--leading-normal);
+    max-width: 60ch;
+    margin-inline: auto;
+  }
+
+  .cta-banner__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-sm) var(--space-xl);
+    background-color: var(--color-paper);
+    color: var(--color-primary);
+    font-size: var(--text-base);
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    min-height: 44px;
+    min-width: 44px;
+    border: 2px solid var(--color-paper);
+    transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast),
+      border-color var(--transition-fast);
+    white-space: nowrap;
+  }
+
+  .cta-banner__btn:hover {
+    background-color: var(--color-primary-pale);
+    border-color: var(--color-primary-pale);
+    color: var(--color-primary);
+  }
+</style>

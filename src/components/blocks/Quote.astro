@@ -1,0 +1,83 @@
+---
+interface Props {
+  quote: string;
+  author: string;
+  title?: string;
+}
+
+const { quote, author, title } = Astro.props;
+---
+
+<section class="quote-block">
+  <div class="container quote-block__inner">
+    <blockquote class="quote-block__quote">
+      <p class="quote-block__text">&ldquo;{quote}&rdquo;</p>
+      <footer class="quote-block__attribution">
+        <cite class="quote-block__author">{author}</cite>
+        {title && <span class="quote-block__title">{title}</span>}
+      </footer>
+    </blockquote>
+  </div>
+</section>
+
+<style>
+  .quote-block {
+    background: linear-gradient(135deg, var(--color-primary-pale) 0%, var(--color-accent-light) 100%);
+    padding-block: var(--space-2xl);
+  }
+
+  .quote-block__inner {
+    display: flex;
+    justify-content: center;
+  }
+
+  .quote-block__quote {
+    max-width: 72ch;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-lg);
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .quote-block__text {
+    font-size: var(--text-xl);
+    font-family: var(--font-heading);
+    font-weight: 500;
+    color: var(--color-text);
+    line-height: var(--leading-normal);
+    font-style: italic;
+  }
+
+  .quote-block__attribution {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  .quote-block__attribution::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 2px;
+    background-color: var(--color-primary);
+    border-radius: 2px;
+    margin-bottom: var(--space-xs);
+  }
+
+  .quote-block__author {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--color-primary);
+    font-style: normal;
+  }
+
+  .quote-block__title {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+</style>
