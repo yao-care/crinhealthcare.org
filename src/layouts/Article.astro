@@ -1,0 +1,115 @@
+---
+import Page from './Page.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  ogImage?: string;
+  publishDate?: Date;
+  tags?: string[];
+}
+
+const { title, description, ogImage, publishDate, tags = [] } = Astro.props;
+
+const formattedDate = publishDate
+  ? publishDate.toLocaleDateString('zh-Hant-TW', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  : undefined;
+
+const isoDate = publishDate?.toISOString();
+---
+
+<Page title={title} description={description} ogImage={ogImage}>
+  <article class="article">
+    <div class="container">
+      <header class="article__header">
+        {
+          formattedDate && (
+            <time class="article__date" datetime={isoDate}>
+              {formattedDate}
+            </time>
+          )
+        }
+        <h1 class="article__title">{title}</h1>
+        {
+          tags.length > 0 && (
+            <div class="article__tags">
+              {tags.map((tag) => (
+                <a href={`/tags/${tag}/`} class="article__tag">
+                  {tag}
+                </a>
+              ))}
+            </div>
+          )
+        }
+      </header>
+      <div class="prose article__body">
+        <slot />
+      </div>
+    </div>
+  </article>
+</Page>
+
+<style>
+  .article {
+    padding-block: var(--space-3xl);
+  }
+
+  .article__header {
+    max-width: 72ch;
+    margin-bottom: var(--space-2xl);
+  }
+
+  .article__date {
+    display: block;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+  }
+
+  .article__title {
+    font-size: var(--text-3xl);
+    font-family: var(--font-heading);
+    line-height: var(--leading-tight);
+    color: var(--color-text);
+    margin-bottom: var(--space-md);
+  }
+
+  .article__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+  }
+
+  .article__tag {
+    display: inline-block;
+    padding: var(--space-xs) var(--space-sm);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+    min-height: 28px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .article__tag:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+
+  .article__body {
+    margin-inline: 0;
+  }
+</style>
