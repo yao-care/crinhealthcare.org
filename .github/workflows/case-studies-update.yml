@@ -1,0 +1,68 @@
+name: Case Studies Annual Review
+
+on:
+  schedule:
+    - cron: "0 0 1 1 *"  # Jan 1st annually
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsx scripts/update-case-studies.ts
+      - name: Create PR for review
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/content/case-studies/
+          git diff --cached --quiet && echo "No changes" && exit 0
+          BRANCH="case-studies/annual-$(date -u +%Y)"
+          git checkout -b "$BRANCH"
+          git commit -m "case-studies: annual review $(date -u +%Y)"
+          git push origin "$BRANCH"
+          gh pr create --title "Case Studies: 年度更新審核 $(date -u +%Y)" \
+            --body "年度案例更新，請確認數據正確性後合併。" \
+            --base main --label "needs-review"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-failure:
+    if: failure()
+    needs: [update]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create failure issue
+        run: |
+          gh issue create \
+            --title "Workflow 失敗: ${{ github.workflow }} $(date -u +%Y-%m-%d)" \
+            --body "## 失敗詳情
+
+          - **Workflow:** ${{ github.workflow }}
+          - **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - **觸發:** ${{ github.event_name }}
+          - **時間:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          請檢查 workflow run 日誌。" \
+            --label "bug,automation"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
