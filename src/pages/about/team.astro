@@ -2,6 +2,7 @@
 import Page from '@layouts/Page.astro';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
+import { url } from '@utils/url';
 
 const teamData = parse(readFileSync('data/team.yaml', 'utf-8')) as Array<{
   name: string;
@@ -41,7 +42,7 @@ const teamData = parse(readFileSync('data/team.yaml', 'utf-8')) as Array<{
 
     <div class="join-cta">
       <p>有興趣加入協會服務行列？</p>
-      <a href="/join/" class="btn btn--primary">了解如何加入</a>
+      <a href={url('/join/')} class="btn btn--primary">了解如何加入</a>
     </div>
 
   </div>

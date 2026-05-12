@@ -1,5 +1,6 @@
 ---
 import Page from './Page.astro';
+import { url } from '@utils/url';
 
 interface Props {
   title: string;
@@ -38,7 +39,7 @@ const isoDate = publishDate?.toISOString();
           tags.length > 0 && (
             <div class="article__tags">
               {tags.map((tag) => (
-                <a href={`/tags/${tag}/`} class="article__tag">
+                <a href={url(`/tags/${tag}/`)} class="article__tag">
                   {tag}
                 </a>
               ))}

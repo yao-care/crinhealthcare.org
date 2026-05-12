@@ -1,6 +1,7 @@
 ---
 import Page from '@layouts/Page.astro';
 import { getCollection } from 'astro:content';
+import { url } from '@utils/url';
 
 export async function getStaticPaths() {
   const [allNews, allInsights] = await Promise.all([
@@ -55,7 +56,7 @@ const { tag, items } = Astro.props;
       <div class="results-list">
         {items.map((item) => (
           <a
-            href={`/${item._type}/${item.id}/`}
+            href={url(`/${item._type}/${item.id}/`)}
             class="result-item"
           >
             <div class="result-item__meta">
@@ -83,8 +84,8 @@ const { tag, items } = Astro.props;
     )}
 
     <div class="back-nav">
-      <a href="/news/" class="back-link">← 最新動態</a>
-      <a href="/insights/" class="back-link">← 知識庫</a>
+      <a href={url('/news/')} class="back-link">← 最新動態</a>
+      <a href={url('/insights/')} class="back-link">← 知識庫</a>
     </div>
 
   </div>

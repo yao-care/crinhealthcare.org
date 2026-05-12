@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import ServiceCard from './ServiceCard.astro';
+import { url } from '@utils/url';
 
 const services = await getCollection('services');
 ---
@@ -10,7 +11,7 @@ const services = await getCollection('services');
     <ServiceCard
       name={service.data.name}
       description={service.data.description}
-      href={`/services/${service.id.replace(/\.[^.]+$/, '')}/`}
+      href={url(`/services/${service.id.replace(/\.[^.]+$/, '')}/`)}
       icon={service.data.icon}
     />
   ))}

@@ -2,6 +2,7 @@
 import Article from '@layouts/Article.astro';
 import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
+import { url } from '@utils/url';
 
 export async function getStaticPaths() {
   const entries = await getCollection('case-studies');
@@ -79,7 +80,7 @@ const serviceLabel: Record<string, string> = {
   description={summary}
   publishDate={publishDate}
   tags={tags}
-  ogImage={`/og/case-studies/${entry.id}.png`}
+  ogImage={url(`/og/case-studies/${entry.id}.png`)}
 >
   <JsonLd schema={[articleSchema, breadcrumbSchema]} />
   <div class="case-meta">
@@ -96,7 +97,7 @@ const serviceLabel: Record<string, string> = {
       <h3 class="case-meta__label">協作服務</h3>
       <div class="services-list">
         {services.map((svc) => (
-          <a href={`/services/${svc}/`} class="service-badge">
+          <a href={url(`/services/${svc}/`)} class="service-badge">
             {serviceLabel[svc] ?? svc}
           </a>
         ))}

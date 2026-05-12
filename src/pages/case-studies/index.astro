@@ -1,6 +1,7 @@
 ---
 import Page from '@layouts/Page.astro';
 import { getCollection } from 'astro:content';
+import { url } from '@utils/url';
 
 const cases = await getCollection('case-studies', ({ data }) => !data.draft);
 const sorted = cases.sort(
@@ -47,7 +48,7 @@ const serviceLabel: Record<string, string> = {
     ) : (
       <div class="case-grid">
         {sorted.map((c) => (
-          <a href={`/case-studies/${c.id}/`} class="case-card">
+          <a href={url(`/case-studies/${c.id}/`)} class="case-card">
             <div class="case-card__header">
               <span class={`case-card__badge ${systemColor[c.data.hospital.system]}`}>
                 {systemLabel[c.data.hospital.system]}

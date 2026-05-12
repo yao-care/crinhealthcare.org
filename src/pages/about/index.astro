@@ -1,5 +1,6 @@
 ---
 import Page from '@layouts/Page.astro';
+import { url } from '@utils/url';
 ---
 
 <Page
@@ -94,8 +95,8 @@ import Page from '@layouts/Page.astro';
         無論您是醫療院所管理者、永續領域專業人士，或是關心醫療環境責任的公民，都歡迎以不同方式與協會合作。
       </p>
       <div class="cta-actions">
-        <a href="/join/" class="btn btn--primary">申請成為會員</a>
-        <a href="/about/team/" class="btn btn--outline">認識團隊成員</a>
+        <a href={url('/join/')} class="btn btn--primary">申請成為會員</a>
+        <a href={url('/about/team/')} class="btn btn--outline">認識團隊成員</a>
       </div>
     </section>
 

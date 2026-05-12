@@ -2,6 +2,7 @@
 import Page from '@layouts/Page.astro';
 import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
+import { url } from '@utils/url';
 
 export async function getStaticPaths() {
   const services = await getCollection('services');
@@ -51,7 +52,7 @@ const breadcrumbSchema = breadcrumb([
 <Page
   title={name}
   description={description}
-  ogImage={`/og/services/${entry.id}.png`}
+  ogImage={url(`/og/services/${entry.id}.png`)}
 >
   <JsonLd schema={[serviceSchema, breadcrumbSchema]} />
   <div class="container page-content">
@@ -59,7 +60,7 @@ const breadcrumbSchema = breadcrumb([
     <header class="service-header">
       <div class="service-header__icon" aria-hidden="true">
         <svg width="40" height="40">
-          <use href={`/icons.svg#${icon}`} />
+          <use href={url(`/icons.svg#${icon}`)} />
         </svg>
       </div>
       <h1 class="service-header__title">{name}</h1>
@@ -90,8 +91,8 @@ const breadcrumbSchema = breadcrumb([
       <h2 class="cta-block__title">有興趣了解更多？</h2>
       <p class="cta-block__desc">歡迎聯絡協會，我們將為您說明如何啟動此項服務。</p>
       <div class="cta-block__actions">
-        <a href="/contact/" class="btn btn--primary">立即聯繫</a>
-        <a href="/services/" class="btn btn--outline">瀏覽所有服務</a>
+        <a href={url('/contact/')} class="btn btn--primary">立即聯繫</a>
+        <a href={url('/services/')} class="btn btn--outline">瀏覽所有服務</a>
       </div>
     </div>
 

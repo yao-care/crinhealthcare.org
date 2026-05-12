@@ -2,6 +2,7 @@
 import Base from '@layouts/Base.astro';
 import Nav from '@components/blocks/Nav.astro';
 import Footer from '@components/blocks/Footer.astro';
+import { url } from '@utils/url';
 ---
 
 <Base title="找不到頁面" description="您要找的頁面不存在，請返回首頁繼續瀏覽。">
@@ -44,18 +45,18 @@ import Footer from '@components/blocks/Footer.astro';
           請確認網址是否正確，或返回首頁繼續瀏覽。
         </p>
         <div class="not-found__actions">
-          <a href="/" class="btn btn--primary">返回首頁</a>
-          <a href="/search/" class="btn btn--outline">搜尋網站</a>
+          <a href={url('/')} class="btn btn--primary">返回首頁</a>
+          <a href={url('/search/')} class="btn btn--outline">搜尋網站</a>
         </div>
         <div class="not-found__links">
           <p class="not-found__links-label">或前往以下頁面：</p>
           <nav aria-label="建議頁面">
             <ul class="not-found__link-list">
-              <li><a href="/services/">公益服務項目</a></li>
-              <li><a href="/case-studies/">合作案例</a></li>
-              <li><a href="/news/">最新動態</a></li>
-              <li><a href="/about/">關於協會</a></li>
-              <li><a href="/contact/">聯絡我們</a></li>
+              <li><a href={url('/services/')}>公益服務項目</a></li>
+              <li><a href={url('/case-studies/')}>合作案例</a></li>
+              <li><a href={url('/news/')}>最新動態</a></li>
+              <li><a href={url('/about/')}>關於協會</a></li>
+              <li><a href={url('/contact/')}>聯絡我們</a></li>
             </ul>
           </nav>
         </div>

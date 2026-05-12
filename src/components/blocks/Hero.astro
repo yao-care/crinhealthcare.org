@@ -1,4 +1,5 @@
 ---
+import { url } from '@utils/url';
 ---
 
 <section class="hero">
@@ -13,8 +14,8 @@
         為台灣醫療院所提供一站式永續解決方案。
       </p>
       <div class="hero__actions">
-        <a href="/services/" class="hero__btn hero__btn--primary">了解服務</a>
-        <a href="/join/" class="hero__btn hero__btn--secondary">加入會員</a>
+        <a href={url('/services/')} class="hero__btn hero__btn--primary">了解服務</a>
+        <a href={url('/join/')} class="hero__btn hero__btn--secondary">加入會員</a>
       </div>
     </div>
 

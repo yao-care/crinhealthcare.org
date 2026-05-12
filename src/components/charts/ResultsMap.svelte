@@ -10,9 +10,16 @@
 
   interface Props {
     hospitals: Hospital[];
+    baseUrl?: string;
   }
 
-  let { hospitals }: Props = $props();
+  let { hospitals, baseUrl = '/' }: Props = $props();
+
+  function buildUrl(path: string): string {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+    return cleanBase + cleanPath;
+  }
 
   // Approximate city coordinates [lng, lat]
   const cityCoords: Record<string, [number, number]> = {
@@ -131,8 +138,8 @@
           aria-label="{h.name}"
           onmouseenter={(e: MouseEvent) => showTooltip(e, h)}
           onmouseleave={hideTooltip}
-          onclick={() => { window.location.href = `/results/${h.slug}/`; }}
-          onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') window.location.href = `/results/${h.slug}/`; }}
+          onclick={() => { window.location.href = buildUrl(`/results/${h.slug}/`); }}
+          onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') window.location.href = buildUrl(`/results/${h.slug}/`); }}
         />
       {/each}
     </svg>

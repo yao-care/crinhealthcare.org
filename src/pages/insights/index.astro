@@ -1,6 +1,7 @@
 ---
 import Page from '@layouts/Page.astro';
 import { getCollection } from 'astro:content';
+import { url } from '@utils/url';
 
 const allInsights = await getCollection('insights', ({ data }) => !data.draft);
 const sorted = allInsights.sort(
@@ -54,7 +55,7 @@ const byCategory = {
           ) : (
             <div class="insights-grid">
               {byCategory[cat.id].map((entry) => (
-                <a href={`/insights/${entry.id}/`} class="insight-card">
+                <a href={url(`/insights/${entry.id}/`)} class="insight-card">
                   <div class="insight-card__meta">
                     <time class="insight-card__date" datetime={entry.data.publishDate.toISOString()}>
                       {entry.data.publishDate.toLocaleDateString('zh-Hant-TW', { year: 'numeric', month: 'long', day: 'numeric' })}

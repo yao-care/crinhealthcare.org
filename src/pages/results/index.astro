@@ -4,6 +4,7 @@ import CountUp from '@components/charts/CountUp.svelte';
 import MetricsDashboard from '@components/charts/MetricsDashboard.svelte';
 import { getCollection } from 'astro:content';
 import { aggregateMetrics } from '@utils/metrics';
+import { url } from '@utils/url';
 
 const cases = await getCollection('case-studies', ({ data }) => !data.draft);
 const metrics = await aggregateMetrics();
@@ -47,7 +48,7 @@ const dashboardData = cases.map((c) => ({
       <h2 class="section-heading">深入了解合作案例</h2>
       <div class="case-grid">
         {cases.map((c) => (
-          <a href={`/case-studies/${c.id}/`} class="case-link">
+          <a href={url(`/case-studies/${c.id}/`)} class="case-link">
             <div class="case-link__badge">{c.data.hospital.system === 'military' ? '國軍' : c.data.hospital.system === 'veterans' ? '榮民' : '其他'}</div>
             <div class="case-link__name">{c.data.hospital.name}</div>
             <div class="case-link__location">{c.data.hospital.location}</div>

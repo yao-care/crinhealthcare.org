@@ -65,7 +65,7 @@ const webSiteSchema = {
   <section class="results-section">
     <div class="container">
       <h2 class="section-heading">合作成果</h2>
-      <ResultsMap client:visible hospitals={mapData} />
+      <ResultsMap client:visible hospitals={mapData} baseUrl={import.meta.env.BASE_URL} />
     </div>
   </section>
 

@@ -2,6 +2,7 @@
 import Article from '@layouts/Article.astro';
 import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
+import { url } from '@utils/url';
 
 export async function getStaticPaths() {
   const entries = await getCollection('glossary');
@@ -70,11 +71,11 @@ const serviceLabel: Record<string, string> = {
 <Article
   title={term}
   description={definition}
-  ogImage={`/og/glossary/${entry.id}.png`}
+  ogImage={url(`/og/glossary/${entry.id}.png`)}
 >
   <JsonLd schema={[definedTermSchema, breadcrumbSchema]} />
   <div class="term-category">
-    <a href={`/glossary/#cat-${category}`} class="category-badge">
+    <a href={url(`/glossary/#cat-${category}`)} class="category-badge">
       {categoryLabel[category] ?? category}
     </a>
   </div>
@@ -90,7 +91,7 @@ const serviceLabel: Record<string, string> = {
       <h3 class="related-heading">相關術語</h3>
       <div class="related-list">
         {relatedTerms.map((t) => (
-          <a href={`/glossary/${t}/`} class="related-link">
+          <a href={url(`/glossary/${t}/`)} class="related-link">
             {t}
           </a>
         ))}
@@ -103,7 +104,7 @@ const serviceLabel: Record<string, string> = {
       <h3 class="related-heading">相關服務</h3>
       <div class="related-list">
         {relatedServices.map((svc) => (
-          <a href={`/services/${svc}/`} class="service-link">
+          <a href={url(`/services/${svc}/`)} class="service-link">
             {serviceLabel[svc] ?? svc}
           </a>
         ))}
@@ -112,7 +113,7 @@ const serviceLabel: Record<string, string> = {
   )}
 
   <div class="back-nav">
-    <a href="/glossary/" class="back-link">← 返回詞彙總覽</a>
+    <a href={url('/glossary/')} class="back-link">← 返回詞彙總覽</a>
   </div>
 </Article>
 

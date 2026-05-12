@@ -1,6 +1,7 @@
 ---
 import Page from '@layouts/Page.astro';
 import { getCollection } from 'astro:content';
+import { url } from '@utils/url';
 
 const allTerms = await getCollection('glossary', ({ data }) => !data.draft);
 const sorted = allTerms.sort((a, b) => a.data.term.localeCompare(b.data.term, 'zh-Hant'));
@@ -60,7 +61,7 @@ const byCategory = categories.reduce(
           </div>
           <div class="term-list">
             {byCategory[cat.id].map((term) => (
-              <a href={`/glossary/${term.id}/`} class="term-item">
+              <a href={url(`/glossary/${term.id}/`)} class="term-item">
                 <div class="term-item__name">{term.data.term}</div>
                 <p class="term-item__def">{term.data.definition}</p>
                 {term.data.relatedTerms.length > 0 && (

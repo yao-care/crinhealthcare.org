@@ -2,6 +2,7 @@
 import Page from '@layouts/Page.astro';
 import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection } from 'astro:content';
+import { url } from '@utils/url';
 
 const allFaq = await getCollection('faq');
 const sorted = allFaq.sort((a, b) => a.data.order - b.data.order);
@@ -49,7 +50,7 @@ const faqPageSchema = {
     <header class="page-header">
       <h1 class="page-title">常見問題</h1>
       <p class="page-lead">
-        找不到答案嗎？歡迎<a href="/contact/">聯繫我們</a>，協會同仁將為您解答。
+        找不到答案嗎？歡迎<a href={url('/contact/')}>聯繫我們</a>，協會同仁將為您解答。
       </p>
     </header>
 
@@ -83,7 +84,7 @@ const faqPageSchema = {
     <section class="contact-cta">
       <h2 class="contact-cta__title">還有其他問題？</h2>
       <p class="contact-cta__desc">我們的專業團隊隨時準備為您解答。</p>
-      <a href="/contact/" class="btn btn--primary">立即聯繫協會</a>
+      <a href={url('/contact/')} class="btn btn--primary">立即聯繫協會</a>
     </section>
 
   </div>

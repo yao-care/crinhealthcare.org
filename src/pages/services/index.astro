@@ -1,6 +1,7 @@
 ---
 import Page from '@layouts/Page.astro';
 import ServiceGrid from '@components/blocks/ServiceGrid.astro';
+import { url } from '@utils/url';
 ---
 
 <Page
@@ -25,8 +26,8 @@ import ServiceGrid from '@components/blocks/ServiceGrid.astro';
           所有服務均為公益免費提供。歡迎聯繫我們，了解如何啟動貴院的淨零轉型之旅。
         </p>
         <div class="cta-actions">
-          <a href="/contact/" class="btn btn--primary">立即聯繫</a>
-          <a href="/case-studies/" class="btn btn--outline">查看成功案例</a>
+          <a href={url('/contact/')} class="btn btn--primary">立即聯繫</a>
+          <a href={url('/case-studies/')} class="btn btn--outline">查看成功案例</a>
         </div>
       </div>
     </section>

@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import NewsItem from './NewsItem.astro';
+import { url } from '@utils/url';
 
 const allNews = await getCollection('news', ({ data }) => !data.draft);
 
@@ -26,7 +27,7 @@ function formatDate(date: Date): string {
       source={item.data.source}
       date={formatDate(item.data.publishDate)}
       summary={item.data.summary}
-      href={`/news/${item.id.replace(/\.[^.]+$/, '')}/`}
+      href={url(`/news/${item.id.replace(/\.[^.]+$/, '')}/`)}
       tags={item.data.tags}
     />
   ))}

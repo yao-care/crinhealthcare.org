@@ -1,5 +1,6 @@
 ---
 import Page from '@layouts/Page.astro';
+import { url } from '@utils/url';
 ---
 
 <Page
@@ -14,31 +15,32 @@ import Page from '@layouts/Page.astro';
     </header>
 
     <div class="search-container">
-      <link href="/_pagefind/pagefind-ui.css" rel="stylesheet" />
+      <link href={url('/_pagefind/pagefind-ui.css')} rel="stylesheet" />
       <div id="search" class="search-widget"></div>
     </div>
 
     <div class="search-hints">
       <h2 class="search-hints__title">搜尋建議</h2>
       <div class="search-hints__grid">
-        <a href="/glossary/" class="hint-chip">碳盤查</a>
-        <a href="/glossary/" class="hint-chip">ISO 14064</a>
-        <a href="/services/" class="hint-chip">ESG 報告</a>
-        <a href="/services/" class="hint-chip">補助申請</a>
-        <a href="/insights/" class="hint-chip">政策解讀</a>
-        <a href="/case-studies/" class="hint-chip">成功案例</a>
-        <a href="/news/" class="hint-chip">碳費</a>
-        <a href="/insights/" class="hint-chip">淨零排放</a>
+        <a href={url('/glossary/')} class="hint-chip">碳盤查</a>
+        <a href={url('/glossary/')} class="hint-chip">ISO 14064</a>
+        <a href={url('/services/')} class="hint-chip">ESG 報告</a>
+        <a href={url('/services/')} class="hint-chip">補助申請</a>
+        <a href={url('/insights/')} class="hint-chip">政策解讀</a>
+        <a href={url('/case-studies/')} class="hint-chip">成功案例</a>
+        <a href={url('/news/')} class="hint-chip">碳費</a>
+        <a href={url('/insights/')} class="hint-chip">淨零排放</a>
       </div>
     </div>
 
   </div>
 </Page>
 
-<script>
+<script define:vars={{ baseUrl: import.meta.env.BASE_URL }}>
   window.addEventListener('DOMContentLoaded', () => {
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
     const script = document.createElement('script');
-    script.src = '/_pagefind/pagefind-ui.js';
+    script.src = cleanBase + '_pagefind/pagefind-ui.js';
     script.onload = () => {
       // @ts-ignore
       new PagefindUI({ element: '#search', showSubResults: true });

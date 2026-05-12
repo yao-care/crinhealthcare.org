@@ -2,6 +2,7 @@
 import Article from '@layouts/Article.astro';
 import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
+import { url } from '@utils/url';
 
 export async function getStaticPaths() {
   const entries = await getCollection('insights');
@@ -63,7 +64,7 @@ const breadcrumbSchema = breadcrumb([
   description={summary}
   publishDate={publishDate}
   tags={tags}
-  ogImage={`/og/insights/${entry.id}.png`}
+  ogImage={url(`/og/insights/${entry.id}.png`)}
 >
   <JsonLd schema={[articleSchema, breadcrumbSchema]} />
   {heroImage && (
@@ -114,7 +115,7 @@ const breadcrumbSchema = breadcrumb([
       <h3 class="related-tags__heading">相關標籤</h3>
       <div class="related-tags__list">
         {tags.map((tag) => (
-          <a href={`/tags/${tag}/`} class="related-tag">{tag}</a>
+          <a href={url(`/tags/${tag}/`)} class="related-tag">{tag}</a>
         ))}
       </div>
     </div>

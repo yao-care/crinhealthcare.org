@@ -1,12 +1,14 @@
 ---
+import { url } from '@utils/url';
+
 const navItems = [
-  { label: '關於協會', href: '/about/' },
-  { label: '服務項目', href: '/services/' },
-  { label: '合作成果', href: '/case-studies/' },
-  { label: '新聞', href: '/news/' },
-  { label: '深度內容', href: '/insights/' },
-  { label: '詞彙庫', href: '/glossary/' },
-  { label: 'FAQ', href: '/faq/' },
+  { label: '關於協會', href: url('/about/') },
+  { label: '服務項目', href: url('/services/') },
+  { label: '合作成果', href: url('/case-studies/') },
+  { label: '新聞', href: url('/news/') },
+  { label: '深度內容', href: url('/insights/') },
+  { label: '詞彙庫', href: url('/glossary/') },
+  { label: 'FAQ', href: url('/faq/') },
 ];
 
 const currentPath = Astro.url.pathname;
@@ -15,7 +17,7 @@ const currentPath = Astro.url.pathname;
 <header class="nav">
   <div class="container nav__inner">
     <!-- Logo -->
-    <a href="/" class="nav__logo" aria-label="國際醫療減碳協會 首頁">
+    <a href={url('/')} class="nav__logo" aria-label="國際醫療減碳協會 首頁">
       <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
         <circle cx="18" cy="18" r="16" fill="var(--color-primary)" />
         <rect x="14" y="9" width="8" height="18" rx="2" fill="var(--color-paper)" />
@@ -48,7 +50,7 @@ const currentPath = Astro.url.pathname;
           ))
         }
       </ul>
-      <a href="/join/" class="nav__cta">加入會員</a>
+      <a href={url('/join/')} class="nav__cta">加入會員</a>
     </nav>
   </div>
 </header>

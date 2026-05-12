@@ -1,5 +1,6 @@
 ---
 import Page from '@layouts/Page.astro';
+import { url } from '@utils/url';
 ---
 
 <Page
@@ -44,7 +45,7 @@ import Page from '@layouts/Page.astro';
           <p class="faq-hint__desc">
             在聯繫我們之前，也許您的問題已有解答。
           </p>
-          <a href="/faq/" class="faq-hint__link">查看常見問題 →</a>
+          <a href={url('/faq/')} class="faq-hint__link">查看常見問題 →</a>
         </div>
 
         <div class="join-hint">
@@ -52,7 +53,7 @@ import Page from '@layouts/Page.astro';
           <p class="join-hint__desc">
             如果您是醫療機構，希望享有協會的免費輔導服務，請前往申請入會頁面。
           </p>
-          <a href="/join/" class="join-hint__link">申請入會 →</a>
+          <a href={url('/join/')} class="join-hint__link">申請入會 →</a>
         </div>
       </div>
 

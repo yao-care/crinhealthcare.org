@@ -1,4 +1,6 @@
 ---
+import { url } from '@utils/url';
+
 interface Props {
   title?: string;
   description?: string;
@@ -9,7 +11,7 @@ interface Props {
 const {
   title = '加入國際醫療減碳協會',
   description = '與我們一起推動台灣醫療產業的永續發展，共同達成淨零排放目標。',
-  href = '/join/',
+  href = url('/join/'),
   label = '立即加入',
 } = Astro.props;
 ---

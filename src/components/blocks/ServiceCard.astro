@@ -1,4 +1,6 @@
 ---
+import { url } from '@utils/url';
+
 interface Props {
   name: string;
   description: string;
@@ -12,7 +14,7 @@ const { name, description, href, icon } = Astro.props;
 <a href={href} class="service-card">
   <div class="service-card__icon" aria-hidden="true">
     <svg width="32" height="32">
-      <use href={`/icons.svg#${icon}`} />
+      <use href={url(`/icons.svg#${icon}`)} />
     </svg>
   </div>
   <h3 class="service-card__name">{name}</h3>
