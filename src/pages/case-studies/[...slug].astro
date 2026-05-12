@@ -1,5 +1,6 @@
 ---
 import Article from '@layouts/Article.astro';
+import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -15,6 +16,47 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const { hospital, publishDate, summary, services, metrics, tags } = entry.data;
+
+function breadcrumb(items: Array<{ name: string; url: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: hospital.name,
+  description: summary,
+  datePublished: publishDate.toISOString(),
+  url: `https://crinhealthcare.org/case-studies/${entry.id}/`,
+  about: {
+    '@type': 'Organization',
+    name: hospital.name,
+    location: {
+      '@type': 'Place',
+      address: hospital.location,
+    },
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: '國際醫療減碳協會',
+    url: 'https://crinhealthcare.org',
+  },
+};
+
+const breadcrumbSchema = breadcrumb([
+  { name: '首頁', url: 'https://crinhealthcare.org/' },
+  { name: '合作成果', url: 'https://crinhealthcare.org/case-studies/' },
+  { name: hospital.name, url: `https://crinhealthcare.org/case-studies/${entry.id}/` },
+]);
 
 const systemLabel: Record<string, string> = {
   military: '國軍醫院',
@@ -38,6 +80,7 @@ const serviceLabel: Record<string, string> = {
   publishDate={publishDate}
   tags={tags}
 >
+  <JsonLd schema={[articleSchema, breadcrumbSchema]} />
   <div class="case-meta">
     <div class="case-meta__hospital">
       <span class="case-meta__system">{systemLabel[hospital.system]}</span>

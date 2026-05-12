@@ -1,5 +1,6 @@
 ---
 import Article from '@layouts/Article.astro';
+import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -15,6 +16,39 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const { title, source, sourceUrl, publishDate, summary, tags, editorComment, internationalBenchmark } = entry.data;
+
+function breadcrumb(items: Array<{ name: string; url: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'NewsArticle',
+  headline: title,
+  description: summary,
+  datePublished: publishDate.toISOString(),
+  url: `https://crinhealthcare.org/news/${entry.id}/`,
+  publisher: {
+    '@type': 'Organization',
+    name: '國際醫療減碳協會',
+    url: 'https://crinhealthcare.org',
+  },
+};
+
+const breadcrumbSchema = breadcrumb([
+  { name: '首頁', url: 'https://crinhealthcare.org/' },
+  { name: '新聞', url: 'https://crinhealthcare.org/news/' },
+  { name: title, url: `https://crinhealthcare.org/news/${entry.id}/` },
+]);
 ---
 
 <Article
@@ -23,6 +57,7 @@ const { title, source, sourceUrl, publishDate, summary, tags, editorComment, int
   publishDate={publishDate}
   tags={tags}
 >
+  <JsonLd schema={[articleSchema, breadcrumbSchema]} />
   <div class="news-meta">
     <div class="news-source">
       <span class="news-source__label">來源：</span>

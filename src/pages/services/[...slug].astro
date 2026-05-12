@@ -1,5 +1,6 @@
 ---
 import Page from '@layouts/Page.astro';
+import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -13,12 +14,45 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const { name, description, icon, features } = entry.data;
+
+function breadcrumb(items: Array<{ name: string; url: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+const serviceSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: name,
+  description: description,
+  url: `https://crinhealthcare.org/services/${entry.id}/`,
+  provider: {
+    '@type': 'Organization',
+    name: '國際醫療減碳協會',
+    url: 'https://crinhealthcare.org',
+  },
+};
+
+const breadcrumbSchema = breadcrumb([
+  { name: '首頁', url: 'https://crinhealthcare.org/' },
+  { name: '服務項目', url: 'https://crinhealthcare.org/services/' },
+  { name: name, url: `https://crinhealthcare.org/services/${entry.id}/` },
+]);
 ---
 
 <Page
   title={name}
   description={description}
 >
+  <JsonLd schema={[serviceSchema, breadcrumbSchema]} />
   <div class="container page-content">
 
     <header class="service-header">

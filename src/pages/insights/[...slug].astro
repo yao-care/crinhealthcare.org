@@ -1,5 +1,6 @@
 ---
 import Article from '@layouts/Article.astro';
+import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -21,6 +22,40 @@ const categoryLabel: Record<string, string> = {
   guide: '知識指南',
   benchmark: '國際標竿',
 };
+
+function breadcrumb(items: Array<{ name: string; url: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description: summary,
+  datePublished: publishDate.toISOString(),
+  url: `https://crinhealthcare.org/insights/${entry.id}/`,
+  image: heroImage ? `https://crinhealthcare.org${heroImage.src}` : undefined,
+  publisher: {
+    '@type': 'Organization',
+    name: '國際醫療減碳協會',
+    url: 'https://crinhealthcare.org',
+  },
+};
+
+const breadcrumbSchema = breadcrumb([
+  { name: '首頁', url: 'https://crinhealthcare.org/' },
+  { name: '深度內容', url: 'https://crinhealthcare.org/insights/' },
+  { name: title, url: `https://crinhealthcare.org/insights/${entry.id}/` },
+]);
 ---
 
 <Article
@@ -30,6 +65,7 @@ const categoryLabel: Record<string, string> = {
   tags={tags}
   ogImage={heroImage?.src}
 >
+  <JsonLd schema={[articleSchema, breadcrumbSchema]} />
   {heroImage && (
     <div class="hero-image">
       <img

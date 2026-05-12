@@ -1,5 +1,6 @@
 ---
 import Page from '@layouts/Page.astro';
+import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection } from 'astro:content';
 
 const allFaq = await getCollection('faq');
@@ -23,12 +24,26 @@ const byCategory = categories.reduce(
   },
   {} as Record<FaqCategoryId, typeof sorted>
 );
+
+const faqPageSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: sorted.map((item) => ({
+    '@type': 'Question',
+    name: item.data.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.data.answer,
+    },
+  })),
+};
 ---
 
 <Page
   title="常見問題"
   description="國際醫療減碳協會常見問題解答，涵蓋碳盤查、能源管理、ESG報告、補助申請等服務說明。"
 >
+  <JsonLd schema={faqPageSchema} />
   <div class="container page-content">
 
     <header class="page-header">

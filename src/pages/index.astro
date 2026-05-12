@@ -7,6 +7,7 @@ import Quote from '@components/blocks/Quote.astro';
 import CtaBanner from '@components/blocks/CtaBanner.astro';
 import CountUp from '@components/charts/CountUp.svelte';
 import ResultsMap from '@components/charts/ResultsMap.svelte';
+import JsonLd from '@components/seo/JsonLd.astro';
 import { aggregateMetrics } from '@utils/metrics';
 import { getCollection } from 'astro:content';
 
@@ -22,9 +23,30 @@ const mapData = cases.map((c) => ({
   energySaving: c.data.metrics.energySavingPercent ?? 0,
   subsidy: c.data.metrics.subsidyAmount ?? 0,
 }));
+
+const orgSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: '國際醫療減碳協會',
+  url: 'https://crinhealthcare.org',
+  description: '協助醫療院所達成淨零排放的非營利組織',
+};
+
+const webSiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: '國際醫療減碳協會',
+  url: 'https://crinhealthcare.org',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: 'https://crinhealthcare.org/search/?q={search_term_string}',
+    'query-input': 'required name=search_term_string',
+  },
+};
 ---
 
 <Page title="首頁" description="國際醫療減碳協會 — 協助醫療院所達成淨零排放">
+  <JsonLd schema={[orgSchema, webSiteSchema]} />
   <Hero />
 
   <section class="metrics-section">

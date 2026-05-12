@@ -1,5 +1,6 @@
 ---
 import Article from '@layouts/Article.astro';
+import JsonLd from '@components/seo/JsonLd.astro';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -15,6 +16,38 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const { term, definition, category, relatedTerms, relatedServices } = entry.data;
+
+function breadcrumb(items: Array<{ name: string; url: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+const definedTermSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'DefinedTerm',
+  name: term,
+  description: definition,
+  url: `https://crinhealthcare.org/glossary/${entry.id}/`,
+  inDefinedTermSet: {
+    '@type': 'DefinedTermSet',
+    name: '國際醫療減碳協會詞彙庫',
+    url: 'https://crinhealthcare.org/glossary/',
+  },
+};
+
+const breadcrumbSchema = breadcrumb([
+  { name: '首頁', url: 'https://crinhealthcare.org/' },
+  { name: '詞彙庫', url: 'https://crinhealthcare.org/glossary/' },
+  { name: term, url: `https://crinhealthcare.org/glossary/${entry.id}/` },
+]);
 
 const categoryLabel: Record<string, string> = {
   carbon: '碳管理',
@@ -38,6 +71,7 @@ const serviceLabel: Record<string, string> = {
   title={term}
   description={definition}
 >
+  <JsonLd schema={[definedTermSchema, breadcrumbSchema]} />
   <div class="term-category">
     <a href={`/glossary/#cat-${category}`} class="category-badge">
       {categoryLabel[category] ?? category}
