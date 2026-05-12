@@ -1,0 +1,182 @@
+---
+import Page from '@layouts/Page.astro';
+import { readFileSync } from 'node:fs';
+import { parse } from 'yaml';
+
+const teamData = parse(readFileSync('data/team.yaml', 'utf-8')) as Array<{
+  name: string;
+  title: string;
+  role: string;
+  bio: string;
+}>;
+---
+
+<Page
+  title="團隊成員"
+  description="認識國際醫療減碳協會的核心團隊，他們來自醫療、工程、環境管理與永續治理等領域。"
+>
+  <div class="container page-content">
+
+    <header class="page-header">
+      <h1 class="page-title">團隊成員</h1>
+      <p class="page-lead">
+        協會匯聚各領域專業人才，以公益之心共同推動台灣醫療機構的淨零轉型。
+      </p>
+    </header>
+
+    <div class="team-grid">
+      {teamData.map((member) => (
+        <div class="team-card">
+          <div class="team-card__avatar" aria-hidden="true">
+            <span class="team-card__initial">{member.name.charAt(0)}</span>
+          </div>
+          <div class="team-card__info">
+            <h2 class="team-card__name">{member.name}</h2>
+            <p class="team-card__title">{member.title}</p>
+            <p class="team-card__bio">{member.bio}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div class="join-cta">
+      <p>有興趣加入協會服務行列？</p>
+      <a href="/join/" class="btn btn--primary">了解如何加入</a>
+    </div>
+
+  </div>
+</Page>
+
+<style>
+  .page-content {
+    padding-block: var(--space-3xl);
+  }
+
+  .page-header {
+    max-width: 72ch;
+    margin-bottom: var(--space-3xl);
+  }
+
+  .page-title {
+    font-size: var(--text-4xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-lg);
+  }
+
+  .page-lead {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+  }
+
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-xl);
+    margin-bottom: var(--space-3xl);
+  }
+
+  .team-card {
+    display: flex;
+    gap: var(--space-lg);
+    padding: var(--space-xl);
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .team-card__avatar {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    background-color: var(--color-primary-pale);
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .team-card__initial {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .team-card__info {
+    flex: 1;
+  }
+
+  .team-card__name {
+    font-size: var(--text-xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+  }
+
+  .team-card__title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: var(--space-sm);
+  }
+
+  .team-card__bio {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+  }
+
+  .join-cta {
+    text-align: center;
+    padding: var(--space-2xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-lg);
+  }
+
+  .join-cta p {
+    font-size: var(--text-lg);
+    color: var(--color-text-secondary);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md) var(--space-xl);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    text-decoration: none;
+    min-height: 44px;
+    transition: background-color var(--transition-fast);
+  }
+
+  .btn--primary {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+    border: 2px solid var(--color-primary);
+  }
+
+  .btn--primary:hover {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+  }
+
+  @media (max-width: 768px) {
+    .team-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .team-card {
+      flex-direction: column;
+    }
+  }
+</style>

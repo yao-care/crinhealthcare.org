@@ -1,0 +1,205 @@
+---
+import Base from '@layouts/Base.astro';
+import Nav from '@components/blocks/Nav.astro';
+import Footer from '@components/blocks/Footer.astro';
+---
+
+<Base title="找不到頁面" description="您要找的頁面不存在，請返回首頁繼續瀏覽。">
+  <Nav />
+  <main id="main" class="not-found">
+    <div class="container not-found__inner">
+
+      <div class="not-found__illustration" aria-hidden="true">
+        <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg" class="not-found__svg">
+          <!-- Ground -->
+          <ellipse cx="100" cy="145" rx="80" ry="10" fill="var(--color-surface)" />
+
+          <!-- Tree trunk -->
+          <rect x="94" y="90" width="12" height="55" rx="4" fill="#8b7355" />
+
+          <!-- Tree top -->
+          <circle cx="100" cy="75" r="35" fill="var(--color-primary-pale)" />
+          <circle cx="80" cy="85" r="22" fill="var(--color-primary-pale)" />
+          <circle cx="120" cy="85" r="22" fill="var(--color-primary-pale)" />
+
+          <!-- Leaf highlights -->
+          <circle cx="100" cy="60" r="12" fill="var(--color-primary)" opacity="0.2" />
+
+          <!-- Question mark on tree -->
+          <text x="100" y="80" text-anchor="middle" font-size="28" font-weight="900" fill="var(--color-primary)" opacity="0.6">?</text>
+
+          <!-- Small flowers -->
+          <circle cx="40" cy="140" r="5" fill="var(--color-accent)" opacity="0.6" />
+          <circle cx="160" cy="138" r="4" fill="var(--color-accent)" opacity="0.5" />
+          <circle cx="55" cy="136" r="3" fill="var(--color-primary)" opacity="0.4" />
+          <circle cx="150" cy="142" r="3" fill="var(--color-primary)" opacity="0.4" />
+        </svg>
+      </div>
+
+      <div class="not-found__content">
+        <p class="not-found__code" aria-hidden="true">404</p>
+        <h1 class="not-found__title">找不到這個頁面</h1>
+        <p class="not-found__desc">
+          您要找的頁面可能已移除、更名，或暫時無法使用。<br />
+          請確認網址是否正確，或返回首頁繼續瀏覽。
+        </p>
+        <div class="not-found__actions">
+          <a href="/" class="btn btn--primary">返回首頁</a>
+          <a href="/search/" class="btn btn--outline">搜尋網站</a>
+        </div>
+        <div class="not-found__links">
+          <p class="not-found__links-label">或前往以下頁面：</p>
+          <nav aria-label="建議頁面">
+            <ul class="not-found__link-list">
+              <li><a href="/services/">公益服務項目</a></li>
+              <li><a href="/case-studies/">合作案例</a></li>
+              <li><a href="/news/">最新動態</a></li>
+              <li><a href="/about/">關於協會</a></li>
+              <li><a href="/contact/">聯絡我們</a></li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+
+    </div>
+  </main>
+  <Footer />
+</Base>
+
+<style>
+  .not-found {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    padding-block: var(--space-3xl);
+  }
+
+  .not-found__inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3xl);
+    align-items: center;
+  }
+
+  .not-found__illustration {
+    display: flex;
+    justify-content: center;
+  }
+
+  .not-found__svg {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+  }
+
+  .not-found__code {
+    font-size: clamp(4rem, 10vw, 8rem);
+    font-weight: 900;
+    color: var(--color-primary-pale);
+    line-height: 1;
+    margin-bottom: var(--space-md);
+    font-family: var(--font-heading);
+  }
+
+  .not-found__title {
+    font-size: var(--text-3xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-lg);
+    line-height: var(--leading-tight);
+  }
+
+  .not-found__desc {
+    font-size: var(--text-lg);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .not-found__actions {
+    display: flex;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-2xl);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md) var(--space-xl);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    text-decoration: none;
+    min-height: 44px;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  }
+
+  .btn--primary {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+    border: 2px solid var(--color-primary);
+  }
+
+  .btn--primary:hover {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+  }
+
+  .btn--outline {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+  }
+
+  .btn--outline:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+
+  .not-found__links-label {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-sm);
+  }
+
+  .not-found__link-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm) var(--space-lg);
+  }
+
+  .not-found__link-list a {
+    font-size: var(--text-sm);
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .not-found__link-list a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 768px) {
+    .not-found__inner {
+      grid-template-columns: 1fr;
+      text-align: center;
+    }
+
+    .not-found__illustration {
+      order: -1;
+    }
+
+    .not-found__actions {
+      justify-content: center;
+    }
+
+    .not-found__link-list {
+      justify-content: center;
+    }
+  }
+</style>

@@ -1,0 +1,253 @@
+---
+import Page from '@layouts/Page.astro';
+import { getCollection } from 'astro:content';
+
+const allTerms = await getCollection('glossary', ({ data }) => !data.draft);
+const sorted = allTerms.sort((a, b) => a.data.term.localeCompare(b.data.term, 'zh-Hant'));
+
+const categories = [
+  { id: 'carbon', label: '碳管理', description: '碳盤查、碳費、碳中和等相關術語' },
+  { id: 'energy', label: '能源管理', description: '能源效率、節能、再生能源等相關術語' },
+  { id: 'esg', label: 'ESG', description: '環境、社會與治理相關術語' },
+  { id: 'policy', label: '政策法規', description: '相關法規、標準與政策術語' },
+  { id: 'certification', label: '認證標準', description: 'ISO 認證與其他國際標準術語' },
+] as const;
+
+type CategoryId = 'carbon' | 'energy' | 'esg' | 'policy' | 'certification';
+
+const byCategory = categories.reduce(
+  (acc, cat) => {
+    acc[cat.id] = sorted.filter((t) => t.data.category === cat.id);
+    return acc;
+  },
+  {} as Record<CategoryId, typeof sorted>
+);
+---
+
+<Page
+  title="專業詞彙"
+  description="醫療減碳、碳盤查、ESG、能源管理相關專業術語解釋，協助醫療機構快速掌握核心概念。"
+>
+  <div class="container page-content">
+
+    <header class="page-header">
+      <h1 class="page-title">專業詞彙</h1>
+      <p class="page-lead">
+        醫療減碳領域的核心術語解釋，從 ISO 標準到法規政策，幫助您快速理解重要概念。
+      </p>
+    </header>
+
+    <div class="glossary-toc">
+      <h2 class="toc-heading">快速導覽</h2>
+      <nav class="toc-nav" aria-label="詞彙分類">
+        {categories.map((cat) => (
+          byCategory[cat.id].length > 0 && (
+            <a href={`#cat-${cat.id}`} class="toc-link">
+              {cat.label}
+              <span class="toc-count">{byCategory[cat.id].length}</span>
+            </a>
+          )
+        ))}
+      </nav>
+    </div>
+
+    {categories.map((cat) => (
+      byCategory[cat.id].length > 0 && (
+        <section class="category-section" id={`cat-${cat.id}`}>
+          <div class="category-header">
+            <h2 class="category-heading">{cat.label}</h2>
+            <p class="category-desc">{cat.description}</p>
+          </div>
+          <div class="term-list">
+            {byCategory[cat.id].map((term) => (
+              <a href={`/glossary/${term.id}/`} class="term-item">
+                <div class="term-item__name">{term.data.term}</div>
+                <p class="term-item__def">{term.data.definition}</p>
+                {term.data.relatedTerms.length > 0 && (
+                  <div class="term-item__related">
+                    <span class="term-item__related-label">相關：</span>
+                    {term.data.relatedTerms.join('、')}
+                  </div>
+                )}
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    ))}
+
+    {allTerms.length === 0 && (
+      <p class="empty-state">詞彙資料準備中，敬請期待。</p>
+    )}
+
+  </div>
+</Page>
+
+<style>
+  .page-content {
+    padding-block: var(--space-3xl);
+  }
+
+  .page-header {
+    max-width: 72ch;
+    margin-bottom: var(--space-3xl);
+  }
+
+  .page-title {
+    font-size: var(--text-4xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-lg);
+  }
+
+  .page-lead {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+  }
+
+  .glossary-toc {
+    margin-bottom: var(--space-3xl);
+    padding: var(--space-xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+  }
+
+  .toc-heading {
+    font-size: var(--text-lg);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-md);
+  }
+
+  .toc-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .toc-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-lg);
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    text-decoration: none;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+    min-height: 36px;
+  }
+
+  .toc-link:hover {
+    background-color: var(--color-primary-pale);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .toc-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    border-radius: 9999px;
+  }
+
+  .category-section {
+    margin-bottom: var(--space-3xl);
+  }
+
+  .category-header {
+    margin-bottom: var(--space-xl);
+    padding-bottom: var(--space-md);
+    border-bottom: 2px solid var(--color-primary);
+  }
+
+  .category-heading {
+    font-size: var(--text-2xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+  }
+
+  .category-desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .term-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-lg);
+  }
+
+  .term-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .term-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .term-item__name {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--color-primary);
+    font-family: var(--font-heading);
+  }
+
+  .term-item__def {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .term-item__related {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    margin-top: auto;
+  }
+
+  .term-item__related-label {
+    font-weight: 600;
+  }
+
+  .empty-state {
+    color: var(--color-text-secondary);
+    font-size: var(--text-lg);
+    text-align: center;
+    padding: var(--space-3xl);
+  }
+
+  @media (max-width: 768px) {
+    .term-list {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,128 @@
+---
+import Page from '@layouts/Page.astro';
+---
+
+<Page
+  title="搜尋"
+  description="搜尋國際醫療減碳協會網站的所有內容，包括新聞、知識庫、案例與服務說明。"
+>
+  <div class="container page-content">
+
+    <header class="page-header">
+      <h1 class="page-title">網站搜尋</h1>
+      <p class="page-lead">在協會網站中搜尋您感興趣的主題。</p>
+    </header>
+
+    <div class="search-container">
+      <link href="/_pagefind/pagefind-ui.css" rel="stylesheet" />
+      <div id="search" class="search-widget"></div>
+    </div>
+
+    <div class="search-hints">
+      <h2 class="search-hints__title">搜尋建議</h2>
+      <div class="search-hints__grid">
+        <a href="/glossary/" class="hint-chip">碳盤查</a>
+        <a href="/glossary/" class="hint-chip">ISO 14064</a>
+        <a href="/services/" class="hint-chip">ESG 報告</a>
+        <a href="/services/" class="hint-chip">補助申請</a>
+        <a href="/insights/" class="hint-chip">政策解讀</a>
+        <a href="/case-studies/" class="hint-chip">成功案例</a>
+        <a href="/news/" class="hint-chip">碳費</a>
+        <a href="/insights/" class="hint-chip">淨零排放</a>
+      </div>
+    </div>
+
+  </div>
+</Page>
+
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const script = document.createElement('script');
+    script.src = '/_pagefind/pagefind-ui.js';
+    script.onload = () => {
+      // @ts-ignore
+      new PagefindUI({ element: '#search', showSubResults: true });
+    };
+    document.head.appendChild(script);
+  });
+</script>
+
+<style>
+  .page-content {
+    padding-block: var(--space-3xl);
+  }
+
+  .page-header {
+    max-width: 72ch;
+    margin-bottom: var(--space-3xl);
+  }
+
+  .page-title {
+    font-size: var(--text-4xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-lg);
+  }
+
+  .page-lead {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+  }
+
+  .search-container {
+    margin-bottom: var(--space-3xl);
+    max-width: 800px;
+  }
+
+  .search-widget {
+    --pagefind-ui-primary: var(--color-primary);
+    --pagefind-ui-text: var(--color-text);
+    --pagefind-ui-background: var(--color-paper);
+    --pagefind-ui-border: var(--color-border);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: var(--radius-md);
+    --pagefind-ui-font: var(--font-body);
+  }
+
+  .search-hints {
+    padding-top: var(--space-2xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .search-hints__title {
+    font-size: var(--text-lg);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-md);
+  }
+
+  .search-hints__grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .hint-chip {
+    padding: var(--space-sm) var(--space-lg);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: border-color var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+  }
+
+  .hint-chip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background-color: var(--color-primary-pale);
+  }
+</style>

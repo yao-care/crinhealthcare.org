@@ -1,0 +1,150 @@
+---
+import Page from '@layouts/Page.astro';
+import Timeline from '@components/charts/Timeline.svelte';
+import { readFileSync } from 'node:fs';
+import { parse } from 'yaml';
+
+const events = parse(readFileSync('data/events.yaml', 'utf-8')) as Array<{
+  date: string;
+  title: string;
+  organization: string;
+  attendees: number;
+  type: string;
+}>;
+---
+
+<Page
+  title="協會大事記"
+  description="國際醫療減碳協會重要里程碑與活動記錄，見證台灣醫療淨零轉型的歷程。"
+>
+  <div class="container page-content">
+
+    <header class="page-header">
+      <h1 class="page-title">協會大事記</h1>
+      <p class="page-lead">
+        從 2024 年成立至今，協會陪伴醫療院所一步一腳印走向淨零排放。
+      </p>
+    </header>
+
+    <div class="legend">
+      <div class="legend__item">
+        <span class="legend__dot legend__dot--certification"></span>
+        <span>授證典禮</span>
+      </div>
+      <div class="legend__item">
+        <span class="legend__dot legend__dot--seminar"></span>
+        <span>研討會</span>
+      </div>
+    </div>
+
+    <div class="timeline-wrapper">
+      <Timeline client:visible events={events} />
+    </div>
+
+    <div class="summary-stats">
+      <div class="stat">
+        <span class="stat__value">{events.length}</span>
+        <span class="stat__label">場重要活動</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value">{events.reduce((sum, e) => sum + e.attendees, 0)}</span>
+        <span class="stat__label">累計參與人次</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value">{new Set(events.map(e => e.organization)).size}</span>
+        <span class="stat__label">合作機構</span>
+      </div>
+    </div>
+
+  </div>
+</Page>
+
+<style>
+  .page-content {
+    padding-block: var(--space-3xl);
+  }
+
+  .page-header {
+    max-width: 72ch;
+    margin-bottom: var(--space-2xl);
+  }
+
+  .page-title {
+    font-size: var(--text-4xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-lg);
+  }
+
+  .page-lead {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+  }
+
+  .legend {
+    display: flex;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-xl);
+    flex-wrap: wrap;
+  }
+
+  .legend__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .legend__dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    display: inline-block;
+  }
+
+  .legend__dot--certification {
+    background-color: var(--color-accent);
+  }
+
+  .legend__dot--seminar {
+    background-color: var(--color-chart-4);
+  }
+
+  .timeline-wrapper {
+    margin-bottom: var(--space-3xl);
+  }
+
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-lg);
+    padding: var(--space-2xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    text-align: center;
+  }
+
+  .stat__value {
+    display: block;
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .stat__label {
+    display: block;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-top: var(--space-xs);
+  }
+
+  @media (max-width: 640px) {
+    .summary-stats {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

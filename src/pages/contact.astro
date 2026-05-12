@@ -1,0 +1,336 @@
+---
+import Page from '@layouts/Page.astro';
+---
+
+<Page
+  title="聯絡我們"
+  description="歡迎聯絡國際醫療減碳協會，無論是服務諮詢、合作洽談或一般問題，我們都很樂意回覆。"
+>
+  <div class="container page-content">
+
+    <header class="page-header">
+      <h1 class="page-title">聯絡我們</h1>
+      <p class="page-lead">
+        有任何問題或合作提案，歡迎透過以下方式與協會聯繫。
+      </p>
+    </header>
+
+    <div class="contact-layout">
+
+      <div class="contact-info">
+        <h2 class="section-heading">協會資訊</h2>
+
+        <div class="info-list">
+          <div class="info-item">
+            <div class="info-item__label">地址</div>
+            <div class="info-item__value">台灣（詳細地址請來信詢問）</div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">電子郵件</div>
+            <div class="info-item__value">
+              <a href="mailto:info@crinhealthcare.org" class="info-link">
+                info@crinhealthcare.org
+              </a>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="info-item__label">服務時間</div>
+            <div class="info-item__value">週一至週五，09:00–18:00</div>
+          </div>
+        </div>
+
+        <div class="faq-hint">
+          <h3 class="faq-hint__title">常見問題</h3>
+          <p class="faq-hint__desc">
+            在聯繫我們之前，也許您的問題已有解答。
+          </p>
+          <a href="/faq/" class="faq-hint__link">查看常見問題 →</a>
+        </div>
+
+        <div class="join-hint">
+          <h3 class="join-hint__title">想加入協會？</h3>
+          <p class="join-hint__desc">
+            如果您是醫療機構，希望享有協會的免費輔導服務，請前往申請入會頁面。
+          </p>
+          <a href="/join/" class="join-hint__link">申請入會 →</a>
+        </div>
+      </div>
+
+      <div class="contact-form-section">
+        <h2 class="section-heading">傳送訊息</h2>
+        <form
+          action="https://formspree.io/f/PLACEHOLDER"
+          method="POST"
+          class="contact-form"
+          novalidate
+        >
+          <div class="form-group">
+            <label for="name" class="form-label">
+              姓名
+              <span class="form-required" aria-label="必填">*</span>
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              class="form-input"
+              required
+              autocomplete="name"
+              placeholder="請輸入您的姓名"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="organization" class="form-label">單位 / 機構</label>
+            <input
+              type="text"
+              id="organization"
+              name="organization"
+              class="form-input"
+              placeholder="您的服務單位（選填）"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="email" class="form-label">
+              電子郵件
+              <span class="form-required" aria-label="必填">*</span>
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="form-input"
+              required
+              autocomplete="email"
+              placeholder="your@email.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="phone" class="form-label">聯絡電話</label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              class="form-input"
+              autocomplete="tel"
+              placeholder="（選填）"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="message" class="form-label">
+              訊息內容
+              <span class="form-required" aria-label="必填">*</span>
+            </label>
+            <textarea
+              id="message"
+              name="message"
+              class="form-textarea"
+              rows="6"
+              required
+              placeholder="請描述您的問題或合作需求…"
+            ></textarea>
+          </div>
+
+          <input type="hidden" name="_subject" value="一般諮詢 — 國際醫療減碳協會" />
+          <input type="text" name="_gotcha" style="display:none" />
+
+          <button type="submit" class="form-submit">
+            送出訊息
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+  </div>
+</Page>
+
+<style>
+  .page-content {
+    padding-block: var(--space-3xl);
+  }
+
+  .page-header {
+    max-width: 72ch;
+    margin-bottom: var(--space-3xl);
+  }
+
+  .page-title {
+    font-size: var(--text-4xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-lg);
+  }
+
+  .page-lead {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+  }
+
+  .contact-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: var(--space-3xl);
+    align-items: start;
+  }
+
+  .section-heading {
+    font-size: var(--text-2xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-xl);
+  }
+
+  .info-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .info-item__label {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-xs);
+  }
+
+  .info-item__value {
+    font-size: var(--text-base);
+    color: var(--color-text);
+    line-height: var(--leading-normal);
+  }
+
+  .info-link {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  .info-link:hover {
+    text-decoration: underline;
+  }
+
+  .faq-hint,
+  .join-hint {
+    padding: var(--space-lg);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-md);
+  }
+
+  .faq-hint__title,
+  .join-hint__title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+  }
+
+  .faq-hint__desc,
+  .join-hint__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+    margin-bottom: var(--space-sm);
+  }
+
+  .faq-hint__link,
+  .join-hint__link {
+    font-size: var(--text-sm);
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .faq-hint__link:hover,
+  .join-hint__link:hover {
+    text-decoration: underline;
+  }
+
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    padding: var(--space-2xl);
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .form-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .form-required {
+    color: #dc2626;
+    margin-left: 2px;
+  }
+
+  .form-input,
+  .form-textarea {
+    padding: var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-family: inherit;
+    color: var(--color-text);
+    background-color: var(--color-paper);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    min-height: 44px;
+  }
+
+  .form-input:focus,
+  .form-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-pale);
+  }
+
+  .form-textarea {
+    resize: vertical;
+    min-height: 140px;
+  }
+
+  .form-submit {
+    padding: var(--space-md) var(--space-2xl);
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+    min-height: 48px;
+    align-self: flex-start;
+  }
+
+  .form-submit:hover {
+    background-color: var(--color-primary-dark);
+  }
+
+  @media (max-width: 900px) {
+    .contact-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

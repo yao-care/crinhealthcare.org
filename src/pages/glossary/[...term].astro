@@ -1,0 +1,184 @@
+---
+import Article from '@layouts/Article.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('glossary');
+  return entries
+    .filter((e) => !e.data.draft)
+    .map((entry) => ({
+      params: { term: entry.id },
+      props: { entry },
+    }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const { term, definition, category, relatedTerms, relatedServices } = entry.data;
+
+const categoryLabel: Record<string, string> = {
+  carbon: '碳管理',
+  energy: '能源管理',
+  esg: 'ESG',
+  policy: '政策法規',
+  certification: '認證標準',
+};
+
+const serviceLabel: Record<string, string> = {
+  'carbon-audit': '公益 ISO 14064-1 碳盤查',
+  'ems': '能源管理系統',
+  'esg-report': 'ESG 報告',
+  'awards': '永續獎項輔導',
+  'subsidies': '節能補助申請',
+  'health-taiwan': '健康台灣計畫',
+};
+---
+
+<Article
+  title={term}
+  description={definition}
+>
+  <div class="term-category">
+    <a href={`/glossary/#cat-${category}`} class="category-badge">
+      {categoryLabel[category] ?? category}
+    </a>
+  </div>
+
+  <div class="term-definition">
+    <p>{definition}</p>
+  </div>
+
+  <Content />
+
+  {relatedTerms.length > 0 && (
+    <div class="related-terms">
+      <h3 class="related-heading">相關術語</h3>
+      <div class="related-list">
+        {relatedTerms.map((t) => (
+          <a href={`/glossary/${t}/`} class="related-link">
+            {t}
+          </a>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {relatedServices.length > 0 && (
+    <div class="related-services">
+      <h3 class="related-heading">相關服務</h3>
+      <div class="related-list">
+        {relatedServices.map((svc) => (
+          <a href={`/services/${svc}/`} class="service-link">
+            {serviceLabel[svc] ?? svc}
+          </a>
+        ))}
+      </div>
+    </div>
+  )}
+
+  <div class="back-nav">
+    <a href="/glossary/" class="back-link">← 返回詞彙總覽</a>
+  </div>
+</Article>
+
+<style>
+  .term-category {
+    margin-bottom: var(--space-lg);
+  }
+
+  .category-badge {
+    display: inline-block;
+    padding: var(--space-xs) var(--space-md);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .category-badge:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+
+  .term-definition {
+    font-size: var(--text-lg);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+    border-left: 4px solid var(--color-primary);
+    padding-left: var(--space-lg);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .related-terms,
+  .related-services {
+    margin-top: var(--space-2xl);
+    padding: var(--space-xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+  }
+
+  .related-heading {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-md);
+  }
+
+  .related-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .related-link {
+    padding: var(--space-xs) var(--space-md);
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: border-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .related-link:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .service-link {
+    padding: var(--space-xs) var(--space-md);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    border-radius: 9999px;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .service-link:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+
+  .back-nav {
+    margin-top: var(--space-3xl);
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .back-link {
+    font-size: var(--text-sm);
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .back-link:hover {
+    text-decoration: underline;
+  }
+</style>

@@ -1,0 +1,214 @@
+---
+import Article from '@layouts/Article.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('case-studies');
+  return entries
+    .filter((e) => !e.data.draft)
+    .map((entry) => ({
+      params: { slug: entry.id },
+      props: { entry },
+    }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const { hospital, publishDate, summary, services, metrics, tags } = entry.data;
+
+const systemLabel: Record<string, string> = {
+  military: '國軍醫院',
+  veterans: '榮民醫院',
+  other: '其他醫院',
+};
+
+const serviceLabel: Record<string, string> = {
+  'carbon-audit': '碳盤查',
+  'ems': '能管系統',
+  'esg-report': 'ESG 報告',
+  'awards': '獎項輔導',
+  'subsidies': '補助申請',
+  'health-taiwan': '健康台灣',
+};
+---
+
+<Article
+  title={hospital.name}
+  description={summary}
+  publishDate={publishDate}
+  tags={tags}
+>
+  <div class="case-meta">
+    <div class="case-meta__hospital">
+      <span class="case-meta__system">{systemLabel[hospital.system]}</span>
+      <span class="case-meta__location">{hospital.location}</span>
+    </div>
+
+    <div class="case-meta__summary">
+      <p>{summary}</p>
+    </div>
+
+    <div class="case-meta__services">
+      <h3 class="case-meta__label">協作服務</h3>
+      <div class="services-list">
+        {services.map((svc) => (
+          <a href={`/services/${svc}/`} class="service-badge">
+            {serviceLabel[svc] ?? svc}
+          </a>
+        ))}
+      </div>
+    </div>
+
+    {(metrics.energySavingPercent || metrics.subsidyAmount || metrics.certifications.length > 0) && (
+      <div class="case-metrics">
+        <h3 class="case-meta__label">成果指標</h3>
+        <div class="metrics-grid">
+          {metrics.energySavingPercent != null && metrics.energySavingPercent > 0 && (
+            <div class="metric">
+              <span class="metric__value">{metrics.energySavingPercent}%</span>
+              <span class="metric__label">節能率</span>
+            </div>
+          )}
+          {metrics.subsidyAmount != null && metrics.subsidyAmount > 0 && (
+            <div class="metric">
+              <span class="metric__value">{(metrics.subsidyAmount / 10000).toLocaleString()} 萬</span>
+              <span class="metric__label">補助金額（元）</span>
+            </div>
+          )}
+          {metrics.certifications.length > 0 && (
+            <div class="metric metric--certs">
+              <ul class="cert-list">
+                {metrics.certifications.map((cert) => (
+                  <li class="cert-list__item">{cert}</li>
+                ))}
+              </ul>
+              <span class="metric__label">取得認證</span>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+
+  <Content />
+</Article>
+
+<style>
+  .case-meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+    padding: var(--space-xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .case-meta__hospital {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .case-meta__system {
+    padding: var(--space-xs) var(--space-sm);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+  }
+
+  .case-meta__location {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .case-meta__summary p {
+    font-size: var(--text-base);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+  }
+
+  .case-meta__label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-sm);
+  }
+
+  .services-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .service-badge {
+    padding: var(--space-xs) var(--space-md);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .service-badge:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+
+  .metrics-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-lg);
+  }
+
+  .metric {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .metric__value {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .metric__label {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .metric--certs {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .cert-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--space-xs) 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .cert-list__item {
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  .cert-list__item::before {
+    content: '✓';
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+</style>

@@ -1,0 +1,218 @@
+---
+import Article from '@layouts/Article.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('insights');
+  return entries
+    .filter((e) => !e.data.draft)
+    .map((entry) => ({
+      params: { slug: entry.id },
+      props: { entry },
+    }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const { title, publishDate, summary, tags, internationalBenchmark, heroImage } = entry.data;
+
+const categoryLabel: Record<string, string> = {
+  policy: '政策解讀',
+  guide: '知識指南',
+  benchmark: '國際標竿',
+};
+---
+
+<Article
+  title={title}
+  description={summary}
+  publishDate={publishDate}
+  tags={tags}
+  ogImage={heroImage?.src}
+>
+  {heroImage && (
+    <div class="hero-image">
+      <img
+        src={heroImage.src}
+        alt={heroImage.alt}
+        class="hero-image__img"
+        loading="eager"
+      />
+      {heroImage.credit && (
+        <p class="hero-image__credit">{heroImage.credit}</p>
+      )}
+    </div>
+  )}
+
+  <div class="insight-category">
+    <span class="category-badge">{categoryLabel[entry.data.category]}</span>
+  </div>
+
+  <div class="insight-summary">
+    <p>{summary}</p>
+  </div>
+
+  <Content />
+
+  {internationalBenchmark && (
+    <aside class="benchmark" aria-label="國際標竿資料">
+      <h3 class="benchmark__title">國際標竿：{internationalBenchmark.region}</h3>
+      <div class="benchmark__body">
+        <h4 class="benchmark__subtitle">{internationalBenchmark.title}</h4>
+        <p class="benchmark__summary">{internationalBenchmark.summary}</p>
+        <p class="benchmark__comparison">{internationalBenchmark.comparison}</p>
+        <a
+          href={internationalBenchmark.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="benchmark__link"
+        >
+          閱讀原始資料 ↗
+        </a>
+      </div>
+    </aside>
+  )}
+
+  {tags.length > 0 && (
+    <div class="related-tags">
+      <h3 class="related-tags__heading">相關標籤</h3>
+      <div class="related-tags__list">
+        {tags.map((tag) => (
+          <a href={`/tags/${tag}/`} class="related-tag">{tag}</a>
+        ))}
+      </div>
+    </div>
+  )}
+</Article>
+
+<style>
+  .hero-image {
+    margin-bottom: var(--space-2xl);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .hero-image__img {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 400px;
+    object-fit: cover;
+  }
+
+  .hero-image__credit {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    text-align: right;
+    padding-top: var(--space-xs);
+  }
+
+  .insight-category {
+    margin-bottom: var(--space-lg);
+  }
+
+  .category-badge {
+    padding: var(--space-xs) var(--space-md);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    border-radius: 9999px;
+  }
+
+  .insight-summary {
+    font-size: var(--text-lg);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+    border-left: 4px solid var(--color-primary);
+    padding-left: var(--space-lg);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .benchmark {
+    margin-top: var(--space-3xl);
+    padding: var(--space-xl);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    border-top: 4px solid var(--color-chart-4);
+  }
+
+  .benchmark__title {
+    font-size: var(--text-lg);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-lg);
+  }
+
+  .benchmark__subtitle {
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-sm);
+  }
+
+  .benchmark__summary {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+    margin-bottom: var(--space-sm);
+  }
+
+  .benchmark__comparison {
+    font-size: var(--text-sm);
+    color: var(--color-text);
+    line-height: var(--leading-normal);
+    margin-bottom: var(--space-lg);
+    font-style: italic;
+  }
+
+  .benchmark__link {
+    font-size: var(--text-sm);
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .benchmark__link:hover {
+    text-decoration: underline;
+  }
+
+  .related-tags {
+    margin-top: var(--space-3xl);
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .related-tags__heading {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-md);
+  }
+
+  .related-tags__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .related-tag {
+    padding: var(--space-xs) var(--space-md);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border-radius: 9999px;
+    text-decoration: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .related-tag:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+</style>

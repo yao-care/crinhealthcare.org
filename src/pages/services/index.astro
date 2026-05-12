@@ -1,0 +1,130 @@
+---
+import Page from '@layouts/Page.astro';
+import ServiceGrid from '@components/blocks/ServiceGrid.astro';
+---
+
+<Page
+  title="公益服務項目"
+  description="國際醫療減碳協會提供完全免費的碳盤查、能源管理、ESG報告、補助申請等公益服務，協助醫療院所達成淨零目標。"
+>
+  <div class="container page-content">
+
+    <header class="page-header">
+      <h1 class="page-title">公益服務項目</h1>
+      <p class="page-lead">
+        協會提供六大類完全公益的專業服務，從碳盤查到 ESG 報告，全程陪伴醫療院所邁向淨零排放。
+      </p>
+    </header>
+
+    <ServiceGrid />
+
+    <section class="cta-section">
+      <div class="cta-inner">
+        <h2 class="cta-title">準備好開始了嗎？</h2>
+        <p class="cta-desc">
+          所有服務均為公益免費提供。歡迎聯繫我們，了解如何啟動貴院的淨零轉型之旅。
+        </p>
+        <div class="cta-actions">
+          <a href="/contact/" class="btn btn--primary">立即聯繫</a>
+          <a href="/case-studies/" class="btn btn--outline">查看成功案例</a>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</Page>
+
+<style>
+  .page-content {
+    padding-block: var(--space-3xl);
+  }
+
+  .page-header {
+    max-width: 72ch;
+    margin-bottom: var(--space-3xl);
+  }
+
+  .page-title {
+    font-size: var(--text-4xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-lg);
+  }
+
+  .page-lead {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+  }
+
+  .cta-section {
+    margin-top: var(--space-3xl);
+  }
+
+  .cta-inner {
+    background-color: var(--color-primary-pale);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3xl);
+    text-align: center;
+  }
+
+  .cta-title {
+    font-size: var(--text-2xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-md);
+  }
+
+  .cta-desc {
+    font-size: var(--text-lg);
+    color: var(--color-text-secondary);
+    max-width: 60ch;
+    margin-inline: auto;
+    line-height: var(--leading-normal);
+    margin-bottom: var(--space-xl);
+  }
+
+  .cta-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md) var(--space-xl);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    text-decoration: none;
+    min-height: 44px;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  }
+
+  .btn--primary {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+    border: 2px solid var(--color-primary);
+  }
+
+  .btn--primary:hover {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+  }
+
+  .btn--outline {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+  }
+
+  .btn--outline:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+</style>

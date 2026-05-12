@@ -1,0 +1,275 @@
+---
+import Page from '@layouts/Page.astro';
+---
+
+<Page
+  title="關於協會"
+  description="國際醫療減碳協會以公益為初心，引領台灣醫療體系邁向永續未來。了解我們的使命、願景與重要里程碑。"
+>
+  <div class="container page-content">
+
+    <header class="page-header">
+      <h1 class="page-title">關於國際醫療減碳協會</h1>
+      <p class="page-lead">
+        以專業為基石，以公益為初心，引領台灣醫療體系邁向永續未來。
+      </p>
+    </header>
+
+    <section class="section">
+      <h2 class="section-heading">我們的使命</h2>
+      <div class="prose">
+        <p>
+          國際醫療減碳協會（CRIN Healthcare）成立於 2024 年，是台灣第一個專注於醫療機構淨零轉型的非營利組織。
+          協會匯聚醫療、工程、環境管理與永續治理等領域的專業人才，以完全公益的方式協助醫療院所完成碳盤查、建立能源管理系統、撰寫 ESG 報告，並申請政府節能補助。
+        </p>
+        <p>
+          我們相信，醫療機構是社區的健康守護者，更應率先實踐環境責任。透過系統性的減碳輔導，協助每一家醫院從「知道問題」到「解決問題」，讓永續不再是口號，而是可量化的成果。
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-heading">我們的願景</h2>
+      <div class="vision-grid">
+        <div class="vision-card">
+          <div class="vision-card__number">01</div>
+          <h3 class="vision-card__title">全面覆蓋</h3>
+          <p class="vision-card__desc">2030 年前，協助台灣 100 家以上醫療院所完成 ISO 14064-1 碳盤查認證。</p>
+        </div>
+        <div class="vision-card">
+          <div class="vision-card__number">02</div>
+          <h3 class="vision-card__title">國際接軌</h3>
+          <p class="vision-card__desc">建立符合 TCFD、GRI 等國際框架的醫療 ESG 揭露標準，接軌全球永續報告趨勢。</p>
+        </div>
+        <div class="vision-card">
+          <div class="vision-card__number">03</div>
+          <h3 class="vision-card__title">政策影響</h3>
+          <p class="vision-card__desc">成為台灣醫療淨零政策的重要諮詢夥伴，推動醫院評鑑納入碳管理指標。</p>
+        </div>
+        <div class="vision-card">
+          <div class="vision-card__number">04</div>
+          <h3 class="vision-card__title">知識共享</h3>
+          <p class="vision-card__desc">建立開放的醫療減碳知識庫，讓每一家醫院都能從前人的經驗中學習。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-heading">重要里程碑</h2>
+      <div class="milestone-list">
+        <div class="milestone">
+          <div class="milestone__year">2024</div>
+          <div class="milestone__content">
+            <h3 class="milestone__title">協會正式成立</h3>
+            <p class="milestone__desc">於 2024 年 7 月完成社團法人登記，啟動第一批合作醫院碳盤查輔導計畫。</p>
+          </div>
+        </div>
+        <div class="milestone">
+          <div class="milestone__year">2024</div>
+          <div class="milestone__content">
+            <h3 class="milestone__title">首次授證典禮</h3>
+            <p class="milestone__desc">國軍桃園總醫院完成 ISO 14064-1 第三方認證，成為協會首個成功案例。</p>
+          </div>
+        </div>
+        <div class="milestone">
+          <div class="milestone__year">2025</div>
+          <div class="milestone__content">
+            <h3 class="milestone__title">多院所聯合授證</h3>
+            <p class="milestone__desc">國軍高雄總醫院完成碳盤查認證，協會合作醫院突破 10 家。</p>
+          </div>
+        </div>
+        <div class="milestone">
+          <div class="milestone__year">2026</div>
+          <div class="milestone__content">
+            <h3 class="milestone__title">ESG 報告服務啟動</h3>
+            <p class="milestone__desc">正式推出符合 GRI 標準的醫療機構 ESG 報告撰寫輔導服務，協助院所對外揭露永續績效。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--cta">
+      <h2 class="section-heading">加入我們的行列</h2>
+      <p class="prose">
+        無論您是醫療院所管理者、永續領域專業人士，或是關心醫療環境責任的公民，都歡迎以不同方式與協會合作。
+      </p>
+      <div class="cta-actions">
+        <a href="/join/" class="btn btn--primary">申請成為會員</a>
+        <a href="/about/team/" class="btn btn--outline">認識團隊成員</a>
+      </div>
+    </section>
+
+  </div>
+</Page>
+
+<style>
+  .page-content {
+    padding-block: var(--space-3xl);
+  }
+
+  .page-header {
+    max-width: 72ch;
+    margin-bottom: var(--space-3xl);
+  }
+
+  .page-title {
+    font-size: var(--text-4xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-lg);
+  }
+
+  .page-lead {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+  }
+
+  .section {
+    margin-bottom: var(--space-3xl);
+  }
+
+  .section-heading {
+    font-size: var(--text-2xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-xl);
+  }
+
+  .vision-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-lg);
+  }
+
+  .vision-card {
+    padding: var(--space-xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+  }
+
+  .vision-card__number {
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    color: var(--color-primary-light);
+    margin-bottom: var(--space-sm);
+  }
+
+  .vision-card__title {
+    font-size: var(--text-lg);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-sm);
+  }
+
+  .vision-card__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+  }
+
+  .milestone-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  .milestone {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: var(--space-lg);
+    align-items: start;
+  }
+
+  .milestone__year {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-primary);
+    text-align: center;
+    padding: var(--space-sm);
+    background-color: var(--color-primary-pale);
+    border-radius: var(--radius-sm);
+  }
+
+  .milestone__title {
+    font-size: var(--text-lg);
+    font-family: var(--font-heading);
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+  }
+
+  .milestone__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+  }
+
+  .section--cta {
+    text-align: center;
+    padding-block: var(--space-3xl);
+    background-color: var(--color-surface);
+    border-radius: var(--radius-lg);
+  }
+
+  .cta-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: center;
+    margin-top: var(--space-xl);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md) var(--space-xl);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+    min-height: 44px;
+  }
+
+  .btn--primary {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+    border: 2px solid var(--color-primary);
+  }
+
+  .btn--primary:hover {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+  }
+
+  .btn--outline {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+  }
+
+  .btn--outline:hover {
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+  }
+
+  @media (max-width: 768px) {
+    .vision-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .milestone {
+      grid-template-columns: 60px 1fr;
+    }
+
+    .cta-actions {
+      flex-direction: column;
+      align-items: center;
+    }
+  }
+</style>

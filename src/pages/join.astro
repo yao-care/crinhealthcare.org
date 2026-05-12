@@ -1,0 +1,313 @@
+---
+import Page from '@layouts/Page.astro';
+---
+
+<Page
+  title="申請入會"
+  description="加入國際醫療減碳協會，與志同道合的醫療永續先驅共同推動台灣醫療淨零轉型。"
+>
+  <div class="container page-content">
+
+    <header class="page-header">
+      <h1 class="page-title">申請入會</h1>
+      <p class="page-lead">
+        成為協會會員，享有專業輔導資源，並加入推動台灣醫療淨零轉型的行列。
+      </p>
+    </header>
+
+    <div class="join-layout">
+
+      <div class="join-benefits">
+        <h2 class="section-heading">會員權益</h2>
+        <ul class="benefits-list">
+          <li class="benefit-item">
+            <span class="benefit-item__icon" aria-hidden="true">✓</span>
+            <div>
+              <h3 class="benefit-item__title">免費碳盤查輔導</h3>
+              <p class="benefit-item__desc">全程享有協會專業團隊的 ISO 14064-1 碳盤查輔導，從啟動到第三方認證。</p>
+            </div>
+          </li>
+          <li class="benefit-item">
+            <span class="benefit-item__icon" aria-hidden="true">✓</span>
+            <div>
+              <h3 class="benefit-item__title">能源管理系統建置</h3>
+              <p class="benefit-item__desc">協助規劃與建置符合 ISO 50001 精神的能源管理制度與監控系統。</p>
+            </div>
+          </li>
+          <li class="benefit-item">
+            <span class="benefit-item__icon" aria-hidden="true">✓</span>
+            <div>
+              <h3 class="benefit-item__title">ESG 報告撰寫</h3>
+              <p class="benefit-item__desc">協助撰寫符合 GRI 框架的永續報告，強化院所對外揭露與品牌形象。</p>
+            </div>
+          </li>
+          <li class="benefit-item">
+            <span class="benefit-item__icon" aria-hidden="true">✓</span>
+            <div>
+              <h3 class="benefit-item__title">補助申請協助</h3>
+              <p class="benefit-item__desc">媒合政府節能補助資源，協助院所申請能源局、環境部等相關補助計畫。</p>
+            </div>
+          </li>
+          <li class="benefit-item">
+            <span class="benefit-item__icon" aria-hidden="true">✓</span>
+            <div>
+              <h3 class="benefit-item__title">研討會與知識交流</h3>
+              <p class="benefit-item__desc">優先受邀參加協會舉辦的專業研討會、工作坊與國際交流活動。</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="join-form-section">
+        <h2 class="section-heading">填寫申請表</h2>
+        <form
+          action="https://formspree.io/f/PLACEHOLDER"
+          method="POST"
+          class="join-form"
+          novalidate
+        >
+          <div class="form-group">
+            <label for="name" class="form-label">
+              聯絡人姓名
+              <span class="form-required" aria-label="必填">*</span>
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              class="form-input"
+              required
+              autocomplete="name"
+              placeholder="請輸入您的姓名"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="organization" class="form-label">
+              機構名稱
+              <span class="form-required" aria-label="必填">*</span>
+            </label>
+            <input
+              type="text"
+              id="organization"
+              name="organization"
+              class="form-input"
+              required
+              placeholder="醫院或機構全名"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="email" class="form-label">
+              電子郵件
+              <span class="form-required" aria-label="必填">*</span>
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="form-input"
+              required
+              autocomplete="email"
+              placeholder="your@hospital.gov.tw"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="phone" class="form-label">聯絡電話</label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              class="form-input"
+              autocomplete="tel"
+              placeholder="02-XXXX-XXXX 或 0912-XXX-XXX"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="message" class="form-label">申請說明 / 備注</label>
+            <textarea
+              id="message"
+              name="message"
+              class="form-textarea"
+              rows="5"
+              placeholder="請說明貴機構目前的減碳現況，或您希望協會協助的具體事項。"
+            ></textarea>
+          </div>
+
+          <input type="hidden" name="_subject" value="新會員申請 — 國際醫療減碳協會" />
+          <input type="text" name="_gotcha" style="display:none" />
+
+          <button type="submit" class="form-submit">
+            送出申請
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+  </div>
+</Page>
+
+<style>
+  .page-content {
+    padding-block: var(--space-3xl);
+  }
+
+  .page-header {
+    max-width: 72ch;
+    margin-bottom: var(--space-3xl);
+  }
+
+  .page-title {
+    font-size: var(--text-4xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: var(--leading-tight);
+    margin-bottom: var(--space-lg);
+  }
+
+  .page-lead {
+    font-size: var(--text-xl);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+  }
+
+  .join-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3xl);
+    align-items: start;
+  }
+
+  .section-heading {
+    font-size: var(--text-2xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-xl);
+  }
+
+  .benefits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  .benefit-item {
+    display: flex;
+    gap: var(--space-md);
+    align-items: flex-start;
+  }
+
+  .benefit-item__icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  .benefit-item__title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-xs);
+  }
+
+  .benefit-item__desc {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+  }
+
+  .join-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    padding: var(--space-2xl);
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .form-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .form-required {
+    color: #dc2626;
+    margin-left: 2px;
+  }
+
+  .form-input,
+  .form-textarea {
+    padding: var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-family: inherit;
+    color: var(--color-text);
+    background-color: var(--color-paper);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    min-height: 44px;
+  }
+
+  .form-input:focus,
+  .form-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-pale);
+  }
+
+  .form-textarea {
+    resize: vertical;
+    min-height: 120px;
+  }
+
+  .form-submit {
+    padding: var(--space-md) var(--space-2xl);
+    background-color: var(--color-primary);
+    color: var(--color-paper);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+    min-height: 48px;
+    align-self: flex-start;
+  }
+
+  .form-submit:hover {
+    background-color: var(--color-primary-dark);
+  }
+
+  @media (max-width: 900px) {
+    .join-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
