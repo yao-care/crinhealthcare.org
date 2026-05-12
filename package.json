@@ -7,7 +7,15 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "seed:team": "tsx scripts/seed-team.ts",
+    "seed:events": "tsx scripts/seed-events.ts",
+    "seed:services": "tsx scripts/seed-services.ts",
+    "seed:case-studies": "tsx scripts/seed-case-studies.ts",
+    "seed:glossary": "tsx scripts/seed-glossary.ts",
+    "seed:faq": "tsx scripts/seed-faq.ts",
+    "seed:all": "tsx scripts/seed-all.ts",
+    "fetch-images": "tsx scripts/fetch-images.ts"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.18",
@@ -27,6 +35,7 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.95.2",
     "@types/d3-array": "^3.2.2",
     "@types/d3-format": "^3.0.4",
     "@types/d3-geo": "^3.1.0",
@@ -41,6 +50,7 @@
     "satori": "^0.26.0",
     "satori-html": "^0.3.2",
     "sharp": "^0.34.5",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "pnpm": {
