@@ -1,9 +1,93 @@
 ---
 import Page from '@layouts/Page.astro';
+import Hero from '@components/blocks/Hero.astro';
+import ServiceGrid from '@components/blocks/ServiceGrid.astro';
+import NewsFeed from '@components/blocks/NewsFeed.astro';
+import Quote from '@components/blocks/Quote.astro';
+import CtaBanner from '@components/blocks/CtaBanner.astro';
+import CountUp from '@components/charts/CountUp.svelte';
+import ResultsMap from '@components/charts/ResultsMap.svelte';
+import { aggregateMetrics } from '@utils/metrics';
+import { getCollection } from 'astro:content';
+
+const metrics = await aggregateMetrics();
+const cases = await getCollection('case-studies', ({ data }) => !data.draft);
+
+// Prepare map data from case-studies for ResultsMap
+const mapData = cases.map((c) => ({
+  name: c.data.hospital.name,
+  location: c.data.hospital.location,
+  system: c.data.hospital.system,
+  slug: c.id.replace(/\.[^.]+$/, ''),
+  energySaving: c.data.metrics.energySavingPercent ?? 0,
+  subsidy: c.data.metrics.subsidyAmount ?? 0,
+}));
 ---
-<Page title="首頁">
-  <div class="container" style="padding-block: var(--space-3xl)">
-    <h1>國際醫療減碳協會</h1>
-    <p>網站建置中 — layouts and components ready</p>
-  </div>
+
+<Page title="首頁" description="國際醫療減碳協會 — 協助醫療院所達成淨零排放">
+  <Hero />
+
+  <section class="metrics-section">
+    <div class="container">
+      <CountUp client:visible metrics={metrics} />
+    </div>
+  </section>
+
+  <section class="services-section">
+    <div class="container">
+      <h2 class="section-heading">公益服務項目</h2>
+      <ServiceGrid />
+    </div>
+  </section>
+
+  <section class="results-section">
+    <div class="container">
+      <h2 class="section-heading">合作成果</h2>
+      <ResultsMap client:visible hospitals={mapData} />
+    </div>
+  </section>
+
+  <section class="news-section">
+    <div class="container">
+      <h2 class="section-heading">最新動態</h2>
+      <NewsFeed />
+    </div>
+  </section>
+
+  <Quote
+    quote="以專業為基石，以公益為初心，引領台灣醫療體系邁向永續未來。"
+    author="葉蔭民"
+    title="國際醫療減碳協會理事長"
+  />
+
+  <CtaBanner />
 </Page>
+
+<style>
+  .metrics-section {
+    padding-block: var(--space-xl);
+    background-color: var(--color-surface);
+  }
+
+  .services-section {
+    padding-block: var(--space-3xl);
+  }
+
+  .results-section {
+    padding-block: var(--space-3xl);
+    background-color: var(--color-surface);
+  }
+
+  .news-section {
+    padding-block: var(--space-3xl);
+  }
+
+  .section-heading {
+    font-size: var(--text-2xl);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: var(--space-xl);
+    text-align: center;
+  }
+</style>
