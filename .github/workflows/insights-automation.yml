@@ -24,7 +24,7 @@ jobs:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Generate insight article
@@ -75,6 +75,6 @@ jobs:
           - **時間:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
 
           請檢查 workflow run 日誌。" \
-            --label "bug,automation"
+            --label "bug"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
