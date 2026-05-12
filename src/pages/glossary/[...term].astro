@@ -70,6 +70,7 @@ const serviceLabel: Record<string, string> = {
 <Article
   title={term}
   description={definition}
+  ogImage={`/og/glossary/${entry.id}.png`}
 >
   <JsonLd schema={[definedTermSchema, breadcrumbSchema]} />
   <div class="term-category">

@@ -51,6 +51,7 @@ const breadcrumbSchema = breadcrumb([
 <Page
   title={name}
   description={description}
+  ogImage={`/og/services/${entry.id}.png`}
 >
   <JsonLd schema={[serviceSchema, breadcrumbSchema]} />
   <div class="container page-content">

@@ -63,7 +63,7 @@ const breadcrumbSchema = breadcrumb([
   description={summary}
   publishDate={publishDate}
   tags={tags}
-  ogImage={heroImage?.src}
+  ogImage={`/og/insights/${entry.id}.png`}
 >
   <JsonLd schema={[articleSchema, breadcrumbSchema]} />
   {heroImage && (

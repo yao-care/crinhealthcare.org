@@ -79,6 +79,7 @@ const serviceLabel: Record<string, string> = {
   description={summary}
   publishDate={publishDate}
   tags={tags}
+  ogImage={`/og/case-studies/${entry.id}.png`}
 >
   <JsonLd schema={[articleSchema, breadcrumbSchema]} />
   <div class="case-meta">
