@@ -1,0 +1,37 @@
+---
+import { getCollection } from 'astro:content';
+import ServiceCard from './ServiceCard.astro';
+
+const services = await getCollection('services');
+---
+
+<div class="service-grid">
+  {services.map((service) => (
+    <ServiceCard
+      name={service.data.name}
+      description={service.data.description}
+      href={`/services/${service.id.replace(/\.[^.]+$/, '')}/`}
+      icon={service.data.icon}
+    />
+  ))}
+</div>
+
+<style>
+  .service-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-lg);
+  }
+
+  @media (max-width: 960px) {
+    .service-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .service-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

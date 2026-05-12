@@ -1,4 +1,5 @@
 import { defineCollection, z } from 'astro:content';
+import { glob } from 'astro/loaders';
 
 const imageSchema = z.object({
   src: z.string(),
@@ -16,7 +17,7 @@ const internationalBenchmarkSchema = z.object({
 });
 
 const news = defineCollection({
-  type: 'content',
+  loader: glob({ base: 'src/content/news', pattern: '**/*.md' }),
   schema: z.object({
     title: z.string(),
     source: z.string(),
@@ -33,7 +34,7 @@ const news = defineCollection({
 });
 
 const insights = defineCollection({
-  type: 'content',
+  loader: glob({ base: 'src/content/insights', pattern: '**/*.md' }),
   schema: z.object({
     title: z.string(),
     publishDate: z.coerce.date(),
@@ -48,7 +49,7 @@ const insights = defineCollection({
 });
 
 const caseStudies = defineCollection({
-  type: 'content',
+  loader: glob({ base: 'src/content/case-studies', pattern: '**/*.md' }),
   schema: z.object({
     hospital: z.object({
       name: z.string(),
@@ -72,7 +73,7 @@ const caseStudies = defineCollection({
 });
 
 const glossary = defineCollection({
-  type: 'content',
+  loader: glob({ base: 'src/content/glossary', pattern: '**/*.md' }),
   schema: z.object({
     term: z.string(),
     definition: z.string(),
@@ -85,7 +86,7 @@ const glossary = defineCollection({
 });
 
 const faq = defineCollection({
-  type: 'content',
+  loader: glob({ base: 'src/content/faq', pattern: '**/*.md' }),
   schema: z.object({
     question: z.string(),
     answer: z.string(),
@@ -95,7 +96,7 @@ const faq = defineCollection({
 });
 
 const services = defineCollection({
-  type: 'content',
+  loader: glob({ base: 'src/content/services', pattern: '**/*.md' }),
   schema: z.object({
     name: z.string(),
     description: z.string(),

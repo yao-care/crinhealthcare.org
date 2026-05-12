@@ -1,0 +1,50 @@
+---
+import { getCollection } from 'astro:content';
+import NewsItem from './NewsItem.astro';
+
+const allNews = await getCollection('news', ({ data }) => !data.draft);
+
+// Sort: editorPick first, then by publishDate descending
+const sorted = allNews
+  .sort((a, b) => {
+    if (a.data.editorPick !== b.data.editorPick) {
+      return a.data.editorPick ? -1 : 1;
+    }
+    return b.data.publishDate.getTime() - a.data.publishDate.getTime();
+  })
+  .slice(0, 5);
+
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+---
+
+<div class="news-feed">
+  {sorted.map((item) => (
+    <NewsItem
+      title={item.data.title}
+      source={item.data.source}
+      date={formatDate(item.data.publishDate)}
+      summary={item.data.summary}
+      href={`/news/${item.id.replace(/\.[^.]+$/, '')}/`}
+      tags={item.data.tags}
+    />
+  ))}
+  {sorted.length === 0 && (
+    <p class="news-feed__empty">暂无最新动态</p>
+  )}
+</div>
+
+<style>
+  .news-feed {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .news-feed__empty {
+    padding-block: var(--space-xl);
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+  }
+</style>
