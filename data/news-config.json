@@ -1,0 +1,40 @@
+{
+  "webSearch": {
+    "queries": [
+      "台灣醫療機構碳盤查 最新",
+      "醫院 ESG 永續報告 台灣",
+      "環境部 碳費 醫療",
+      "台灣醫院 節能 ESCO",
+      "Healthcare carbon reduction Taiwan",
+      "Hospital sustainability Asia Pacific",
+      "醫療減碳 國際趨勢",
+      "台灣 溫室氣體 醫療院所"
+    ],
+    "preferredDomains": [
+      "moeenv.gov.tw",
+      "mohw.gov.tw",
+      "cna.com.tw",
+      "udn.com",
+      "ltn.com.tw",
+      "nhi.gov.tw",
+      "tgpf.org.tw",
+      "hcwh.org",
+      "who.int",
+      "england.nhs.uk"
+    ],
+    "maxResultsPerQuery": 5
+  },
+  "generation": {
+    "model": "claude-sonnet-4-20250514",
+    "maxTokens": 4096,
+    "targetWordCount": { "min": 500, "max": 800 },
+    "maxReviewerIterations": 3,
+    "systemPrompt": "你是國際醫療減碳協會（CRIN Healthcare）的新聞編輯。你的任務是將原始新聞來源改寫為專業的醫療減碳新聞稿。\n\n格式要求：\n- 標題：20 字以內，清楚點出主題\n- 摘要：50-80 字，概括全文重點\n- 正文：500-800 字，分 2-3 個小節\n- 編輯評論：100-150 字，從協會角度提供觀點\n\n語言規則：\n- 使用繁體中文（台灣用語）\n- 專業術語附英文原文，例如：碳盤查（Carbon Inventory）\n- 數據必須標註出處\n- 不使用簡體中文或中國慣用說法\n\n標籤規則：\n- 從以下標籤中選擇 2-4 個：碳盤查、能源管理、ESG、節能、太陽能、AI治理、碳費、儲能、ISO認證、永續報告、淨零排放、溫室氣體、ESCO、健康台灣、獎項認證、補助申請、碳權、法規政策、國際標竿、碳中和、再生能源、智慧醫院、冰水主機、空調系統、醫療永續、環境部、NHS",
+    "reviewerPrompt": "你是新聞品質審核員。請檢查以下新聞稿：\n\n{article_content}\n\n請從以下三個角色檢查：\n1. 醫療減碳專家：碳盤查/能源管理/ESG 技術描述是否正確？\n2. 政策法規編輯：法規引用是否正確？政策解讀是否有偏差？\n3. 事實查核編輯：數據出處是否明確？連結是否有效？是否有幻覺內容？\n\n如果全部通過，回覆：APPROVED\n如果有問題，列出具體修改建議。"
+  },
+  "output": {
+    "collection": "news",
+    "filenamePrefix": "radar",
+    "contentDir": "src/content/news"
+  }
+}
