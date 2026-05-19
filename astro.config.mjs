@@ -3,8 +3,7 @@ import svelte from '@astrojs/svelte';
 import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
-  site: 'https://yao-care.github.io',
-  base: '/crinhealthcare.org',
+  site: 'https://crinhealthcare.org',
   integrations: [svelte(), sitemap()],
   output: 'static',
 });
