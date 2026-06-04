@@ -1,0 +1,170 @@
+{
+  "name": "國軍高雄總醫院",
+  "location": "高雄市苓雅區",
+  "updated": "2026-06-04",
+  "liveData": false,
+  "scenarios": [
+    { "id": "peace", "label": "平時" },
+    { "id": "war", "label": "戰時/救災" }
+  ],
+  "resources": [
+    {
+      "id": "power",
+      "icon": "⚡",
+      "name": "電力",
+      "peace": {
+        "perf": { "act": [17.54], "base": 17.54, "warn": 18.5, "text": "<b>EnPI 17.54</b> 基準（kWh/人次）· 年 15,094,528 度 · 電力碳排 7,155 t" },
+        "endur": { "days": "備援待盤點", "pct": "—" },
+        "supply": [
+          { "name": "市電（主）", "value": "15,094,528 度/年", "online": true, "esg": "grey" },
+          { "name": "太陽能 PV", "value": "發電量待盤點", "online": false, "esg": "green" },
+          { "name": "備用發電機", "value": "柴油備援", "online": false, "esg": "amber" }
+        ],
+        "supplySum": "年 15,094,528 度",
+        "detailLabel": "能源管理（ISO 50001）",
+        "detail": [
+          { "name": "改善·空調系統升級", "value": "優先 高·難度 中", "warn": false },
+          { "name": "改善·動力系統更新", "value": "優先 中·難度 高", "warn": false },
+          { "name": "改善·照明系統再改造", "value": "優先 中·難度 低", "warn": false },
+          { "name": "能源基線 EnB（F-05）", "value": "多元迴歸 R²=0.76", "warn": false },
+          { "name": "冰水主機檢測（F-08）", "value": "25 項·讀數待接 EMS", "warn": false }
+        ],
+        "store": [
+          { "name": "備援電力", "days": "待盤點", "cap": "緊急發電機·柴油（容量待盤點）", "pct": 0, "warn": false }
+        ],
+        "use": {
+          "headline": "15,094,528 度/年",
+          "sub": "全院年用電 · SEU 四大系統 · 績效變數：CDD/佔床率/運轉時間/就診人次",
+          "blocks": [
+            { "name": "空調系統", "value": "8,247,096 kWh", "sub": "佔比 55%", "color": "primary", "trend": { "act": [55], "base": 55, "warn": 60 } },
+            { "name": "動力系統", "value": "1,199,578 kWh", "sub": "佔比 8%", "color": "chart-4", "trend": { "act": [8], "base": 8, "warn": 12 } },
+            { "name": "照明系統", "value": "749,736 kWh", "sub": "佔比 5%", "color": "energy", "trend": { "act": [5], "base": 5, "warn": 8 } },
+            { "name": "醫療設備", "value": "4,798,310 kWh", "sub": "佔比 32%", "color": "chart-5", "trend": { "act": [32], "base": 32, "warn": 36 } }
+          ]
+        }
+      },
+      "war": {
+        "perf": { "act": [], "text": "戰時能源續航資料待盤點" },
+        "endur": { "days": "待盤點", "pct": "—" },
+        "supply": [
+          { "name": "市電（主）", "value": "待盤點", "online": false, "esg": "grey" },
+          { "name": "備用發電機", "value": "待盤點", "online": false, "esg": "amber" },
+          { "name": "太陽能 PV", "value": "待盤點", "online": false, "esg": "green" }
+        ],
+        "supplySum": "待盤點",
+        "detailLabel": "戰時能源",
+        "detail": [ { "name": "備援續航", "value": "待盤點", "warn": false } ],
+        "store": [ { "name": "備援電力", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
+        "use": {
+          "headline": "待盤點",
+          "sub": "戰時能源使用待盤點",
+          "blocks": [
+            { "name": "空調系統", "value": "待盤點", "sub": "—", "color": "primary" },
+            { "name": "動力系統", "value": "待盤點", "sub": "—", "color": "chart-4" },
+            { "name": "照明系統", "value": "待盤點", "sub": "—", "color": "energy" },
+            { "name": "醫療設備", "value": "待盤點", "sub": "—", "color": "chart-5" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "water",
+      "icon": "💧",
+      "name": "水",
+      "peace": {
+        "perf": { "act": [], "text": "用水量待盤點 · ESG 資料收集中" },
+        "endur": { "days": "待盤點", "pct": "—" },
+        "supply": [ { "name": "自來水", "value": "取水量待盤點", "online": false, "esg": "na" } ],
+        "supplySum": "待盤點",
+        "detailLabel": "供水（ESG 盤點）",
+        "detail": [
+          { "name": "用水量(m³)", "value": "自來水帳單·月度", "warn": false },
+          { "name": "填報單位", "value": "設施管理科", "warn": false },
+          { "name": "收集狀態", "value": "ESG 資料收集中", "warn": false }
+        ],
+        "store": [ { "name": "蓄水", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
+        "use": {
+          "headline": "待盤點",
+          "sub": "用水量待盤點（ESG 資料收集清單列為待收集）",
+          "blocks": [ { "name": "全院用水", "value": "待盤點", "sub": "—", "color": "chart-4" } ]
+        }
+      },
+      "war": {
+        "perf": { "act": [], "text": "戰時供水資料待盤點" },
+        "endur": { "days": "待盤點", "pct": "—" },
+        "supply": [ { "name": "自來水/備援", "value": "待盤點", "online": false, "esg": "na" } ],
+        "supplySum": "待盤點",
+        "detailLabel": "供水",
+        "detail": [ { "name": "戰時供水", "value": "待盤點", "warn": false } ],
+        "store": [ { "name": "蓄水", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
+        "use": {
+          "headline": "待盤點",
+          "sub": "戰時用水待盤點",
+          "blocks": [ { "name": "全院用水", "value": "待盤點", "sub": "—", "color": "chart-4" } ]
+        }
+      }
+    }
+  ],
+  "report": {
+    "esg": [
+      { "item": "盤查年度", "value": "2025", "unit": "" },
+      { "item": "整體用電量", "value": "15,094,528", "unit": "度" },
+      { "item": "範疇一 直接排放", "value": "1,435.21", "unit": "tCO2e" },
+      { "item": "範疇二 外購電力", "value": "7,154.81", "unit": "tCO2e" },
+      { "item": "溫室氣體總排放", "value": "8,590.02", "unit": "tCO2e" },
+      { "item": "電力排碳係數", "value": "0.474", "unit": "kgCO2e/kWh" },
+      { "item": "天然氣排放（廚房瓦斯爐）", "value": "26.73", "unit": "tCO2e" },
+      { "item": "液化石油氣排放", "value": "9.37", "unit": "tCO2e" },
+      { "item": "冷媒逸散排放", "value": "1,338.67", "unit": "tCO2e" },
+      { "item": "麻醉氣體排放", "value": "25.82", "unit": "tCO2e" },
+      { "item": "公務車（汽油＋柴油）排放", "value": "32.97", "unit": "tCO2e" }
+    ],
+    "benchmark": [
+      { "item": "EnPI 基準值", "value": "17.54", "unit": "kWh/人次" },
+      { "item": "能源基線 EnB", "value": "14,994,720", "unit": "kWh/年" },
+      { "item": "SEU 能耗-空調系統", "value": "8,247,096", "unit": "kWh" },
+      { "item": "SEU 能耗-醫療設備", "value": "4,798,310", "unit": "kWh" },
+      { "item": "SEU 能耗-動力系統", "value": "1,199,578", "unit": "kWh" },
+      { "item": "SEU 能耗-照明系統", "value": "749,736", "unit": "kWh" },
+      { "item": "改善機會", "value": "空調升級(高)／動力更新(中)／照明改造(中)", "unit": "" }
+    ]
+  },
+  "esgPanels": [
+    {
+      "id": "carbon", "icon": "🌱", "title": "碳盤查 · 2024 → 2025（溫盤，單位 tCO₂e）",
+      "cols": ["項目", "2024", "2025", "2026"],
+      "rows": [
+        { "label": "用電量（度）", "cells": ["14,069,293", "15,094,528", ""] },
+        { "label": "溫室氣體總排放", "cells": ["7,204.82", "8,590.02", ""] },
+        { "label": "範疇一 直接排放", "cells": ["535.98", "1,435.21", ""] },
+        { "label": "範疇二 外購電力", "cells": ["6,668.84", "7,154.81", ""] },
+        { "label": "冷媒逸散", "cells": ["425.68", "1,338.67", ""] },
+        { "label": "公務車（汽＋柴）", "cells": ["36.81", "32.97", ""] },
+        { "label": "天然氣（廚房）", "cells": ["18.44", "26.73", ""] },
+        { "label": "液化石油氣", "cells": ["9.81", "9.37", ""] },
+        { "label": "麻醉氣體", "cells": ["30.04", "25.82", ""] },
+        { "label": "緊急發電機柴油", "cells": ["13.45", "0.00", ""] },
+        { "label": "氣體鋼瓶", "cells": ["1.68", "1.65", ""] },
+        { "label": "電力排碳係數", "cells": ["0.474", "0.474", ""] }
+      ]
+    },
+    {
+      "id": "social", "icon": "👥", "title": "社會 S",
+      "rows": [
+        { "label": "全院員工", "value": "約 1,500 人（F-01）" },
+        { "label": "能源教育訓練", "value": "5 場·管理4＋全院1（F-06）" },
+        { "label": "訓練期間", "value": "2026/2–7" },
+        { "label": "職安／病安／社區", "value": "ESG 待收集", "pending": true }
+      ]
+    },
+    {
+      "id": "governance", "icon": "🏛️", "title": "治理 G",
+      "rows": [
+        { "label": "能源管理組織", "value": "召集人院長·18 人（F-02）" },
+        { "label": "風險與機會", "value": "8 項·高2/中5/低1（F-03）" },
+        { "label": "法規遵循", "value": "能源管理法/ISO 50001 等 5 項（F-01）" },
+        { "label": "廉政／資安", "value": "ESG 待收集", "pending": true }
+      ]
+    }
+  ]
+}
