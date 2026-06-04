@@ -1,0 +1,344 @@
+{
+  "name": "三軍總醫院北投分院",
+  "location": "臺北市北投區",
+  "updated": "2026-06-05",
+  "liveData": false,
+  "scenarios": [
+    {
+      "id": "peace",
+      "label": "平時"
+    },
+    {
+      "id": "war",
+      "label": "戰時/救災"
+    }
+  ],
+  "resources": [
+    {
+      "id": "power",
+      "icon": "⚡",
+      "name": "電力",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": "能源資料待提供"
+        },
+        "endur": {
+          "days": "待盤點",
+          "pct": "—"
+        },
+        "supply": [
+          {
+            "name": "市電（主）",
+            "value": "待盤點",
+            "online": false,
+            "esg": "grey"
+          },
+          {
+            "name": "太陽能 PV",
+            "value": "待盤點",
+            "online": false,
+            "esg": "green"
+          },
+          {
+            "name": "備用發電機",
+            "value": "待盤點",
+            "online": false,
+            "esg": "amber"
+          }
+        ],
+        "supplySum": "待盤點",
+        "detailLabel": "能源管理",
+        "detail": [
+          {
+            "name": "能源／碳盤查資料",
+            "value": "待提供",
+            "warn": false
+          }
+        ],
+        "store": [
+          {
+            "name": "備援電力",
+            "days": "待盤點",
+            "cap": "待盤點",
+            "pct": 0,
+            "warn": false
+          }
+        ],
+        "use": {
+          "headline": "待盤點",
+          "sub": "能源資料待提供",
+          "blocks": [
+            {
+              "name": "空調系統",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "primary"
+            },
+            {
+              "name": "動力系統",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "chart-4"
+            },
+            {
+              "name": "照明系統",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "energy"
+            },
+            {
+              "name": "醫療設備",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "chart-5"
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": "戰時能源續航資料待盤點"
+        },
+        "endur": {
+          "days": "待盤點",
+          "pct": "—"
+        },
+        "supply": [
+          {
+            "name": "市電（主）",
+            "value": "待盤點",
+            "online": false,
+            "esg": "grey"
+          },
+          {
+            "name": "太陽能 PV",
+            "value": "待盤點",
+            "online": false,
+            "esg": "green"
+          },
+          {
+            "name": "備用發電機",
+            "value": "待盤點",
+            "online": false,
+            "esg": "amber"
+          }
+        ],
+        "supplySum": "待盤點",
+        "detailLabel": "能源管理",
+        "detail": [
+          {
+            "name": "能源／碳盤查資料",
+            "value": "待提供",
+            "warn": false
+          }
+        ],
+        "store": [
+          {
+            "name": "備援電力",
+            "days": "待盤點",
+            "cap": "待盤點",
+            "pct": 0,
+            "warn": false
+          }
+        ],
+        "use": {
+          "headline": "待盤點",
+          "sub": "戰時能源使用待盤點",
+          "blocks": [
+            {
+              "name": "空調系統",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "primary"
+            },
+            {
+              "name": "動力系統",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "chart-4"
+            },
+            {
+              "name": "照明系統",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "energy"
+            },
+            {
+              "name": "醫療設備",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "chart-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "water",
+      "icon": "💧",
+      "name": "水",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": "用水資料待提供"
+        },
+        "endur": {
+          "days": "待盤點",
+          "pct": "—"
+        },
+        "supply": [
+          {
+            "name": "自來水",
+            "value": "待盤點",
+            "online": false,
+            "esg": "na"
+          }
+        ],
+        "supplySum": "待盤點",
+        "detailLabel": "供水",
+        "detail": [
+          {
+            "name": "用水資料",
+            "value": "待提供",
+            "warn": false
+          }
+        ],
+        "store": [
+          {
+            "name": "蓄水",
+            "days": "待盤點",
+            "cap": "待盤點",
+            "pct": 0,
+            "warn": false
+          }
+        ],
+        "use": {
+          "headline": "待盤點",
+          "sub": "用水資料待提供",
+          "blocks": [
+            {
+              "name": "全院用水",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "chart-4"
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": "戰時供水資料待盤點"
+        },
+        "endur": {
+          "days": "待盤點",
+          "pct": "—"
+        },
+        "supply": [
+          {
+            "name": "自來水",
+            "value": "待盤點",
+            "online": false,
+            "esg": "na"
+          }
+        ],
+        "supplySum": "待盤點",
+        "detailLabel": "供水",
+        "detail": [
+          {
+            "name": "用水資料",
+            "value": "待提供",
+            "warn": false
+          }
+        ],
+        "store": [
+          {
+            "name": "蓄水",
+            "days": "待盤點",
+            "cap": "待盤點",
+            "pct": 0,
+            "warn": false
+          }
+        ],
+        "use": {
+          "headline": "待盤點",
+          "sub": "用水資料待提供",
+          "blocks": [
+            {
+              "name": "全院用水",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "chart-4"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "report": {
+    "esg": [
+      {
+        "item": "資料狀態",
+        "value": "待提供",
+        "unit": ""
+      }
+    ],
+    "benchmark": [
+      {
+        "item": "資料狀態",
+        "value": "待提供",
+        "unit": ""
+      }
+    ]
+  },
+  "esgPanels": [
+    {
+      "id": "carbon",
+      "icon": "🌱",
+      "title": "碳盤查",
+      "rows": [
+        {
+          "label": "溫盤碳盤查",
+          "value": "資料待提供",
+          "pending": true
+        },
+        {
+          "label": "用電／用水",
+          "value": "待提供",
+          "pending": true
+        }
+      ]
+    },
+    {
+      "id": "social",
+      "icon": "👥",
+      "title": "社會 S",
+      "rows": [
+        {
+          "label": "員工／社會資料",
+          "value": "待提供",
+          "pending": true
+        }
+      ]
+    },
+    {
+      "id": "governance",
+      "icon": "🏛️",
+      "title": "治理 G",
+      "rows": [
+        {
+          "label": "能源管理組織",
+          "value": "待建置",
+          "pending": true
+        },
+        {
+          "label": "ISO 50001",
+          "value": "待建置",
+          "pending": true
+        }
+      ]
+    }
+  ]
+}
