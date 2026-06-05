@@ -300,9 +300,12 @@
   /* split：上半資源橫列、下半左大區(SEU)＋右側小面板(碳盤查/社會/治理縱向) */
   .board-page.split { height: 100dvh; overflow: hidden; }
   .board-page.split .board { flex: 0 0 auto; max-height: 44vh; grid-template-columns: repeat(2, 1fr); }
-  .board-page.split .esg-panels { flex: 1 1 0; grid-template-columns: 1.7fr 1fr; grid-auto-rows: min-content; align-content: start; min-height: 0; }
-  .board-page.split .esg-panels > :first-child { grid-row: 1 / span 4; min-height: 0; overflow: auto; }
-  .board-page.split .esg-panels > :not(:first-child) { min-height: 0; }
+  .board-page.split .esg-panels { flex: 1 1 0; display: grid; grid-template-columns: 1fr 1.8fr 1.3fr; grid-template-rows: auto auto 1fr; grid-template-areas: "gas seu carbon" "social seu carbon" "gov seu carbon"; min-height: 0; gap: var(--space-sm); }
+  .board-page.split .esg-panels > :nth-child(1) { grid-area: gas; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :nth-child(2) { grid-area: seu; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :nth-child(3) { grid-area: carbon; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :nth-child(4) { grid-area: social; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :nth-child(5) { grid-area: gov; min-height: 0; overflow: auto; }
   /* 上半資源：標題列改可換行、隱藏空績效圖（避免窄欄重疊）；供/儲/用縱向、隱藏待盤點儲存 */
   .board-page.split .res-head { flex-wrap: wrap; row-gap: 4px; }
   .board-page.split .perfwrap { flex-basis: 100%; margin-left: 0; }
