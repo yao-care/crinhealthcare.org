@@ -27,8 +27,15 @@
         "store": [ { "name": "備援電力", "days": "待盤點", "cap": "緊急發電機·柴油", "pct": 0, "warn": false } ],
         "use": {
           "headline": "6,302,756 度/年",
-          "sub": "SEU 12 系統·1,673 台 · 空調 53% 最大宗 → 完整明細見下方表",
-          "blocks": []
+          "sub": "SEU 能源審查電力分項（污水/天然氣另列為獨立資源）",
+          "blocks": [
+            { "name": "空調系統", "value": "3,739,418 kWh", "sub": "53%·最大宗", "color": "primary", "trend": { "act": [53], "base": 53, "warn": 58 } },
+            { "name": "資訊設備", "value": "1,101,591 kWh", "sub": "16%", "color": "chart-4", "trend": { "act": [16], "base": 16, "warn": 20 } },
+            { "name": "醫療設備", "value": "887,419 kWh", "sub": "12%", "color": "chart-5", "trend": { "act": [12], "base": 12, "warn": 15 } },
+            { "name": "熱泵", "value": "451,572 kWh", "sub": "6%", "color": "energy", "trend": { "act": [6], "base": 6, "warn": 8 } },
+            { "name": "照明系統", "value": "346,572 kWh", "sub": "5%", "color": "accent", "trend": { "act": [5], "base": 5, "warn": 7 } },
+            { "name": "其他電力", "value": "314,707 kWh", "sub": "電梯/雜項/車輛/抽排風/消防", "color": "text-secondary" }
+          ]
         }
       },
       "war": {
@@ -36,8 +43,8 @@
         "endur": { "days": "待盤點", "pct": "—" },
         "supply": [ { "name": "市電（主）", "value": "待盤點", "online": false, "esg": "grey" }, { "name": "備用發電機", "value": "待盤點", "online": false, "esg": "amber" } ],
         "supplySum": "待盤點",
-        "detailLabel": "戰時能源",
-        "detail": [ { "name": "備援續航", "value": "待盤點", "warn": false } ],
+        "detailLabel": "",
+        "detail": [],
         "store": [ { "name": "備援電力", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
         "use": { "headline": "待盤點", "sub": "戰時能源使用待盤點", "blocks": [ { "name": "全院用電", "value": "待盤點", "sub": "—", "color": "primary" } ] }
       }
@@ -50,17 +57,17 @@
         "perf": { "act": [], "text": "污水處理 96,990 kWh · 用水量待盤點" },
         "endur": { "days": "待盤點", "pct": "—" },
         "supply": [ { "name": "自來水", "value": "用水量待盤點", "online": false, "esg": "na" } ],
-        "supplySum": "待盤點",
-        "detailLabel": "供水/污水",
-        "detail": [
-          { "name": "污水處理系統", "value": "96,990 kWh（SEU）", "warn": false },
-          { "name": "用水量", "value": "待盤點", "warn": false }
-        ],
-        "store": [ { "name": "蓄水", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
+        "supplySum": "市政自來水（用量待盤點）",
+        "detailLabel": "",
+        "detail": [],
+        "store": [ { "name": "蓄水", "days": "待盤點", "cap": "蓄水池容量待盤點", "pct": 0, "warn": false } ],
         "use": {
           "headline": "96,990 kWh",
-          "sub": "污水處理系統 · 11 台沉水抽水機（川源）",
-          "blocks": []
+          "sub": "供水/污水用電（SEU）",
+          "blocks": [
+            { "name": "污水處理", "value": "96,990 kWh", "sub": "11 台沉水抽水機（川源）", "color": "chart-4" },
+            { "name": "用水量", "value": "待盤點", "sub": "自來水帳單待收集", "color": "text-secondary" }
+          ]
         }
       },
       "war": {
@@ -68,42 +75,10 @@
         "endur": { "days": "待盤點", "pct": "—" },
         "supply": [ { "name": "自來水/備援", "value": "待盤點", "online": false, "esg": "na" } ],
         "supplySum": "待盤點",
-        "detailLabel": "供水",
-        "detail": [ { "name": "戰時供水", "value": "待盤點", "warn": false } ],
+        "detailLabel": "",
+        "detail": [],
         "store": [ { "name": "蓄水", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
         "use": { "headline": "待盤點", "sub": "戰時用水待盤點", "blocks": [ { "name": "全院用水", "value": "待盤點", "sub": "—", "color": "chart-4" } ] }
-      }
-    },
-    {
-      "id": "gas",
-      "icon": "🔥",
-      "name": "天然氣",
-      "peace": {
-        "perf": { "act": [], "text": "蒸氣鍋爐 162,720 kWh · 天然氣" },
-        "endur": { "days": "待盤點", "pct": "—" },
-        "supply": [ { "name": "天然氣", "value": "鍋爐供熱", "online": false, "esg": "amber" } ],
-        "supplySum": "單一氣源 · 蒸氣鍋爐",
-        "detailLabel": "供熱",
-        "detail": [
-          { "name": "蒸氣鍋爐", "value": "金品·162,720 kWh", "warn": false },
-          { "name": "用途", "value": "蒸氣/熱水", "warn": false }
-        ],
-        "store": [ { "name": "蒸氣壓力", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
-        "use": {
-          "headline": "162,720 kWh",
-          "sub": "蒸氣鍋爐 · 天然氣（金品·B 級設備）",
-          "blocks": []
-        }
-      },
-      "war": {
-        "perf": { "act": [], "text": "戰時供熱資料待盤點" },
-        "endur": { "days": "待盤點", "pct": "—" },
-        "supply": [ { "name": "天然氣/備援", "value": "待盤點", "online": false, "esg": "amber" } ],
-        "supplySum": "待盤點",
-        "detailLabel": "供熱",
-        "detail": [ { "name": "戰時供熱", "value": "待盤點", "warn": false } ],
-        "store": [ { "name": "蒸氣壓力", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
-        "use": { "headline": "待盤點", "sub": "戰時蒸氣待盤點", "blocks": [ { "name": "蒸氣供應", "value": "待盤點", "sub": "—", "color": "energy" } ] }
       }
     }
   ],
@@ -152,6 +127,15 @@
         { "label": "車輛", "cells": ["39,513", "1%", "救護車/醫療車"] },
         { "label": "抽排風", "cells": ["32,193", "0%", "排風機和旭/東元"] },
         { "label": "消防", "cells": ["25,101", "0%", "消防馬達九如/東元"] }
+      ]
+    },
+    {
+      "id": "gas", "icon": "🔥", "title": "天然氣",
+      "rows": [
+        { "label": "供給", "value": "天然氣·鍋爐供熱" },
+        { "label": "蒸氣鍋爐", "value": "162,720 kWh（金品·B 級）" },
+        { "label": "用途", "value": "蒸氣／熱水" },
+        { "label": "儲存", "value": "待盤點", "pending": true }
       ]
     },
     {
