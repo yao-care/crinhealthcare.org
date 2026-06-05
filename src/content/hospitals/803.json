@@ -1,8 +1,9 @@
 {
   "name": "國軍臺中總醫院",
   "location": "臺中市太平區",
-  "updated": "2026-06-04",
+  "updated": "2026-06-05",
   "liveData": false,
+  "layout": "split",
   "scenarios": [
     { "id": "peace", "label": "平時" },
     { "id": "war", "label": "戰時/救災" }
@@ -13,21 +14,21 @@
       "icon": "⚡",
       "name": "電力",
       "peace": {
-        "perf": { "act": [], "text": "SEU 已盤查（空調 53% 最大宗）· 用電 6,302,756 度 · 電力碳排 2,988 t" },
+        "perf": { "act": [], "text": "SEU 能源審查 12 系統 · 空調 53% 最大宗 · 用電 6,302,756 度 · 電力碳排 2,988 t" },
         "endur": { "days": "備援待盤點", "pct": "—" },
         "supply": [
           { "name": "市電（主）", "value": "6,302,756 度/年", "online": true, "esg": "grey" },
           { "name": "太陽能 PV", "value": "發電量待盤點", "online": false, "esg": "green" },
           { "name": "備用發電機", "value": "柴油備援", "online": false, "esg": "amber" }
         ],
-        "supplySum": "年 6,302,756 度",
+        "supplySum": "年 6,302,756 度 · 審查總量 7,101 MWh（114）",
         "detailLabel": "能源管理（能源審查 115.04）",
         "detail": [
-          { "name": "SEU 重大能源使用", "value": "12 系統·A 級設備 11 項", "warn": false },
-          { "name": "改善優先（表5）", "value": "空調·南機房 180RT 冰水主機汰換", "warn": false },
-          { "name": "A 級設備", "value": "空調主機/區域水泵/UPS/印表機", "warn": false },
-          { "name": "設備盤點", "value": "1,673 台（A11/B116/C1546）", "warn": false },
-          { "name": "能源審查", "value": "附表一設備評估完成", "warn": false },
+          { "name": "SEU 重大能源使用", "value": "12 系統·1,673 台", "warn": false },
+          { "name": "A 級設備 11 項", "value": "空調CH3/區域水泵/UPS飛瑞 252,288kWh", "warn": false },
+          { "name": "改善優先（表5）", "value": "空調 11分·南機房 180RT 冰水主機汰換", "warn": false },
+          { "name": "績效變數", "value": "醫療服務量/外氣溫度/運轉時間", "warn": false },
+          { "name": "能源審查", "value": "附表一設備評估（115.04）", "warn": false },
           { "name": "EnPI／能源基線", "value": "待補", "warn": false }
         ],
         "store": [
@@ -35,14 +36,20 @@
         ],
         "use": {
           "headline": "6,302,756 度/年",
-          "sub": "SEU 能源審查 12 系統·1,673 台 · 審查 7,101 MWh · 績效變數：醫療服務量/外氣溫度/運轉時間",
+          "sub": "SEU 能源審查 12 系統耗能占比（依附表一重大能源使用設備評估表）",
           "blocks": [
-            { "name": "空調系統", "value": "3,739,418 kWh", "sub": "53%·最大宗", "color": "primary", "trend": { "act": [53], "base": 53, "warn": 58 } },
-            { "name": "資訊設備", "value": "1,101,591 kWh", "sub": "16%", "color": "chart-4", "trend": { "act": [16], "base": 16, "warn": 20 } },
-            { "name": "醫療設備", "value": "887,419 kWh", "sub": "12%", "color": "chart-5", "trend": { "act": [12], "base": 12, "warn": 15 } },
-            { "name": "熱泵", "value": "451,572 kWh", "sub": "6%", "color": "energy", "trend": { "act": [6], "base": 6, "warn": 8 } },
-            { "name": "照明系統", "value": "346,572 kWh", "sub": "5%", "color": "accent", "trend": { "act": [5], "base": 5, "warn": 7 } },
-            { "name": "其他系統", "value": "574,416 kWh", "sub": "電梯/污水/雜項等", "color": "text-secondary" }
+            { "name": "空調系統", "value": "3,739,418 kWh", "sub": "53% · 力菱磁浮/大金 · 南機房180RT汰換", "color": "primary", "trend": { "act": [53], "base": 53, "warn": 58 } },
+            { "name": "資訊設備", "value": "1,101,591 kWh", "sub": "16% · 飛瑞UPS/EPSON印表機", "color": "chart-4", "trend": { "act": [16], "base": 16, "warn": 20 } },
+            { "name": "醫療設備", "value": "887,419 kWh", "sub": "12% · 867 台醫材", "color": "chart-5", "trend": { "act": [12], "base": 12, "warn": 15 } },
+            { "name": "熱泵", "value": "451,572 kWh", "sub": "6% · 電熱水器/熱泵", "color": "energy", "trend": { "act": [6], "base": 6, "warn": 8 } },
+            { "name": "照明系統", "value": "346,572 kWh", "sub": "5% · T8 LED/路燈", "color": "accent", "trend": { "act": [5], "base": 5, "warn": 7 } },
+            { "name": "天然氣（鍋爐）", "value": "162,720 kWh", "sub": "2% · 蒸氣鍋爐金品", "color": "chart-4" },
+            { "name": "其餘雜項", "value": "140,641 kWh", "sub": "2% · 影印機/高壓變壓器", "color": "text-secondary" },
+            { "name": "污水處理", "value": "96,990 kWh", "sub": "1% · 沉水抽水機川源", "color": "chart-4" },
+            { "name": "電梯", "value": "77,259 kWh", "sub": "1% · 三菱/永大 · 3,5號汰換", "color": "chart-5" },
+            { "name": "車輛", "value": "39,513 kWh", "sub": "1% · 救護車/醫療車", "color": "text-secondary" },
+            { "name": "抽排風", "value": "32,193 kWh", "sub": "0% · 排風機和旭/東元", "color": "chart-4" },
+            { "name": "消防", "value": "25,101 kWh", "sub": "0% · 消防馬達九如/東元", "color": "text-secondary" }
           ]
         }
       },
@@ -63,43 +70,10 @@
           "sub": "戰時能源使用待盤點",
           "blocks": [
             { "name": "空調系統", "value": "待盤點", "sub": "—", "color": "primary" },
-            { "name": "動力系統", "value": "待盤點", "sub": "—", "color": "chart-4" },
-            { "name": "照明系統", "value": "待盤點", "sub": "—", "color": "energy" },
-            { "name": "醫療設備", "value": "待盤點", "sub": "—", "color": "chart-5" }
+            { "name": "資訊設備", "value": "待盤點", "sub": "—", "color": "chart-4" },
+            { "name": "醫療設備", "value": "待盤點", "sub": "—", "color": "chart-5" },
+            { "name": "其他系統", "value": "待盤點", "sub": "—", "color": "text-secondary" }
           ]
-        }
-      }
-    },
-    {
-      "id": "water",
-      "icon": "💧",
-      "name": "水",
-      "peace": {
-        "perf": { "act": [], "text": "用水量待盤點 · ESG 資料收集中" },
-        "endur": { "days": "待盤點", "pct": "—" },
-        "supply": [ { "name": "自來水", "value": "取水量待盤點", "online": false, "esg": "na" } ],
-        "supplySum": "待盤點",
-        "detailLabel": "供水",
-        "detail": [ { "name": "用水量(m³)", "value": "ESG 盤點中", "warn": false } ],
-        "store": [ { "name": "蓄水", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
-        "use": {
-          "headline": "待盤點",
-          "sub": "用水量待盤點",
-          "blocks": [ { "name": "全院用水", "value": "待盤點", "sub": "—", "color": "chart-4" } ]
-        }
-      },
-      "war": {
-        "perf": { "act": [], "text": "戰時供水資料待盤點" },
-        "endur": { "days": "待盤點", "pct": "—" },
-        "supply": [ { "name": "自來水/備援", "value": "待盤點", "online": false, "esg": "na" } ],
-        "supplySum": "待盤點",
-        "detailLabel": "供水",
-        "detail": [ { "name": "戰時供水", "value": "待盤點", "warn": false } ],
-        "store": [ { "name": "蓄水", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
-        "use": {
-          "headline": "待盤點",
-          "sub": "戰時用水待盤點",
-          "blocks": [ { "name": "全院用水", "value": "待盤點", "sub": "—", "color": "chart-4" } ]
         }
       }
     }
@@ -119,7 +93,7 @@
       { "item": "電力排碳係數", "value": "0.474", "unit": "kgCO2e/kWh" }
     ],
     "benchmark": [
-      { "item": "能源審查 SEU 評估", "value": "附表一·12 系統", "unit": "" },
+      { "item": "能源審查 SEU 評估", "value": "附表一·12 系統·1,673 台", "unit": "" },
       { "item": "SEU 空調系統", "value": "3,739,418", "unit": "kWh(53%)" },
       { "item": "SEU 資訊設備", "value": "1,101,591", "unit": "kWh(16%)" },
       { "item": "SEU 醫療設備", "value": "887,419", "unit": "kWh(12%)" },
@@ -132,20 +106,18 @@
   },
   "esgPanels": [
     {
-      "id": "carbon", "icon": "🌱", "title": "碳盤查 · 2025（溫盤，單位 tCO₂e；2024 無盤查）",
-      "cols": ["項目", "2024", "2025", "2026"],
+      "id": "carbon", "icon": "🌱", "title": "碳盤查 2025（溫盤 tCO₂e）",
       "rows": [
-        { "label": "用電量（度）", "cells": ["", "6,302,756", ""] },
-        { "label": "溫室氣體總排放", "cells": ["", "3,284.07", ""] },
-        { "label": "範疇一 直接排放", "cells": ["", "296.57", ""] },
-        { "label": "範疇二 外購電力", "cells": ["", "2,987.51", ""] },
-        { "label": "化糞池甲烷", "cells": ["", "218.31", ""] },
-        { "label": "公務車（汽＋柴）", "cells": ["", "28.41", ""] },
-        { "label": "冷媒逸散", "cells": ["", "22.14", ""] },
-        { "label": "麻醉氣體", "cells": ["", "12.93", ""] },
-        { "label": "緊急發電機柴油", "cells": ["", "7.54", ""] },
-        { "label": "氣體鋼瓶", "cells": ["", "0.39", ""] },
-        { "label": "電力排碳係數", "cells": ["", "0.474", ""] }
+        { "label": "整體用電", "value": "6,302,756 度" },
+        { "label": "溫室氣體總排放", "value": "3,284.07" },
+        { "label": "範疇一 直接", "value": "296.57" },
+        { "label": "範疇二 外購電力", "value": "2,987.51" },
+        { "label": "化糞池甲烷", "value": "218.31" },
+        { "label": "公務車（汽＋柴）", "value": "28.41" },
+        { "label": "冷媒逸散", "value": "22.14" },
+        { "label": "麻醉氣體", "value": "12.93" },
+        { "label": "緊急發電機柴油", "value": "7.54" },
+        { "label": "電力排碳係數", "value": "0.474 kg/度" }
       ]
     },
     {
@@ -161,6 +133,7 @@
       "rows": [
         { "label": "能源管理", "value": "SEU 評估·12 系統 SOP" },
         { "label": "改善優先性評估", "value": "表5·空調最高 11 分" },
+        { "label": "設備盤點", "value": "1,673 台（A11/B116/C1546）" },
         { "label": "ISO 50001", "value": "能源審查已做·認證待確認", "pending": true },
         { "label": "廉政／資安", "value": "待收集", "pending": true }
       ]

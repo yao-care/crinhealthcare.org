@@ -166,6 +166,8 @@ const hospitals = defineCollection({
     location: z.string().default(''),
     updated: z.string().default(''),
     liveData: z.boolean().default(false),
+    // 版面：stack＝上半資源/下半面板；split＝左半資源/右半面板(50%)，給 SEU 系統多的醫院用
+    layout: z.enum(['stack', 'split']).default('stack'),
     scenarios: z.array(z.object({ id: z.string(), label: z.string() }))
       .default([{ id: 'peace', label: '平時' }, { id: 'war', label: '戰時/救災' }]),
     resources: z.array(z.object({

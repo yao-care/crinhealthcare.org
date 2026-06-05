@@ -6,7 +6,7 @@
   interface ReportRow { item: string; value: string; unit: string; }
   interface PanelRow { label: string; value?: string; cells?: string[]; delta?: { text: string; good: boolean }; pending?: boolean; }
   interface EsgPanel { id: string; icon: string; title: string; cols?: string[]; rows: PanelRow[]; }
-  interface Hospital { name: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: any[]; report?: { esg: ReportRow[]; benchmark: ReportRow[] }; esgPanels?: EsgPanel[]; }
+  interface Hospital { name: string; updated?: string; liveData?: boolean; layout?: 'stack' | 'split'; scenarios: { id: string; label: string }[]; resources: any[]; report?: { esg: ReportRow[]; benchmark: ReportRow[] }; esgPanels?: EsgPanel[]; }
 
   let { hospital }: { hospital: Hospital } = $props();
   let scenario = $state('peace');
@@ -99,7 +99,7 @@
   </svg>
 {/snippet}
 
-<div class="board-page">
+<div class="board-page" class:split={hospital.layout === 'split'}>
   <header class="topbar">
     <h1 class="ttl">🔋 平戰轉EMS · {hospital.name}</h1>
     <div class="legend" aria-hidden="true">
@@ -294,6 +294,11 @@
     gap: var(--space-sm);
   }
   .esg-panels { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-sm); }
+  /* split：header 跨頂、左半資源、右半 50% 面板（縱向堆疊） */
+  .board-page.split { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; grid-template-areas: "topbar topbar" "board panels"; height: 100dvh; overflow: hidden; }
+  .board-page.split .topbar { grid-area: topbar; }
+  .board-page.split .board { grid-area: board; grid-template-columns: 1fr; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels { grid-area: panels; grid-template-columns: 1fr; grid-auto-rows: min-content; min-height: 0; overflow: auto; }
   .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
   .panel-h { font-size: var(--text-base); font-weight: 700; margin-bottom: var(--space-xs); color: var(--color-text); border-bottom: 2px solid var(--color-border); padding-bottom: 4px; }
   .panel-rows { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
