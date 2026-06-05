@@ -21,13 +21,9 @@
           { "name": "太陽能 PV", "value": "待盤點", "online": false, "esg": "green" },
           { "name": "備用發電機", "value": "柴油備援", "online": false, "esg": "amber" }
         ],
-        "supplySum": "年 6,302,756 度",
-        "detailLabel": "能源管理（115.04）",
-        "detail": [
-          { "name": "A 級設備", "value": "11 項·UPS 252,288kWh", "warn": false },
-          { "name": "改善優先", "value": "空調·南機房 180RT 汰換", "warn": false },
-          { "name": "EnPI／能源基線", "value": "待補", "warn": false }
-        ],
+        "supplySum": "台電市電為主 · 再生/備援待盤",
+        "detailLabel": "",
+        "detail": [],
         "store": [ { "name": "備援電力", "days": "待盤點", "cap": "緊急發電機·柴油", "pct": 0, "warn": false } ],
         "use": {
           "headline": "6,302,756 度/年",
@@ -86,7 +82,7 @@
         "perf": { "act": [], "text": "蒸氣鍋爐 162,720 kWh · 天然氣" },
         "endur": { "days": "待盤點", "pct": "—" },
         "supply": [ { "name": "天然氣", "value": "鍋爐供熱", "online": false, "esg": "amber" } ],
-        "supplySum": "162,720 kWh",
+        "supplySum": "單一氣源 · 蒸氣鍋爐",
         "detailLabel": "供熱",
         "detail": [
           { "name": "蒸氣鍋爐", "value": "金品·162,720 kWh", "warn": false },
@@ -180,8 +176,10 @@
     {
       "id": "governance", "icon": "🏛️", "title": "治理 G",
       "rows": [
-        { "label": "能源管理", "value": "12 系統 SOP" },
+        { "label": "能源管理", "value": "12 系統 SOP·A 級 11 項" },
+        { "label": "改善優先", "value": "空調·南機房 180RT 汰換" },
         { "label": "改善評分", "value": "表5·空調 11 分" },
+        { "label": "EnPI／能源基線", "value": "待補", "pending": true },
         { "label": "ISO 50001", "value": "審查已做·認證待確認", "pending": true }
       ]
     }
