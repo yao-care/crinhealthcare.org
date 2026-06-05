@@ -1,8 +1,9 @@
 {
   "name": "國軍桃園總醫院新竹分院",
-  "location": "新竹市東區",
+  "location": "新竹市",
   "updated": "2026-06-05",
   "liveData": false,
+  "layout": "stack",
   "scenarios": [
     {
       "id": "peace",
@@ -21,17 +22,17 @@
       "peace": {
         "perf": {
           "act": [],
-          "text": "能源資料待提供"
+          "text": "用電 4,848,500 度/年 · 電力碳排 2,298.2 t（外購電力）"
         },
         "endur": {
-          "days": "待盤點",
+          "days": "備援待盤點",
           "pct": "—"
         },
         "supply": [
           {
             "name": "市電（主）",
-            "value": "待盤點",
-            "online": false,
+            "value": "4,848,500 度/年",
+            "online": true,
             "esg": "grey"
           },
           {
@@ -42,56 +43,32 @@
           },
           {
             "name": "備用發電機",
-            "value": "待盤點",
+            "value": "柴油備援",
             "online": false,
             "esg": "amber"
           }
         ],
-        "supplySum": "待盤點",
-        "detailLabel": "能源管理",
-        "detail": [
-          {
-            "name": "能源／碳盤查資料",
-            "value": "待提供",
-            "warn": false
-          }
-        ],
+        "supplySum": "台電市電為主 · 再生/備援待盤",
+        "detailLabel": "",
+        "detail": [],
         "store": [
           {
             "name": "備援電力",
             "days": "待盤點",
-            "cap": "待盤點",
+            "cap": "緊急發電機·柴油（容量待盤點）",
             "pct": 0,
             "warn": false
           }
         ],
         "use": {
-          "headline": "待盤點",
-          "sub": "能源資料待提供",
+          "headline": "4,848,500 度/年",
+          "sub": "SEU 能源審查待建置（清冊僅含碳排/用電）",
           "blocks": [
             {
-              "name": "空調系統",
-              "value": "待盤點",
-              "sub": "—",
+              "name": "全院用電",
+              "value": "4,848,500 度",
+              "sub": "SEU 分項待盤點",
               "color": "primary"
-            },
-            {
-              "name": "動力系統",
-              "value": "待盤點",
-              "sub": "—",
-              "color": "chart-4"
-            },
-            {
-              "name": "照明系統",
-              "value": "待盤點",
-              "sub": "—",
-              "color": "energy"
-            },
-            {
-              "name": "醫療設備",
-              "value": "待盤點",
-              "sub": "—",
-              "color": "chart-5"
             }
           ]
         }
@@ -113,12 +90,6 @@
             "esg": "grey"
           },
           {
-            "name": "太陽能 PV",
-            "value": "待盤點",
-            "online": false,
-            "esg": "green"
-          },
-          {
             "name": "備用發電機",
             "value": "待盤點",
             "online": false,
@@ -126,14 +97,8 @@
           }
         ],
         "supplySum": "待盤點",
-        "detailLabel": "能源管理",
-        "detail": [
-          {
-            "name": "能源／碳盤查資料",
-            "value": "待提供",
-            "warn": false
-          }
-        ],
+        "detailLabel": "",
+        "detail": [],
         "store": [
           {
             "name": "備援電力",
@@ -148,28 +113,10 @@
           "sub": "戰時能源使用待盤點",
           "blocks": [
             {
-              "name": "空調系統",
+              "name": "全院用電",
               "value": "待盤點",
               "sub": "—",
               "color": "primary"
-            },
-            {
-              "name": "動力系統",
-              "value": "待盤點",
-              "sub": "—",
-              "color": "chart-4"
-            },
-            {
-              "name": "照明系統",
-              "value": "待盤點",
-              "sub": "—",
-              "color": "energy"
-            },
-            {
-              "name": "醫療設備",
-              "value": "待盤點",
-              "sub": "—",
-              "color": "chart-5"
             }
           ]
         }
@@ -182,7 +129,7 @@
       "peace": {
         "perf": {
           "act": [],
-          "text": "用水資料待提供"
+          "text": "用水量待盤點"
         },
         "endur": {
           "days": "待盤點",
@@ -197,14 +144,8 @@
           }
         ],
         "supplySum": "待盤點",
-        "detailLabel": "供水",
-        "detail": [
-          {
-            "name": "用水資料",
-            "value": "待提供",
-            "warn": false
-          }
-        ],
+        "detailLabel": "",
+        "detail": [],
         "store": [
           {
             "name": "蓄水",
@@ -216,7 +157,7 @@
         ],
         "use": {
           "headline": "待盤點",
-          "sub": "用水資料待提供",
+          "sub": "用水量待盤點",
           "blocks": [
             {
               "name": "全院用水",
@@ -245,14 +186,8 @@
           }
         ],
         "supplySum": "待盤點",
-        "detailLabel": "供水",
-        "detail": [
-          {
-            "name": "用水資料",
-            "value": "待提供",
-            "warn": false
-          }
-        ],
+        "detailLabel": "",
+        "detail": [],
         "store": [
           {
             "name": "蓄水",
@@ -264,7 +199,7 @@
         ],
         "use": {
           "headline": "待盤點",
-          "sub": "用水資料待提供",
+          "sub": "用水量待盤點",
           "blocks": [
             {
               "name": "全院用水",
@@ -280,15 +215,60 @@
   "report": {
     "esg": [
       {
-        "item": "資料狀態",
-        "value": "待提供",
+        "item": "盤查年度",
+        "value": "2025",
         "unit": ""
+      },
+      {
+        "item": "整體用電量",
+        "value": "4,848,500",
+        "unit": "度"
+      },
+      {
+        "item": "溫室氣體總排放",
+        "value": "2,439.6",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "範疇一 直接排放",
+        "value": "141.4",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "範疇二 外購電力",
+        "value": "2,298.2",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "固定源（發電機）",
+        "value": "1.3",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "逸散源（化糞池/冷媒）",
+        "value": "125.1",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "電力排碳係數",
+        "value": "0.474",
+        "unit": "kgCO2e/kWh"
       }
     ],
     "benchmark": [
       {
-        "item": "資料狀態",
-        "value": "待提供",
+        "item": "溫盤清冊",
+        "value": "2025 年度",
+        "unit": ""
+      },
+      {
+        "item": "整體用電量",
+        "value": "4,848,500",
+        "unit": "度"
+      },
+      {
+        "item": "ISO 50001／SEU 能源審查",
+        "value": "待建置",
         "unit": ""
       }
     ]
@@ -297,17 +277,35 @@
     {
       "id": "carbon",
       "icon": "🌱",
-      "title": "碳盤查",
+      "title": "碳盤查 2025（溫盤清冊 tCO₂e）",
       "rows": [
         {
-          "label": "溫盤碳盤查",
-          "value": "資料待提供",
-          "pending": true
+          "label": "整體用電",
+          "value": "4,848,500 度"
         },
         {
-          "label": "用電／用水",
-          "value": "待提供",
-          "pending": true
+          "label": "總碳排",
+          "value": "2,439.6 t"
+        },
+        {
+          "label": "範疇一 直接",
+          "value": "141.4 t"
+        },
+        {
+          "label": "範疇二 外購電力",
+          "value": "2,298.2 t"
+        },
+        {
+          "label": "固定源（發電機）",
+          "value": "1.3 t"
+        },
+        {
+          "label": "逸散（化糞池/冷媒）",
+          "value": "125.1 t"
+        },
+        {
+          "label": "排碳係數",
+          "value": "0.474"
         }
       ]
     },
@@ -317,8 +315,13 @@
       "title": "社會 S",
       "rows": [
         {
-          "label": "員工／社會資料",
-          "value": "待提供",
+          "label": "全院員工",
+          "value": "待盤點",
+          "pending": true
+        },
+        {
+          "label": "ESG 永續",
+          "value": "待建置",
           "pending": true
         }
       ]
@@ -329,7 +332,7 @@
       "title": "治理 G",
       "rows": [
         {
-          "label": "能源管理組織",
+          "label": "能源管理",
           "value": "待建置",
           "pending": true
         },
