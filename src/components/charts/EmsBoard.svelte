@@ -5,7 +5,7 @@
   interface Trend { act: number[]; fc?: number[]; base?: number; warn?: number; }
   interface ReportRow { item: string; value: string; unit: string; }
   interface PanelRow { label: string; value?: string; cells?: string[]; delta?: { text: string; good: boolean }; pending?: boolean; }
-  interface EsgPanel { id: string; icon: string; title: string; cols?: string[]; rows: PanelRow[]; }
+  interface EsgPanel { id: string; icon: string; title: string; compare?: boolean; cols?: string[]; rows: PanelRow[]; }
   interface Hospital { name: string; updated?: string; liveData?: boolean; layout?: 'stack' | 'split'; scenarios: { id: string; label: string }[]; resources: any[]; report?: { esg: ReportRow[]; benchmark: ReportRow[] }; esgPanels?: EsgPanel[]; }
 
   let { hospital }: { hospital: Hospital } = $props();
@@ -225,7 +225,7 @@
             {#each p.rows as r}
               <div class="panel-row" class:pend={r.pending}>
                 <span class="pl">{r.label}</span>
-                {#if r.cells?.length}{@const di = deltaInfo(r.cells)}{#each r.cells as c, i}<span class="pc">{c || '—'}{#if di && i === di.idx}<span class="delta" class:good={di.good === true} class:neutral={di.good === null}>{di.text}</span>{/if}</span>{/each}{:else}<span class="pv">{r.value}</span>{/if}
+                {#if r.cells?.length}{@const di = p.compare ? deltaInfo(r.cells) : null}{#each r.cells as c, i}<span class="pc">{c || '—'}{#if di && i === di.idx}<span class="delta" class:good={di.good === true} class:neutral={di.good === null}>{di.text}</span>{/if}</span>{/each}{:else}<span class="pv">{r.value}</span>{/if}
               </div>
             {/each}
           </div>
@@ -294,11 +294,12 @@
     gap: var(--space-sm);
   }
   .esg-panels { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-sm); }
-  /* split：header 跨頂、左半資源、右半 50% 面板（縱向堆疊） */
-  .board-page.split { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; grid-template-areas: "topbar topbar" "board panels"; height: 100dvh; overflow: hidden; }
-  .board-page.split .topbar { grid-area: topbar; }
-  .board-page.split .board { grid-area: board; grid-template-columns: 1fr; min-height: 0; overflow: auto; }
-  .board-page.split .esg-panels { grid-area: panels; grid-template-columns: 1fr; grid-auto-rows: min-content; min-height: 0; overflow: auto; }
+  /* split：上半資源橫列、下半左大區(SEU)＋右側小面板(碳盤查/社會/治理縱向) */
+  .board-page.split { height: 100dvh; overflow: hidden; }
+  .board-page.split .board { flex: 0 0 auto; grid-template-columns: repeat(3, 1fr); }
+  .board-page.split .esg-panels { flex: 1 1 0; grid-template-columns: 1.7fr 1fr; grid-template-rows: repeat(3, 1fr); min-height: 0; }
+  .board-page.split .esg-panels > :first-child { grid-row: 1 / -1; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :not(:first-child) { min-height: 0; overflow: auto; }
   .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
   .panel-h { font-size: var(--text-base); font-weight: 700; margin-bottom: var(--space-xs); color: var(--color-text); border-bottom: 2px solid var(--color-border); padding-bottom: 4px; }
   .panel-rows { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }

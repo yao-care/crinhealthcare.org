@@ -187,6 +187,7 @@ const hospitals = defineCollection({
       id: z.string(),
       icon: z.string(),
       title: z.string(),
+      compare: z.boolean().default(false),
       cols: z.array(z.string()).default([]),
       rows: z.array(z.object({
         label: z.string(),
