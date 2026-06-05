@@ -305,7 +305,7 @@
   .board-page.split .pchart { display: none; }
   .board-page.split .use-grid { grid-template-columns: repeat(5, 1fr); }
   .board-page.split .chartbox { height: 20px; }
-  .board-page.split .esg-panels { flex: 1 1 0; display: grid; grid-template-columns: 1.6fr 1.3fr 1fr; grid-template-rows: repeat(3, 1fr); grid-template-areas: "carbon gov water" "carbon gov gas" "carbon gov social"; min-height: 0; gap: var(--space-sm); }
+  .board-page.split .esg-panels { flex: 1 1 0; display: grid; grid-template-columns: 1fr 1.7fr 1.1fr; grid-template-rows: 1fr 1fr; grid-template-areas: "water carbon social" "gas carbon gov"; min-height: 0; gap: var(--space-sm); }
   .board-page.split .esg-panels > :nth-child(1) { grid-area: carbon; min-height: 0; overflow: auto; }
   .board-page.split .esg-panels > :nth-child(2) { grid-area: gov; min-height: 0; overflow: auto; }
   .board-page.split .esg-panels > :nth-child(3) { grid-area: water; min-height: 0; overflow: auto; }
