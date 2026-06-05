@@ -13,7 +13,7 @@
       "icon": "⚡",
       "name": "電力",
       "peace": {
-        "perf": { "act": [], "text": "用電 6,302,756 度/年 · 電力碳排 2,988 t · 臺中未建置 ISO 50001" },
+        "perf": { "act": [], "text": "SEU 已盤查（空調 53% 最大宗）· 用電 6,302,756 度 · 電力碳排 2,988 t" },
         "endur": { "days": "備援待盤點", "pct": "—" },
         "supply": [
           { "name": "市電（主）", "value": "6,302,756 度/年", "online": true, "esg": "grey" },
@@ -21,23 +21,27 @@
           { "name": "備用發電機", "value": "柴油備援", "online": false, "esg": "amber" }
         ],
         "supplySum": "年 6,302,756 度",
-        "detailLabel": "能源管理",
+        "detailLabel": "能源管理（能源審查 115.04）",
         "detail": [
-          { "name": "SEU 重大能源使用", "value": "待建置（無 ISO F-04）", "warn": false },
-          { "name": "EnPI／能源基線", "value": "待建置", "warn": false },
-          { "name": "改善機會", "value": "待盤點", "warn": false }
+          { "name": "SEU 重大能源使用", "value": "12 系統·A 級設備 11 項", "warn": false },
+          { "name": "改善優先（表5）", "value": "空調·南機房 180RT 冰水主機汰換", "warn": false },
+          { "name": "A 級設備", "value": "空調主機/區域水泵/UPS/印表機", "warn": false },
+          { "name": "能源審查", "value": "附表一設備評估完成", "warn": false },
+          { "name": "EnPI／能源基線", "value": "待補", "warn": false }
         ],
         "store": [
           { "name": "備援電力", "days": "待盤點", "cap": "緊急發電機·柴油（容量待盤點）", "pct": 0, "warn": false }
         ],
         "use": {
           "headline": "6,302,756 度/年",
-          "sub": "全院年用電 · SEU 分項待盤點（臺中無 ISO 50001 F-04）",
+          "sub": "SEU 能源審查 12 系統 · 空調最大宗 · 審查總量 7,101 MWh（114）",
           "blocks": [
-            { "name": "空調系統", "value": "待盤點", "sub": "—", "color": "primary" },
-            { "name": "動力系統", "value": "待盤點", "sub": "—", "color": "chart-4" },
-            { "name": "照明系統", "value": "待盤點", "sub": "—", "color": "energy" },
-            { "name": "醫療設備", "value": "待盤點", "sub": "—", "color": "chart-5" }
+            { "name": "空調系統", "value": "3,739,418 kWh", "sub": "53%·最大宗", "color": "primary", "trend": { "act": [53], "base": 53, "warn": 58 } },
+            { "name": "資訊設備", "value": "1,101,591 kWh", "sub": "16%", "color": "chart-4", "trend": { "act": [16], "base": 16, "warn": 20 } },
+            { "name": "醫療設備", "value": "887,419 kWh", "sub": "12%", "color": "chart-5", "trend": { "act": [12], "base": 12, "warn": 15 } },
+            { "name": "熱泵", "value": "451,572 kWh", "sub": "6%", "color": "energy", "trend": { "act": [6], "base": 6, "warn": 8 } },
+            { "name": "照明系統", "value": "346,572 kWh", "sub": "5%", "color": "accent", "trend": { "act": [5], "base": 5, "warn": 7 } },
+            { "name": "其他系統", "value": "574,416 kWh", "sub": "電梯/污水/雜項等", "color": "text-secondary" }
           ]
         }
       },
@@ -114,9 +118,15 @@
       { "item": "電力排碳係數", "value": "0.474", "unit": "kgCO2e/kWh" }
     ],
     "benchmark": [
-      { "item": "ISO 50001 能源管理系統", "value": "尚未建置", "unit": "" },
-      { "item": "整體用電量", "value": "6,302,756", "unit": "度" },
-      { "item": "EnPI／SEU／能源基線", "value": "待建置 ISO 50001", "unit": "" }
+      { "item": "能源審查 SEU 評估", "value": "附表一·12 系統", "unit": "" },
+      { "item": "SEU 空調系統", "value": "3,739,418", "unit": "kWh(53%)" },
+      { "item": "SEU 資訊設備", "value": "1,101,591", "unit": "kWh(16%)" },
+      { "item": "SEU 醫療設備", "value": "887,419", "unit": "kWh(12%)" },
+      { "item": "SEU 熱泵", "value": "451,572", "unit": "kWh(6%)" },
+      { "item": "SEU 照明系統", "value": "346,572", "unit": "kWh(5%)" },
+      { "item": "A 級重大耗能設備", "value": "11", "unit": "項" },
+      { "item": "改善優先-空調", "value": "南機房180RT冰水主機汰換", "unit": "" },
+      { "item": "EnPI／能源基線", "value": "待補", "unit": "" }
     ]
   },
   "esgPanels": [
@@ -148,8 +158,9 @@
     {
       "id": "governance", "icon": "🏛️", "title": "治理 G",
       "rows": [
-        { "label": "能源管理組織", "value": "待建置 ISO 50001", "pending": true },
-        { "label": "風險／法規", "value": "待盤點", "pending": true },
+        { "label": "能源管理", "value": "SEU 評估·12 系統 SOP" },
+        { "label": "改善優先性評估", "value": "表5·空調最高 11 分" },
+        { "label": "ISO 50001", "value": "能源審查已做·認證待確認", "pending": true },
         { "label": "廉政／資安", "value": "待收集", "pending": true }
       ]
     }
