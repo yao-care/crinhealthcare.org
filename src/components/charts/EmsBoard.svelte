@@ -320,7 +320,7 @@
   .panel.cmp .panel-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; align-items: baseline; gap: 6px; }
   .panel-head { font-weight: 700; color: var(--color-text-secondary); border-bottom: 2px solid var(--color-border); }
   .pc { text-align: right; font-weight: 700; }
-  .delta { font-size: var(--text-xs); margin-left: 4px; font-weight: 700; color: var(--color-alert); white-space: nowrap; }
+  .delta { display: block; font-size: var(--text-xs); font-weight: 700; color: var(--color-alert); white-space: nowrap; }
   .delta.good { color: var(--color-accent); }
   .delta.neutral { color: var(--color-text-secondary); }
   .res {
