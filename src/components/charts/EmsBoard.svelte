@@ -216,16 +216,19 @@
   {#if hospital.esgPanels?.length}
     <div class="esg-panels">
       {#each hospital.esgPanels as p}
-        <section class="panel" class:cmp={p.cols?.length}>
+        <section class="panel" class:cmp={p.cols?.length} class:compare-grid={p.compare}>
           <h2 class="panel-h">{p.icon} {p.title}</h2>
           {#if p.cols?.length}
-            <div class="panel-row panel-head"><span class="pl">{p.cols[0]}</span>{#each p.cols.slice(1) as c}<span class="pc">{c}</span>{/each}</div>
+            <div class="panel-row panel-head">
+              <span class="pl">{p.cols[0]}</span>
+              {#if p.compare}<span class="pc">{p.cols[1]}</span><span class="pc">{p.cols[2]}</span><span class="pc">增減</span><span class="pc">{p.cols[3]}</span>{:else}{#each p.cols.slice(1) as c}<span class="pc">{c}</span>{/each}{/if}
+            </div>
           {/if}
           <div class="panel-rows">
             {#each p.rows as r}
               <div class="panel-row" class:pend={r.pending}>
                 <span class="pl">{r.label}</span>
-                {#if r.cells?.length}{@const di = p.compare ? deltaInfo(r.cells) : null}{#each r.cells as c, i}<span class="pc">{c || '—'}{#if di && i === di.idx}<span class="delta" class:good={di.good === true} class:neutral={di.good === null}>{di.text}</span>{/if}</span>{/each}{:else}<span class="pv">{r.value}</span>{/if}
+                {#if r.cells?.length}{#if p.compare}{@const di = deltaInfo(r.cells)}<span class="pc">{r.cells[0] || '—'}</span><span class="pc">{r.cells[1] || '—'}</span><span class="pc dlt" class:good={di?.good === true} class:neutral={di?.good === null}>{di ? di.text : ''}</span><span class="pc">{r.cells[2] || '—'}</span>{:else}{#each r.cells as c}<span class="pc">{c}</span>{/each}{/if}{:else}<span class="pv">{r.value}</span>{/if}
               </div>
             {/each}
           </div>
@@ -318,11 +321,12 @@
   .panel-row .pv { font-weight: 700; text-align: right; }
   .panel-row.pend .pv { color: var(--color-text-secondary); font-weight: 400; font-style: italic; }
   .panel.cmp .panel-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; align-items: baseline; gap: 6px; }
+  .panel.cmp.compare-grid .panel-row { grid-template-columns: 1.1fr 1fr 1fr 0.9fr 0.55fr; }
   .panel-head { font-weight: 700; color: var(--color-text-secondary); border-bottom: 2px solid var(--color-border); }
   .pc { text-align: right; font-weight: 700; }
-  .delta { display: block; font-size: var(--text-xs); font-weight: 700; color: var(--color-alert); white-space: nowrap; }
-  .delta.good { color: var(--color-accent); }
-  .delta.neutral { color: var(--color-text-secondary); }
+  .dlt { text-align: right; font-size: var(--text-xs); font-weight: 700; color: var(--color-alert); white-space: nowrap; }
+  .dlt.good { color: var(--color-accent); }
+  .dlt.neutral { color: var(--color-text-secondary); }
   .res {
     background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);
     display: flex; flex-direction: column; overflow: hidden; min-height: 0;
