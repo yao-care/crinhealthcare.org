@@ -26,6 +26,7 @@
           { "name": "SEU 重大能源使用", "value": "12 系統·A 級設備 11 項", "warn": false },
           { "name": "改善優先（表5）", "value": "空調·南機房 180RT 冰水主機汰換", "warn": false },
           { "name": "A 級設備", "value": "空調主機/區域水泵/UPS/印表機", "warn": false },
+          { "name": "設備盤點", "value": "1,673 台（A11/B116/C1546）", "warn": false },
           { "name": "能源審查", "value": "附表一設備評估完成", "warn": false },
           { "name": "EnPI／能源基線", "value": "待補", "warn": false }
         ],
@@ -34,7 +35,7 @@
         ],
         "use": {
           "headline": "6,302,756 度/年",
-          "sub": "SEU 能源審查 12 系統 · 空調最大宗 · 審查總量 7,101 MWh（114）",
+          "sub": "SEU 能源審查 12 系統·1,673 台 · 審查 7,101 MWh · 績效變數：醫療服務量/外氣溫度/運轉時間",
           "blocks": [
             { "name": "空調系統", "value": "3,739,418 kWh", "sub": "53%·最大宗", "color": "primary", "trend": { "act": [53], "base": 53, "warn": 58 } },
             { "name": "資訊設備", "value": "1,101,591 kWh", "sub": "16%", "color": "chart-4", "trend": { "act": [16], "base": 16, "warn": 20 } },
