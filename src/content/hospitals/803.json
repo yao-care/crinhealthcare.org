@@ -14,7 +14,7 @@
       "icon": "⚡",
       "name": "電力",
       "peace": {
-        "perf": { "act": [], "text": "用電 6,302,756 度 · 電力碳排 2,988 t · SEU 12 系統" },
+        "perf": { "act": [], "text": "用電 6,302,756 度 · 電力碳排 2,988 t · SEU 能源審查 1,673 台" },
         "endur": { "days": "備援待盤點", "pct": "—" },
         "supply": [
           { "name": "市電（主）", "value": "6,302,756 度/年", "online": true, "esg": "grey" },
@@ -27,14 +27,18 @@
         "store": [ { "name": "備援電力", "days": "待盤點", "cap": "緊急發電機·柴油", "pct": 0, "warn": false } ],
         "use": {
           "headline": "6,302,756 度/年",
-          "sub": "SEU 能源審查電力分項（污水/天然氣另列為獨立資源）",
+          "sub": "SEU 電力 10 系統（天然氣鍋爐／污水另列為獨立資源）",
           "blocks": [
-            { "name": "空調系統", "value": "3,739,418 kWh", "sub": "53%·最大宗", "color": "primary", "trend": { "act": [53], "base": 53, "warn": 58 } },
+            { "name": "空調", "value": "3,739,418 kWh", "sub": "53%·最大宗", "color": "primary", "trend": { "act": [53], "base": 53, "warn": 58 } },
             { "name": "資訊設備", "value": "1,101,591 kWh", "sub": "16%", "color": "chart-4", "trend": { "act": [16], "base": 16, "warn": 20 } },
             { "name": "醫療設備", "value": "887,419 kWh", "sub": "12%", "color": "chart-5", "trend": { "act": [12], "base": 12, "warn": 15 } },
             { "name": "熱泵", "value": "451,572 kWh", "sub": "6%", "color": "energy", "trend": { "act": [6], "base": 6, "warn": 8 } },
-            { "name": "照明系統", "value": "346,572 kWh", "sub": "5%", "color": "accent", "trend": { "act": [5], "base": 5, "warn": 7 } },
-            { "name": "其他電力", "value": "314,707 kWh", "sub": "電梯/雜項/車輛/抽排風/消防", "color": "text-secondary" }
+            { "name": "照明", "value": "346,572 kWh", "sub": "5%", "color": "accent", "trend": { "act": [5], "base": 5, "warn": 7 } },
+            { "name": "其餘雜項", "value": "140,641 kWh", "sub": "2%·影印機/變壓器", "color": "text-secondary" },
+            { "name": "電梯", "value": "77,259 kWh", "sub": "1%·三菱/永大", "color": "chart-4" },
+            { "name": "車輛", "value": "39,513 kWh", "sub": "1%·救護車", "color": "text-secondary" },
+            { "name": "抽排風", "value": "32,193 kWh", "sub": "0%·排風機", "color": "chart-4" },
+            { "name": "消防", "value": "25,101 kWh", "sub": "0%·消防馬達", "color": "text-secondary" }
           ]
         }
       },
@@ -47,38 +51,6 @@
         "detail": [],
         "store": [ { "name": "備援電力", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
         "use": { "headline": "待盤點", "sub": "戰時能源使用待盤點", "blocks": [ { "name": "全院用電", "value": "待盤點", "sub": "—", "color": "primary" } ] }
-      }
-    },
-    {
-      "id": "water",
-      "icon": "💧",
-      "name": "水",
-      "peace": {
-        "perf": { "act": [], "text": "污水處理 96,990 kWh · 用水量待盤點" },
-        "endur": { "days": "待盤點", "pct": "—" },
-        "supply": [ { "name": "自來水", "value": "用水量待盤點", "online": false, "esg": "na" } ],
-        "supplySum": "市政自來水（用量待盤點）",
-        "detailLabel": "",
-        "detail": [],
-        "store": [ { "name": "蓄水", "days": "待盤點", "cap": "蓄水池容量待盤點", "pct": 0, "warn": false } ],
-        "use": {
-          "headline": "96,990 kWh",
-          "sub": "供水/污水用電（SEU）",
-          "blocks": [
-            { "name": "污水處理", "value": "96,990 kWh", "sub": "11 台沉水抽水機（川源）", "color": "chart-4" },
-            { "name": "用水量", "value": "待盤點", "sub": "自來水帳單待收集", "color": "text-secondary" }
-          ]
-        }
-      },
-      "war": {
-        "perf": { "act": [], "text": "戰時供水資料待盤點" },
-        "endur": { "days": "待盤點", "pct": "—" },
-        "supply": [ { "name": "自來水/備援", "value": "待盤點", "online": false, "esg": "na" } ],
-        "supplySum": "待盤點",
-        "detailLabel": "",
-        "detail": [],
-        "store": [ { "name": "蓄水", "days": "待盤點", "cap": "待盤點", "pct": 0, "warn": false } ],
-        "use": { "headline": "待盤點", "sub": "戰時用水待盤點", "blocks": [ { "name": "全院用水", "value": "待盤點", "sub": "—", "color": "chart-4" } ] }
       }
     }
   ],
@@ -112,33 +84,6 @@
   },
   "esgPanels": [
     {
-      "id": "gas", "icon": "🔥", "title": "天然氣",
-      "rows": [
-        { "label": "供給", "value": "天然氣·鍋爐供熱" },
-        { "label": "蒸氣鍋爐", "value": "162,720 kWh（金品·B 級）" },
-        { "label": "用途", "value": "蒸氣／熱水" },
-        { "label": "儲存", "value": "待盤點", "pending": true }
-      ]
-    },
-    {
-      "id": "seu", "icon": "⚙️", "title": "SEU 能源審查 12 系統（附表一 115.04 · 1,673 台）",
-      "cols": ["系統", "耗電 kWh", "佔比", "代表設備／改善"],
-      "rows": [
-        { "label": "空調", "cells": ["3,739,418", "53%", "力菱磁浮/大金·南機房180RT汰換"] },
-        { "label": "資訊設備", "cells": ["1,101,591", "16%", "飛瑞UPS/EPSON印表機"] },
-        { "label": "醫療設備", "cells": ["887,419", "12%", "867 台醫材"] },
-        { "label": "熱泵", "cells": ["451,572", "6%", "電熱水器/熱泵"] },
-        { "label": "照明", "cells": ["346,572", "5%", "T8 LED/路燈"] },
-        { "label": "天然氣鍋爐", "cells": ["162,720", "2%", "蒸氣鍋爐金品"] },
-        { "label": "其餘雜項", "cells": ["140,641", "2%", "影印機/高壓變壓器"] },
-        { "label": "污水處理", "cells": ["96,990", "1%", "沉水抽水機川源"] },
-        { "label": "電梯", "cells": ["77,259", "1%", "三菱/永大·3,5號汰換"] },
-        { "label": "車輛", "cells": ["39,513", "1%", "救護車/醫療車"] },
-        { "label": "抽排風", "cells": ["32,193", "0%", "排風機和旭/東元"] },
-        { "label": "消防", "cells": ["25,101", "0%", "消防馬達九如/東元"] }
-      ]
-    },
-    {
       "id": "carbon", "icon": "🌱", "title": "碳盤查 2024→2026（tCO₂e，2024 基準年）",
       "compare": true,
       "cols": ["項目", "2024", "2025", "2026"],
@@ -151,20 +96,35 @@
       ]
     },
     {
+      "id": "governance", "icon": "🏛️", "title": "治理 G · 能源管理",
+      "rows": [
+        { "label": "能源審查", "value": "附表一·12 系統 SOP" },
+        { "label": "A 級設備", "value": "11 項（空調CH3/區域水泵/UPS）" },
+        { "label": "改善優先", "value": "空調·南機房 180RT 汰換（表5 第一）" },
+        { "label": "績效變數", "value": "醫療服務量/外氣溫度/運轉時間" },
+        { "label": "EnPI／能源基線", "value": "待補", "pending": true },
+        { "label": "ISO 50001", "value": "審查已做·認證待確認", "pending": true }
+      ]
+    },
+    {
+      "id": "water", "icon": "💧", "title": "水",
+      "rows": [
+        { "label": "污水處理", "value": "96,990 kWh（11 台抽水機）" },
+        { "label": "用水量", "value": "待盤點", "pending": true }
+      ]
+    },
+    {
+      "id": "gas", "icon": "🔥", "title": "天然氣",
+      "rows": [
+        { "label": "蒸氣鍋爐", "value": "162,720 kWh（金品·B 級）" },
+        { "label": "用途", "value": "蒸氣／熱水" }
+      ]
+    },
+    {
       "id": "social", "icon": "👥", "title": "社會 S",
       "rows": [
         { "label": "全院員工", "value": "待盤點", "pending": true },
         { "label": "ESG 永續", "value": "待建置", "pending": true }
-      ]
-    },
-    {
-      "id": "governance", "icon": "🏛️", "title": "治理 G",
-      "rows": [
-        { "label": "能源管理", "value": "12 系統 SOP·A 級 11 項" },
-        { "label": "改善優先", "value": "空調·南機房 180RT 汰換" },
-        { "label": "改善評分", "value": "表5·空調 11 分" },
-        { "label": "EnPI／能源基線", "value": "待補", "pending": true },
-        { "label": "ISO 50001", "value": "審查已做·認證待確認", "pending": true }
       ]
     }
   ]

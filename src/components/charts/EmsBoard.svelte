@@ -297,25 +297,20 @@
     gap: var(--space-sm);
   }
   .esg-panels { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-sm); }
-  /* split：上半資源橫列、下半左大區(SEU)＋右側小面板(碳盤查/社會/治理縱向) */
+  /* split：上半電力全寬(供給左/使用端10系統右)、下半依內容(碳盤查左寬/治理中/水·天然氣·社會右小) */
   .board-page.split { height: 100dvh; overflow: hidden; }
-  .board-page.split .board { flex: 0 0 auto; max-height: 44vh; grid-template-columns: repeat(2, 1fr); }
-  .board-page.split .esg-panels { flex: 1 1 0; display: grid; grid-template-columns: 1fr 1.8fr 1.3fr; grid-template-rows: auto auto 1fr; grid-template-areas: "gas seu carbon" "social seu carbon" "gov seu carbon"; min-height: 0; gap: var(--space-sm); }
-  .board-page.split .esg-panels > :nth-child(1) { grid-area: gas; min-height: 0; overflow: auto; }
-  .board-page.split .esg-panels > :nth-child(2) { grid-area: seu; min-height: 0; overflow: auto; }
-  .board-page.split .esg-panels > :nth-child(3) { grid-area: carbon; min-height: 0; overflow: auto; }
-  .board-page.split .esg-panels > :nth-child(4) { grid-area: social; min-height: 0; overflow: auto; }
-  .board-page.split .esg-panels > :nth-child(5) { grid-area: gov; min-height: 0; overflow: auto; }
-  /* 上半資源：標題列改可換行、隱藏空績效圖（避免窄欄重疊）；供/儲/用縱向、隱藏待盤點儲存 */
-  .board-page.split .res-head { flex-wrap: wrap; row-gap: 4px; }
-  .board-page.split .perfwrap { flex-basis: 100%; margin-left: 0; }
-  .board-page.split .pchart { display: none; }
-  .board-page.split .lbl { text-align: left; flex: 1; }
-  .board-page.split .res-body { display: flex; flex-direction: column; gap: var(--space-xs); }
-  .board-page.split .res-body .seg { min-width: 0; }
+  .board-page.split .board { flex: 0 0 auto; max-height: 50vh; grid-template-columns: 1fr; }
+  .board-page.split .res-body { grid-template-columns: 0.75fr 2.25fr; }
   .board-page.split .res-body .seg:nth-of-type(2) { display: none; }
-  .board-page.split .use-grid { grid-template-columns: 1fr 1fr; }
-  .board-page.split .chartbox { height: 26px; }
+  .board-page.split .pchart { display: none; }
+  .board-page.split .use-grid { grid-template-columns: repeat(5, 1fr); }
+  .board-page.split .chartbox { height: 20px; }
+  .board-page.split .esg-panels { flex: 1 1 0; display: grid; grid-template-columns: 1.6fr 1.3fr 1fr; grid-template-rows: repeat(3, 1fr); grid-template-areas: "carbon gov water" "carbon gov gas" "carbon gov social"; min-height: 0; gap: var(--space-sm); }
+  .board-page.split .esg-panels > :nth-child(1) { grid-area: carbon; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :nth-child(2) { grid-area: gov; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :nth-child(3) { grid-area: water; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :nth-child(4) { grid-area: gas; min-height: 0; overflow: auto; }
+  .board-page.split .esg-panels > :nth-child(5) { grid-area: social; min-height: 0; overflow: auto; }
   .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
   .panel-h { font-size: var(--text-base); font-weight: 700; margin-bottom: var(--space-xs); color: var(--color-text); border-bottom: 2px solid var(--color-border); padding-bottom: 4px; }
   .panel-rows { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
