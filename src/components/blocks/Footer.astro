@@ -23,12 +23,14 @@ const resourceLinks = [
     <!-- Col 1: About -->
     <div class="footer__col footer__col--about">
       <a href={url('/')} class="footer__logo" aria-label="國際醫療減碳協會 首頁">
-        <svg width="32" height="32" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
-          <circle cx="18" cy="18" r="16" fill="var(--color-primary)" />
-          <rect x="14" y="9" width="8" height="18" rx="2" fill="var(--color-paper)" />
-          <rect x="9" y="14" width="18" height="8" rx="2" fill="var(--color-paper)" />
-          <ellipse cx="26" cy="11" rx="5" ry="3" fill="var(--color-accent)" transform="rotate(-30 26 11)" />
-        </svg>
+        <img
+          src={url('/logo.png')}
+          width="36"
+          height="36"
+          class="footer__logo-img"
+          alt=""
+          aria-hidden="true"
+        />
         <span>國際醫療減碳協會</span>
       </a>
       <p class="footer__tagline">
@@ -114,6 +116,13 @@ const resourceLinks = [
 
   .footer__logo:hover {
     color: var(--color-primary);
+  }
+
+  .footer__logo-img {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
   }
 
   .footer__tagline {
