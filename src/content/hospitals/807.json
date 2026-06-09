@@ -62,13 +62,67 @@
         ],
         "use": {
           "headline": "約 12,669,600 度/年",
-          "sub": "SEU 能源審查待建置（溫盤僅含碳排）",
+          "sub": "碳盤查各項（2025 溫盤）· SEU 系統別待建置",
           "blocks": [
             {
               "name": "全院用電",
-              "value": "約 12,669,600 度",
-              "sub": "SEU 分項待盤點",
+              "value": "12,669,600 度",
+              "sub": "",
               "color": "primary"
+            },
+            {
+              "name": "溫室氣體總排放",
+              "value": "6,652.4 tCO2e",
+              "sub": "",
+              "color": "chart-4"
+            },
+            {
+              "name": "範疇一直接",
+              "value": "646.98 tCO2e",
+              "sub": "",
+              "color": "chart-5"
+            },
+            {
+              "name": "外購電力(範疇二)",
+              "value": "6,005.39 tCO2e",
+              "sub": "",
+              "color": "energy"
+            },
+            {
+              "name": "冷媒逸散",
+              "value": "506.13 tCO2e",
+              "sub": "",
+              "color": "accent"
+            },
+            {
+              "name": "燃氣/油鍋爐",
+              "value": "134.40 tCO2e",
+              "sub": "",
+              "color": "chart-1"
+            },
+            {
+              "name": "公務車(移動)",
+              "value": "6.44 tCO2e",
+              "sub": "",
+              "color": "text-secondary"
+            },
+            {
+              "name": "類3~6間接",
+              "value": "1,586.50 tCO2e",
+              "sub": "",
+              "color": "chart-4"
+            },
+            {
+              "name": "全院總計(類1~6)",
+              "value": "8,238.87 tCO2e",
+              "sub": "",
+              "color": "chart-5"
+            },
+            {
+              "name": "電力排碳係數",
+              "value": "0.474 kgCO2e/kWh",
+              "sub": "",
+              "color": "energy"
             }
           ]
         }

@@ -62,13 +62,49 @@
         ],
         "use": {
           "headline": "4,848,500 度/年",
-          "sub": "SEU 能源審查待建置（清冊僅含碳排/用電）",
+          "sub": "碳盤查各項（2025 溫盤）· SEU 系統別待建置",
           "blocks": [
             {
               "name": "全院用電",
               "value": "4,848,500 度",
-              "sub": "SEU 分項待盤點",
+              "sub": "",
               "color": "primary"
+            },
+            {
+              "name": "溫室氣體總排放",
+              "value": "2,439.6 tCO2e",
+              "sub": "",
+              "color": "chart-4"
+            },
+            {
+              "name": "外購電力(範疇二)",
+              "value": "2,298.2 tCO2e",
+              "sub": "",
+              "color": "chart-5"
+            },
+            {
+              "name": "冷媒逸散",
+              "value": "125.1 tCO2e",
+              "sub": "",
+              "color": "energy"
+            },
+            {
+              "name": "公務車(移動)",
+              "value": "15.0 tCO2e",
+              "sub": "",
+              "color": "accent"
+            },
+            {
+              "name": "緊急發電機",
+              "value": "1.3 tCO2e",
+              "sub": "",
+              "color": "chart-1"
+            },
+            {
+              "name": "電力排碳係數",
+              "value": "0.474 kgCO2e/kWh",
+              "sub": "",
+              "color": "text-secondary"
             }
           ]
         }
