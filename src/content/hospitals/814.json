@@ -1,0 +1,295 @@
+{
+  "name": "國軍左營總醫院岡山分院",
+  "location": "高雄市岡山區",
+  "updated": "2026-06-09",
+  "liveData": false,
+  "scenarios": [
+    {
+      "id": "peace",
+      "label": "平時"
+    },
+    {
+      "id": "war",
+      "label": "戰時/救災"
+    }
+  ],
+  "resources": [
+    {
+      "id": "power",
+      "icon": "⚡",
+      "name": "電力",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": "年 4,514,005 度 · 電力碳排 2,140 t（外購電力）· 能源審查待盤點"
+        },
+        "endur": {
+          "days": "備援待盤點",
+          "pct": "—"
+        },
+        "supply": [
+          {
+            "name": "市電（主）",
+            "value": "4,514,005 度/年",
+            "online": true,
+            "esg": "grey"
+          },
+          {
+            "name": "太陽能 PV",
+            "value": "待盤點",
+            "online": false,
+            "esg": "green"
+          },
+          {
+            "name": "備用發電機",
+            "value": "緊急發電機·柴油（柴油排放 0 t）",
+            "online": false,
+            "esg": "amber"
+          }
+        ],
+        "supplySum": "年 4,514,005 度（2024 溫盤）",
+        "detailLabel": "能源管理（ISO 50001 待建置）",
+        "detail": [
+          {
+            "name": "SEU 重大能源使用",
+            "value": "待盤點（無能源審查表）",
+            "warn": false
+          },
+          {
+            "name": "EnPI／能源基線 EnB",
+            "value": "待盤點",
+            "warn": false
+          }
+        ],
+        "store": [
+          {
+            "name": "備援電力",
+            "days": "待盤點",
+            "cap": "緊急發電機·柴油（容量待盤點）",
+            "pct": 0,
+            "warn": false
+          }
+        ],
+        "use": {
+          "headline": "4,514,005 度/年",
+          "sub": "全院年用電（2024 溫盤）· SEU 系統別待盤點",
+          "blocks": [
+            {
+              "name": "全院用電",
+              "value": "4,514,005 kWh",
+              "sub": "外購電力碳排 2,139.64 tCO₂e",
+              "color": "primary"
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": "戰時能源續航資料待盤點"
+        },
+        "endur": {
+          "days": "待盤點",
+          "pct": "—"
+        },
+        "supply": [
+          {
+            "name": "市電（主）",
+            "value": "待盤點",
+            "online": false,
+            "esg": "grey"
+          },
+          {
+            "name": "備用發電機",
+            "value": "待盤點",
+            "online": false,
+            "esg": "amber"
+          }
+        ],
+        "supplySum": "待盤點",
+        "detailLabel": "戰時能源",
+        "detail": [
+          {
+            "name": "備援續航",
+            "value": "待盤點",
+            "warn": false
+          }
+        ],
+        "store": [
+          {
+            "name": "備援電力",
+            "days": "待盤點",
+            "cap": "待盤點",
+            "pct": 0,
+            "warn": false
+          }
+        ],
+        "use": {
+          "headline": "待盤點",
+          "sub": "戰時能源使用待盤點",
+          "blocks": [
+            {
+              "name": "全院用電",
+              "value": "待盤點",
+              "sub": "—",
+              "color": "primary"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "report": {
+    "esg": [
+      {
+        "item": "盤查年度（基準年）",
+        "value": "2024",
+        "unit": ""
+      },
+      {
+        "item": "整體用電量",
+        "value": "4,514,005",
+        "unit": "度"
+      },
+      {
+        "item": "溫室氣體總排放（類別1+2）",
+        "value": "2,298.16",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "範疇一 直接排放（類別1）",
+        "value": "158.52",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "範疇二 外購電力（類別2）",
+        "value": "2,139.64",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "電力排碳係數",
+        "value": "0.474",
+        "unit": "kgCO2e/kWh"
+      },
+      {
+        "item": "化糞池（在院時數）",
+        "value": "523.78",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "冷媒逸散",
+        "value": "33.57",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "公務車（汽油＋柴油）",
+        "value": "25.44",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "天然氣",
+        "value": "8.99",
+        "unit": "tCO2e"
+      },
+      {
+        "item": "氣體鋼瓶",
+        "value": "0.04",
+        "unit": "tCO2e"
+      }
+    ],
+    "benchmark": [
+      {
+        "item": "能源審查 SEU",
+        "value": "待盤點（無 ISO 50001 能源審查表）",
+        "unit": ""
+      },
+      {
+        "item": "EnPI 基準值",
+        "value": "待盤點",
+        "unit": ""
+      },
+      {
+        "item": "重大間接排放源",
+        "value": "外購電力（佔類別1+2 之 93.10%）",
+        "unit": ""
+      }
+    ]
+  },
+  "esgPanels": [
+    {
+      "id": "carbon",
+      "icon": "🌱",
+      "title": "碳盤查 2024（首年·基準年，單位 tCO₂e）",
+      "rows": [
+        {
+          "label": "總排放（類別1+2）",
+          "value": "2,298.16"
+        },
+        {
+          "label": "外購電力（類別2）",
+          "value": "2,139.64"
+        },
+        {
+          "label": "化糞池（類別1·在院時數）",
+          "value": "523.78"
+        },
+        {
+          "label": "冷媒逸散",
+          "value": "33.57"
+        },
+        {
+          "label": "公務車（汽＋柴）",
+          "value": "25.44"
+        },
+        {
+          "label": "天然氣",
+          "value": "8.99"
+        },
+        {
+          "label": "氣體鋼瓶",
+          "value": "0.04"
+        },
+        {
+          "label": "麻醉氣體／緊急發電機／消防",
+          "value": "0.00"
+        }
+      ]
+    },
+    {
+      "id": "governance",
+      "icon": "🏛️",
+      "title": "治理 G",
+      "rows": [
+        {
+          "label": "溫盤標準",
+          "value": "ISO 14064-1:2018（2024 首年盤查）"
+        },
+        {
+          "label": "基準年",
+          "value": "2024（實質性門檻 5%）"
+        },
+        {
+          "label": "ISO 50001 能源管理",
+          "value": "待建置",
+          "pending": true
+        }
+      ]
+    },
+    {
+      "id": "social",
+      "icon": "👥",
+      "title": "社會 S",
+      "rows": [
+        {
+          "label": "人員在院時數",
+          "value": "11,779,170.76 小時（2024）"
+        },
+        {
+          "label": "ESG 永續",
+          "value": "待收集",
+          "pending": true
+        }
+      ]
+    }
+  ]
+}
