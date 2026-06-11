@@ -15,3 +15,5 @@
 90004	IGNORE	.*
 # Anti-CSRF Tokens：表單 POST 至外部 Formspree、本站純靜態無 session，對本站為誤報
 10202	IGNORE	.*
+# CSP unsafe-inline (script-src/style-src)：Astro 靜態 + GitHub Pages meta-CSP 固有限制，inline 水合腳本/樣式必需無法移除；經資安負責人 2026-06-11 簽核接受
+10055	IGNORE	.*
