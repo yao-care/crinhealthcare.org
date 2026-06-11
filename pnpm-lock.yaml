@@ -17,6 +17,9 @@ importers:
       '@astrojs/svelte':
         specifier: ^8.1.0
         version: 8.1.0(@types/node@25.7.0)(astro@6.3.1(@types/node@25.7.0)(rollup@4.60.3)(tsx@4.21.0)(yaml@2.9.0))(svelte@5.55.5)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.9.0)
+      '@fontsource/noto-sans-tc':
+        specifier: ^5.2.9
+        version: 5.2.9
       astro:
         specifier: ^6.3.1
         version: 6.3.1(@types/node@25.7.0)(rollup@4.60.3)(tsx@4.21.0)(yaml@2.9.0)
@@ -339,6 +342,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource/noto-sans-tc@5.2.9':
+    resolution: {integrity: sha512-Z+pXTvXYrip79lPV9X1lCYO3UTys55P25VqcifDStIzdZ86I4R6t8dz+NhGd09YdbvHWvOCB5Icw1m7glKHPNQ==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2129,6 +2135,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.7':
     optional: true
+
+  '@fontsource/noto-sans-tc@5.2.9': {}
 
   '@img/colour@1.1.0': {}
 

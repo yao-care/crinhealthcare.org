@@ -5,3 +5,6 @@ dist/
 *.log
 .env
 .env.*
+
+# 資安掃描工具誤建的暫存檔
+mydatabase.db
