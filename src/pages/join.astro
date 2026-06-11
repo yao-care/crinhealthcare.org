@@ -61,9 +61,10 @@ import Page from '@layouts/Page.astro';
       <div class="join-form-section">
         <h2 class="section-heading">填寫申請表</h2>
         <form
-          action="https://formspree.io/f/PLACEHOLDER"
-          method="POST"
           class="join-form"
+          data-mailto-form
+          data-mailto="info@crinhealthcare.org"
+          data-subject="新會員申請 — 國際醫療減碳協會"
           novalidate
         >
           <div class="form-group">
@@ -75,6 +76,7 @@ import Page from '@layouts/Page.astro';
               type="text"
               id="name"
               name="name"
+              data-label="聯絡人姓名"
               class="form-input"
               required
               autocomplete="name"
@@ -91,6 +93,7 @@ import Page from '@layouts/Page.astro';
               type="text"
               id="organization"
               name="organization"
+              data-label="機構名稱"
               class="form-input"
               required
               placeholder="醫院或機構全名"
@@ -106,6 +109,7 @@ import Page from '@layouts/Page.astro';
               type="email"
               id="email"
               name="email"
+              data-label="電子郵件"
               class="form-input"
               required
               autocomplete="email"
@@ -119,6 +123,7 @@ import Page from '@layouts/Page.astro';
               type="tel"
               id="phone"
               name="phone"
+              data-label="聯絡電話"
               class="form-input"
               autocomplete="tel"
               placeholder="02-XXXX-XXXX 或 0912-XXX-XXX"
@@ -126,23 +131,24 @@ import Page from '@layouts/Page.astro';
           </div>
 
           <div class="form-group">
-            <label for="message" class="form-label">申請說明 / 備注</label>
+            <label for="message" class="form-label">申請說明 / 備註</label>
             <textarea
               id="message"
               name="message"
+              data-label="申請說明 / 備註"
               class="form-textarea"
               rows="5"
               placeholder="請說明貴機構目前的減碳現況，或您希望協會協助的具體事項。"
             ></textarea>
           </div>
 
-          <input type="hidden" name="_subject" value="新會員申請 — 國際醫療減碳協會" />
-          <input type="text" name="_gotcha" style="display:none" />
-
           <button type="submit" class="form-submit">
             送出申請
           </button>
         </form>
+        <script>
+          import '@/scripts/mailto-form';
+        </script>
       </div>
 
     </div>

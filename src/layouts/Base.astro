@@ -35,12 +35,12 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <!--
       Content-Security-Policy（修復 ZAP 10038）：GitHub Pages 純靜態無法設 HTTP 標頭，改用 meta。
       站內含 inline <script>（JSON-LD / Astro island）與 inline <style>，故 script/style-src 需 'unsafe-inline'；
-      字體已 self-host（font-src 'self' data:，小分片被 Vite inline 為 data: URI）；form-action 允許表單 POST 至 Formspree。
+      字體已 self-host（font-src 'self' data:，小分片被 Vite inline 為 data: URI）；表單採 mailto 送出，故 form-action 'self' 即可。
       註：frame-ancestors 在 <meta> 中不生效（僅 HTTP 標頭），故防點擊劫持 10020 無法在此修復。
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; form-action 'self' https://formspree.io; upgrade-insecure-requests"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; form-action 'self'; upgrade-insecure-requests"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{siteTitle}</title>

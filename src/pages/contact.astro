@@ -60,9 +60,10 @@ import { url } from '@utils/url';
       <div class="contact-form-section">
         <h2 class="section-heading">傳送訊息</h2>
         <form
-          action="https://formspree.io/f/PLACEHOLDER"
-          method="POST"
           class="contact-form"
+          data-mailto-form
+          data-mailto="info@crinhealthcare.org"
+          data-subject="一般諮詢 — 國際醫療減碳協會"
           novalidate
         >
           <div class="form-group">
@@ -74,6 +75,7 @@ import { url } from '@utils/url';
               type="text"
               id="name"
               name="name"
+              data-label="姓名"
               class="form-input"
               required
               autocomplete="name"
@@ -87,6 +89,7 @@ import { url } from '@utils/url';
               type="text"
               id="organization"
               name="organization"
+              data-label="單位 / 機構"
               class="form-input"
               placeholder="您的服務單位（選填）"
             />
@@ -101,6 +104,7 @@ import { url } from '@utils/url';
               type="email"
               id="email"
               name="email"
+              data-label="電子郵件"
               class="form-input"
               required
               autocomplete="email"
@@ -114,6 +118,7 @@ import { url } from '@utils/url';
               type="tel"
               id="phone"
               name="phone"
+              data-label="聯絡電話"
               class="form-input"
               autocomplete="tel"
               placeholder="（選填）"
@@ -128,6 +133,7 @@ import { url } from '@utils/url';
             <textarea
               id="message"
               name="message"
+              data-label="訊息內容"
               class="form-textarea"
               rows="6"
               required
@@ -135,13 +141,13 @@ import { url } from '@utils/url';
             ></textarea>
           </div>
 
-          <input type="hidden" name="_subject" value="一般諮詢 — 國際醫療減碳協會" />
-          <input type="text" name="_gotcha" style="display:none" />
-
           <button type="submit" class="form-submit">
             送出訊息
           </button>
         </form>
+        <script>
+          import '@/scripts/mailto-form';
+        </script>
       </div>
 
     </div>
