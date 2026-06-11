@@ -239,6 +239,7 @@ for (let i = 0; i < TERMS.length; i += BATCH_SIZE) {
       totalWritten++;
     }
   } catch (err) {
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring — 經資安負責人 2026-06-11 簽核判定為誤報：log 格式字串非使用者輸入，風險接受
     console.error(`  ERROR in batch ${batchNum}:`, err);
     // Continue with next batch
   }

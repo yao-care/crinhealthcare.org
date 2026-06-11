@@ -58,6 +58,9 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "devalue@<5.8.1": "5.8.1"
+    }
   }
 }
