@@ -46,6 +46,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <title>{siteTitle}</title>
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={canonicalURL} />
+    <link rel="icon" href={url('/favicon.ico')} sizes="any" />
     <link rel="icon" type="image/svg+xml" href={url('/favicon.svg')} />
     <link rel="sitemap" href={url('/sitemap-index.xml')} />
     <link rel="alternate" type="application/rss+xml" title="國際醫療減碳協會 新聞" href={url('/rss.xml')} />
