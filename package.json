@@ -20,7 +20,7 @@
   "dependencies": {
     "@astrojs/rss": "^4.0.18",
     "@astrojs/sitemap": "^3.7.2",
-    "@astrojs/svelte": "^8.1.0",
+    "@astrojs/svelte": "^8.1.2",
     "@fontsource/noto-sans-tc": "^5.2.9",
     "astro": "^6.3.1",
     "d3-array": "^3.2.4",
@@ -36,7 +36,7 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.95.2",
+    "@anthropic-ai/sdk": "^0.97.1",
     "@types/d3-array": "^3.2.2",
     "@types/d3-format": "^3.0.4",
     "@types/d3-geo": "^3.1.0",
@@ -46,12 +46,12 @@
     "@types/d3-shape": "^3.1.8",
     "@types/d3-time-format": "^4.0.3",
     "@types/d3-transition": "^3.0.9",
-    "@types/node": "^25.7.0",
+    "@types/node": "^25.9.3",
     "pagefind": "^1.5.2",
     "satori": "^0.26.0",
     "satori-html": "^0.3.2",
     "sharp": "^0.34.5",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.9.3"
   },
   "pnpm": {
