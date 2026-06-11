@@ -1,17 +1,17 @@
 # ZAP scan rules — crinhealthcare.org
 # GitHub Pages 純靜態官網（無個資/登入/後端）。下列警告無法於本站修復，標記 IGNORE。
 # 可修復項刻意保留偵測（不列入）：10038 CSP→meta、90003 SRI→self-host 字體、10035 HSTS→Enforce HTTPS。
-# 格式：ruleId<TAB>action<TAB>url-regex(留空=全站)
+# 格式：ruleId<TAB>action<TAB>url-regex（全站用 .*，不可留空）
 #
 # Anti-clickjacking (X-Frame-Options)：meta 不生效、GitHub Pages 無法設 HTTP 標頭
-10020	IGNORE	
+10020	IGNORE	.*
 # X-Content-Type-Options：僅 HTTP 標頭可設，GitHub Pages 不支援
-10021	IGNORE	
+10021	IGNORE	.*
 # Permissions-Policy：僅 HTTP 標頭可設
-10063	IGNORE	
+10063	IGNORE	.*
 # Cross-Domain Misconfiguration (CORS)：由 GitHub CDN 控制，無法變更
-10098	IGNORE	
+10098	IGNORE	.*
 # COEP/COOP Site Isolation：僅 HTTP 標頭可設
-90004	IGNORE	
+90004	IGNORE	.*
 # Anti-CSRF Tokens：表單 POST 至外部 Formspree、本站純靜態無 session，對本站為誤報
-10202	IGNORE	
+10202	IGNORE	.*
