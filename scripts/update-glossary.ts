@@ -165,6 +165,7 @@ async function generateGlossaryEntry(candidate: TermCandidate): Promise<Glossary
     const jsonStr = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     return JSON.parse(jsonStr);
   } catch (err) {
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring — 經資安負責人 2026-06-11 簽核判定為誤報：log 格式字串非使用者輸入，風險接受
     console.error(`  ERROR generating entry for "${candidate.term}":`, err);
     return null;
   }

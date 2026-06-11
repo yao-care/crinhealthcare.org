@@ -176,6 +176,7 @@ for (const cat of CATEGORIES) {
       totalWritten++;
     }
   } catch (err) {
+    // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring — 經資安負責人 2026-06-11 簽核判定為誤報：log 格式字串非使用者輸入，風險接受
     console.error(`  ERROR generating FAQ for "${cat.name}":`, err);
   }
 
