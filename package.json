@@ -52,7 +52,7 @@
     "satori-html": "^0.3.2",
     "sharp": "^0.34.5",
     "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
