@@ -321,10 +321,5 @@
   .carbon th, .carbon td { border: 1px solid var(--color-border); padding: 1px 5px; text-align: right; }
   .carbon thead th { background: var(--color-surface); color: var(--color-text-secondary); }
   .carbon tbody th { text-align: left; font-weight: 400; color: var(--color-text-secondary); }
-
-  @media (max-width: 1100px) {
-    .v2 { height: auto; min-height: 100dvh; overflow: visible; }
-    .grid, .r { flex-direction: column; }
-    .block { min-height: 46vh; }
-  }
+  /* 注意：不加會改變骨架的 @media——五區塊 % 佈局在任何寬高都維持(kiosk 等比縮放)。 */
 </style>
