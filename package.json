@@ -19,10 +19,10 @@
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.18",
-    "@astrojs/sitemap": "^3.7.2",
+    "@astrojs/sitemap": "^3.7.3",
     "@astrojs/svelte": "^8.1.2",
     "@fontsource/noto-sans-tc": "^5.2.9",
-    "astro": "^6.3.1",
+    "astro": "^6.4.7",
     "d3-array": "^3.2.4",
     "d3-format": "^3.1.2",
     "d3-geo": "^3.1.1",
@@ -36,7 +36,7 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.97.1",
+    "@anthropic-ai/sdk": "^0.104.2",
     "@types/d3-array": "^3.2.2",
     "@types/d3-format": "^3.0.4",
     "@types/d3-geo": "^3.1.0",
@@ -50,9 +50,9 @@
     "pagefind": "^1.5.2",
     "satori": "^0.26.0",
     "satori-html": "^0.3.2",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.1",
     "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
