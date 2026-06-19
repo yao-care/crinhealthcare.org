@@ -226,6 +226,10 @@
     height: 100dvh; display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); background: var(--color-paper); overflow: hidden;
   }
 
+  /* 盤面控制項(看詳情/情境切換)：解除全站 44px 觸控下限，依盤面字級緊湊呈現
+     (kiosk 以大螢幕展示為主、非觸控優先；全站其他頁面仍維持 44px 無障礙)。 */
+  .v2 a, .v2 button { min-width: 0; min-height: 0; }
+
   /* 頂列 */
   .top { display: flex; align-items: center; gap: var(--space-md); border-bottom: 2px solid var(--color-border); padding-bottom: var(--space-xs); flex-shrink: 0; }
   .ttl { font-size: var(--text-xl); font-weight: 700; margin: 0; }
