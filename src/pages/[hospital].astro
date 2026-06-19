@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import EmsBoard from '../components/charts/EmsBoard.svelte';
+import EmsBoardV2 from '../components/charts/EmsBoardV2.svelte';
 
 export async function getStaticPaths() {
   const hospitals = await getCollection('hospitals');
@@ -18,5 +19,7 @@ const { hospital } = Astro.props;
   title={`${hospital.name} · 平戰轉EMS`}
   description={`${hospital.name} 平戰轉 EMS 能源資源看板：供 → 儲 → 用 → 效，平時／戰時切換。`}
 >
-  <EmsBoard hospital={hospital} client:visible />
+  {hospital.layout === 'v2'
+    ? <EmsBoardV2 hospital={hospital} client:visible />
+    : <EmsBoard hospital={hospital} client:visible />}
 </Base>

@@ -121,12 +121,20 @@ const emsTrend = z.object({
 // color 用 token 語意鍵：primary/accent/energy/alert/text-secondary/chart-1..5
 const emsBlock = z.object({
   name: z.string(),
-  value: z.string(),
+  value: z.string().default(''),
   sub: z.string().default(''),
   color: z.string().default('chart-1'),
   kind: z.enum(['trend', 'status']).default('trend'),
   trend: emsTrend.optional(),
   segs: z.array(z.object({ label: z.string(), count: z.number(), color: z.string() })).optional(),
+  // v2 使用端卡片：佔總量% / 去年同期 / 現況電表 / 單位 / 每日序列 / 去年同期序列 / 關鍵(維生)負載
+  pctOfTotal: z.string().default(''),
+  lastYear: z.string().default(''),
+  current: z.string().default(''),
+  unit: z.string().default(''),
+  daily: z.array(z.number()).default([]),
+  lastYearDaily: z.array(z.number()).default([]),
+  critical: z.boolean().default(false),
 });
 
 const emsScenario = z.object({
@@ -137,6 +145,11 @@ const emsScenario = z.object({
     value: z.string(),
     online: z.boolean(),
     esg: z.enum(['grey', 'green', 'blue', 'amber', 'na']).default('na'),
+    // v2：佔供給比% / 反應時間 / 是否零外部依賴(自主) / 異常(紅底)
+    pct: z.string().default(''),
+    react: z.string().default(''),
+    autonomous: z.boolean().default(false),
+    warn: z.boolean().default(false),
   })),
   supplySum: z.string(),
   detailLabel: z.string().default(''),
@@ -151,6 +164,9 @@ const emsScenario = z.object({
     cap: z.string(),
     pct: z.number(),
     warn: z.boolean().default(false),
+    // v2：充/放/待命狀態 / 是否關鍵儲備
+    state: z.string().default(''),
+    critical: z.boolean().default(false),
   })),
   use: z.object({
     headline: z.string(),
@@ -159,15 +175,47 @@ const emsScenario = z.object({
   }),
 });
 
+// v2 環境參數：多棟大樓 × 樓層的 溫/濕/CO₂ 矩陣（依情境）＋ 異常門檻 ＋ 碳盤查表（與情境無關）
+const envFloor = z.object({
+  floor: z.string(),
+  temp: z.string().default(''),
+  rh: z.string().default(''),
+  co2: z.string().default(''),
+});
+const envBuildings = z.array(z.object({
+  name: z.string(),
+  floors: z.array(envFloor).default([]),
+})).default([]);
+const emsEnv = z.object({
+  peace: z.object({ buildings: envBuildings }).default({ buildings: [] }),
+  war: z.object({ buildings: envBuildings }).default({ buildings: [] }),
+  // 超出門檻 → 標紅（值在 floors 以字串存，元件 parseFloat 後比對）
+  thresholds: z.object({
+    temp: z.object({ min: z.number().optional(), max: z.number().optional() }).optional(),
+    rh: z.object({ min: z.number().optional(), max: z.number().optional() }).optional(),
+    co2: z.object({ max: z.number().optional() }).optional(),
+  }).optional(),
+  criticalFloors: z.array(z.string()).default([]),
+  carbon: z.object({
+    title: z.string().default(''),
+    cols: z.array(z.string()).default([]),
+    rows: z.array(z.object({ label: z.string(), cells: z.array(z.string()).default([]) })).default([]),
+  }).optional(),
+});
+
 const hospitals = defineCollection({
   loader: glob({ base: 'src/content/hospitals', pattern: '**/*.json' }),
   schema: z.object({
     name: z.string(),
     location: z.string().default(''),
     updated: z.string().default(''),
+    // v2 頂列「版本」欄（圖示 v1）；updated 仍存西元，顯示時轉民國
+    version: z.string().default(''),
     liveData: z.boolean().default(false),
-    // 版面：stack＝上半資源/下半面板；split＝左半資源/右半面板(50%)，給 SEU 系統多的醫院用
-    layout: z.enum(['stack', 'split']).default('stack'),
+    // 版面：stack＝上半資源/下半面板；split＝左半資源/右半面板(50%)；v2＝五大區塊(電/環境/水/油/氣)新框架
+    layout: z.enum(['stack', 'split', 'v2']).default('stack'),
+    // v2 環境參數（特例：不分供/儲/使、無看詳情）
+    env: emsEnv.optional(),
     scenarios: z.array(z.object({ id: z.string(), label: z.string() }))
       .default([{ id: 'peace', label: '平時' }, { id: 'war', label: '戰時/救災' }]),
     resources: z.array(z.object({
