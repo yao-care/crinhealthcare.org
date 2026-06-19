@@ -23,188 +23,169 @@
       "peace": {
         "perf": {
           "act": [],
-          "text": "用電 6,302,756 度/年 · 綠電 8% · 契約 4,000kW 利用 71%"
+          "text": "用電 6,302,756 度 · 電力碳排 2,988 t · SEU 能源審查 1,673 台"
         },
         "endur": {
-          "days": "—",
-          "pct": "—"
+          "days": "",
+          "pct": ""
         },
         "supply": [
           {
             "name": "市電（台電）",
-            "value": "5.6M 度/年",
+            "value": "6,302,756 度/年",
             "online": true,
             "esg": "grey",
-            "pct": "佔89%",
+            "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "太陽能 PV",
-            "value": "0.7M 度/年",
-            "online": true,
+            "value": "",
+            "online": false,
             "esg": "green",
-            "pct": "佔11%",
+            "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "柴油發電機",
-            "value": "備援待命",
+            "value": "",
             "online": false,
             "esg": "amber",
             "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           }
         ],
-        "supplySum": "市電為主 · 綠電佔 8%",
+        "supplySum": "台電市電為主 · 再生/備援待盤點",
         "store": [
           {
-            "name": "電池儲能 BESS",
-            "cap": "2 MWh",
-            "pct": 72,
-            "days": "削峰套利",
-            "state": "充放循環",
+            "name": "備援電力（柴油發電機）",
+            "cap": "緊急發電機·柴油",
+            "pct": 0,
+            "days": "",
+            "state": "",
             "warn": false,
             "critical": false
-          },
-          {
-            "name": "UPS",
-            "cap": "30分@滿載",
-            "pct": 95,
-            "days": "—",
-            "state": "待命",
-            "warn": false,
-            "critical": true
           }
         ],
         "use": {
           "headline": "",
-          "sub": "",
+          "sub": "SEU 電力 10 系統（天然氣鍋爐／污水另列）",
           "blocks": [
             {
               "name": "空調",
               "pctOfTotal": "53%",
-              "lastYear": "3,920,000",
+              "lastYear": "",
               "current": "3,739,418",
               "unit": "kWh",
-              "daily": [
-                52,
-                55,
-                53,
-                58,
-                51,
-                49,
-                54,
-                56,
-                52,
-                50,
-                53,
-                57,
-                55,
-                53
-              ],
-              "lastYearDaily": [
-                55,
-                57,
-                56,
-                60,
-                54,
-                53,
-                57,
-                59,
-                55,
-                54,
-                56,
-                60,
-                58,
-                57
-              ],
+              "daily": [],
+              "lastYearDaily": [],
               "critical": false,
               "color": "primary"
             },
             {
-              "name": "IT機房",
+              "name": "資訊設備",
               "pctOfTotal": "16%",
-              "lastYear": "1,150,000",
-              "current": "1,108,400",
+              "lastYear": "",
+              "current": "1,101,591",
               "unit": "kWh",
-              "daily": [
-                16,
-                16,
-                15,
-                17,
-                16,
-                16,
-                15,
-                16,
-                17,
-                16,
-                16,
-                15,
-                16,
-                16
-              ],
-              "lastYearDaily": [
-                17,
-                17,
-                16,
-                18,
-                17,
-                17,
-                16,
-                17,
-                18,
-                17,
-                17,
-                16,
-                17,
-                17
-              ],
-              "critical": true,
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "chart-4"
             },
             {
               "name": "醫療設備",
               "pctOfTotal": "12%",
-              "lastYear": "905,000",
-              "current": "887,200",
+              "lastYear": "",
+              "current": "887,419",
               "unit": "kWh",
-              "daily": [
-                12,
-                13,
-                12,
-                12,
-                11,
-                12,
-                13,
-                12,
-                12,
-                11,
-                12,
-                13,
-                12,
-                12
-              ],
-              "lastYearDaily": [
-                12,
-                13,
-                12,
-                13,
-                12,
-                12,
-                13,
-                13,
-                12,
-                12,
-                13,
-                13,
-                12,
-                13
-              ],
-              "critical": true,
-              "color": "chart-2"
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-5"
+            },
+            {
+              "name": "熱泵",
+              "pctOfTotal": "6%",
+              "lastYear": "",
+              "current": "451,572",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "energy"
+            },
+            {
+              "name": "照明",
+              "pctOfTotal": "5%",
+              "lastYear": "",
+              "current": "346,572",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "accent"
+            },
+            {
+              "name": "其餘雜項",
+              "pctOfTotal": "2%",
+              "lastYear": "",
+              "current": "140,641",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary"
+            },
+            {
+              "name": "電梯",
+              "pctOfTotal": "1%",
+              "lastYear": "",
+              "current": "77,259",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
+            },
+            {
+              "name": "車輛",
+              "pctOfTotal": "1%",
+              "lastYear": "",
+              "current": "39,513",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary"
+            },
+            {
+              "name": "抽排風",
+              "pctOfTotal": "0%",
+              "lastYear": "",
+              "current": "32,193",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
+            },
+            {
+              "name": "消防",
+              "pctOfTotal": "0%",
+              "lastYear": "",
+              "current": "25,101",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary"
             }
           ]
         }
@@ -212,69 +193,54 @@
       "war": {
         "perf": {
           "act": [],
-          "text": "市電癱瘓 · 已孤島自主供電"
+          "text": ""
         },
         "endur": {
-          "days": "≈8.5 小時",
-          "pct": "58%"
+          "days": "",
+          "pct": ""
         },
         "supply": [
           {
             "name": "市電（台電）",
-            "value": "中斷",
+            "value": "",
             "online": false,
             "esg": "grey",
             "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "太陽能 PV",
-            "value": "480 kW",
-            "online": true,
+            "value": "",
+            "online": false,
             "esg": "green",
             "pct": "",
-            "react": "即時",
-            "autonomous": true
+            "react": "",
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "柴油發電機",
-            "value": "1,000 kW",
-            "online": true,
+            "value": "",
+            "online": false,
             "esg": "amber",
             "pct": "",
-            "react": "<10s",
-            "autonomous": false
-          },
-          {
-            "name": "電池儲能 BESS",
-            "value": "放電 380kW",
-            "online": true,
-            "esg": "blue",
-            "pct": "",
-            "react": "<20ms",
-            "autonomous": true
+            "react": "",
+            "autonomous": false,
+            "warn": false
           }
         ],
-        "supplySum": "孤島運轉 · 可用供給對關鍵負載餘裕 +12%",
+        "supplySum": "",
         "store": [
           {
-            "name": "電池儲能 BESS",
-            "cap": "2 MWh",
-            "pct": 58,
-            "days": "≈4.6 小時",
-            "state": "放電中",
+            "name": "備援電力（柴油發電機）",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
             "warn": false,
-            "critical": true
-          },
-          {
-            "name": "UPS",
-            "cap": "30分",
-            "pct": 95,
-            "days": "橋接",
-            "state": "承載",
-            "warn": false,
-            "critical": true
+            "critical": false
           }
         ],
         "use": {
@@ -283,9 +249,9 @@
           "blocks": [
             {
               "name": "維生關鍵負載",
-              "pctOfTotal": "65%",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "1,180 kW",
+              "current": "",
               "unit": "kW",
               "daily": [],
               "lastYearDaily": [],
@@ -294,9 +260,9 @@
             },
             {
               "name": "可卸載負載",
-              "pctOfTotal": "35%",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "640 kW",
+              "current": "",
               "unit": "kW",
               "daily": [],
               "lastYearDaily": [],
@@ -314,51 +280,44 @@
       "peace": {
         "perf": {
           "act": [],
-          "text": "市政供水為主 · 雨水回收 6%"
+          "text": ""
         },
         "endur": {
-          "days": "—",
-          "pct": "—"
+          "days": "",
+          "pct": ""
         },
         "supply": [
           {
             "name": "自來水（市政）",
-            "value": "220 m³/日",
+            "value": "",
             "online": true,
             "esg": "grey",
-            "pct": "佔82%",
+            "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "地下水井",
-            "value": "備用",
+            "value": "",
             "online": false,
             "esg": "blue",
             "pct": "",
             "react": "",
-            "autonomous": true
-          },
-          {
-            "name": "雨水回收",
-            "value": "16 m³/日",
-            "online": true,
-            "esg": "green",
-            "pct": "佔6%",
-            "react": "",
-            "autonomous": true
+            "autonomous": false,
+            "warn": false
           }
         ],
-        "supplySum": "市政為主",
+        "supplySum": "",
         "store": [
           {
             "name": "蓄水池/水塔",
-            "cap": "500 m³",
-            "pct": 81,
-            "days": "日常週轉",
-            "state": "正常",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
             "warn": false,
-            "critical": true
+            "critical": false
           }
         ],
         "use": {
@@ -367,90 +326,19 @@
           "blocks": [
             {
               "name": "醫療/生活用水",
-              "pctOfTotal": "58%",
-              "lastYear": "128",
-              "current": "124",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
               "unit": "m³",
-              "daily": [
-                124,
-                126,
-                122,
-                128,
-                125,
-                123,
-                127,
-                124,
-                122,
-                126,
-                125,
-                123,
-                124,
-                126
-              ],
-              "lastYearDaily": [
-                128,
-                130,
-                126,
-                132,
-                129,
-                127,
-                131,
-                128,
-                126,
-                130,
-                129,
-                127,
-                128,
-                130
-              ],
-              "critical": true,
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "chart-4"
             },
             {
-              "name": "空調冷卻水",
-              "pctOfTotal": "30%",
-              "lastYear": "66",
-              "current": "63",
-              "unit": "m³",
-              "daily": [
-                63,
-                65,
-                62,
-                68,
-                61,
-                60,
-                64,
-                66,
-                62,
-                60,
-                63,
-                67,
-                65,
-                63
-              ],
-              "lastYearDaily": [
-                66,
-                68,
-                65,
-                70,
-                64,
-                63,
-                67,
-                69,
-                65,
-                63,
-                66,
-                70,
-                68,
-                66
-              ],
-              "critical": false,
-              "color": "primary"
-            },
-            {
               "name": "污水處理",
-              "pctOfTotal": "12%",
-              "lastYear": "97,500",
+              "pctOfTotal": "",
+              "lastYear": "",
               "current": "96,990",
               "unit": "kWh",
               "daily": [],
@@ -464,42 +352,44 @@
       "war": {
         "perf": {
           "act": [],
-          "text": "市政斷水 · 自主水源支撐"
+          "text": ""
         },
         "endur": {
-          "days": "≈3.2 天",
-          "pct": "52%"
+          "days": "",
+          "pct": ""
         },
         "supply": [
           {
             "name": "自來水（市政）",
-            "value": "中斷/限供",
+            "value": "",
             "online": false,
             "esg": "grey",
             "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "地下水井",
-            "value": "90 m³/日",
-            "online": true,
+            "value": "",
+            "online": false,
             "esg": "blue",
             "pct": "",
-            "react": "30分啟動",
-            "autonomous": true
+            "react": "",
+            "autonomous": false,
+            "warn": false
           }
         ],
-        "supplySum": "靠地下水井 · 低於最低維生需求 −18%",
+        "supplySum": "",
         "store": [
           {
             "name": "蓄水池/水塔",
-            "cap": "500 m³",
-            "pct": 52,
-            "days": "≈3.2 天",
-            "state": "下降中",
-            "warn": true,
-            "critical": true
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false
           }
         ],
         "use": {
@@ -508,9 +398,9 @@
           "blocks": [
             {
               "name": "最低維生用水",
-              "pctOfTotal": "100%",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "110 m³/日",
+              "current": "",
               "unit": "m³",
               "daily": [],
               "lastYearDaily": [],
@@ -528,33 +418,34 @@
       "peace": {
         "perf": {
           "act": [],
-          "text": "柴油備而不用 · 月測試正常"
+          "text": ""
         },
         "endur": {
-          "days": "—",
-          "pct": "—"
+          "days": "",
+          "pct": ""
         },
         "supply": [
           {
             "name": "柴油供應商",
-            "value": "合約供油",
+            "value": "",
             "online": true,
             "esg": "amber",
             "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           }
         ],
-        "supplySum": "平時補給正常",
+        "supplySum": "",
         "store": [
           {
             "name": "柴油儲槽",
-            "cap": "20,000 L",
-            "pct": 86,
-            "days": "備用",
-            "state": "滿載待命",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
             "warn": false,
-            "critical": true
+            "critical": false
           }
         ],
         "use": {
@@ -562,10 +453,10 @@
           "sub": "",
           "blocks": [
             {
-              "name": "發電機月測耗油",
-              "pctOfTotal": "—",
-              "lastYear": "320",
-              "current": "305",
+              "name": "發電機耗油",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
               "unit": "L",
               "daily": [],
               "lastYearDaily": [],
@@ -578,33 +469,33 @@
       "war": {
         "perf": {
           "act": [],
-          "text": "柴油發電中 · 補給線中斷 · 倒數計時"
+          "text": ""
         },
         "endur": {
-          "days": "≈68 小時",
-          "pct": "82%"
+          "days": "",
+          "pct": ""
         },
         "supply": [
           {
-            "name": "軍方/緊急調度油料",
-            "value": "未到位",
+            "name": "緊急調度油料",
+            "value": "",
             "online": false,
             "esg": "amber",
             "pct": "",
             "react": "",
             "autonomous": false,
-            "warn": true
+            "warn": false
           }
         ],
-        "supplySum": "無外部補給 · 全靠儲槽",
+        "supplySum": "",
         "store": [
           {
             "name": "柴油儲槽",
-            "cap": "20,000 L",
-            "pct": 82,
-            "days": "≈68 小時發電",
-            "state": "消耗中",
-            "warn": true,
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
             "critical": true
           }
         ],
@@ -614,9 +505,9 @@
           "blocks": [
             {
               "name": "發電機耗油",
-              "pctOfTotal": "—",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "240 L/hr",
+              "current": "",
               "unit": "L/hr",
               "daily": [],
               "lastYearDaily": [],
@@ -634,51 +525,53 @@
       "peace": {
         "perf": {
           "act": [],
-          "text": "天然氣鍋爐 · 醫用氣體日常供應"
+          "text": ""
         },
         "endur": {
-          "days": "—",
-          "pct": "—"
+          "days": "",
+          "pct": ""
         },
         "supply": [
           {
             "name": "天然氣（市政管線）",
-            "value": "穩定",
+            "value": "",
             "online": true,
             "esg": "amber",
             "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "液態氧供應",
-            "value": "定期槽車",
+            "value": "",
             "online": true,
             "esg": "na",
             "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           }
         ],
-        "supplySum": "管線+槽車供應",
+        "supplySum": "",
         "store": [
           {
             "name": "液氧儲槽",
-            "cap": "11,000 L",
-            "pct": 76,
-            "days": "週轉",
-            "state": "正常",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
             "warn": false,
-            "critical": true
+            "critical": false
           },
           {
             "name": "醫用氣體鋼瓶",
-            "cap": "備援組",
-            "pct": 90,
-            "days": "備用",
-            "state": "滿瓶",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
             "warn": false,
-            "critical": true
+            "critical": false
           }
         ],
         "use": {
@@ -687,8 +580,8 @@
           "blocks": [
             {
               "name": "蒸氣鍋爐",
-              "pctOfTotal": "—",
-              "lastYear": "165,000",
+              "pctOfTotal": "",
+              "lastYear": "",
               "current": "162,720",
               "unit": "kWh",
               "daily": [],
@@ -698,43 +591,13 @@
             },
             {
               "name": "醫用氧氣用量",
-              "pctOfTotal": "—",
-              "lastYear": "1,240",
-              "current": "1,210",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
               "unit": "m³",
-              "daily": [
-                1210,
-                1230,
-                1190,
-                1250,
-                1220,
-                1200,
-                1240,
-                1215,
-                1205,
-                1235,
-                1225,
-                1208,
-                1218,
-                1228
-              ],
-              "lastYearDaily": [
-                1240,
-                1255,
-                1215,
-                1270,
-                1245,
-                1225,
-                1262,
-                1238,
-                1228,
-                1258,
-                1248,
-                1230,
-                1240,
-                1250
-              ],
-              "critical": true,
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "chart-4"
             }
           ]
@@ -743,40 +606,42 @@
       "war": {
         "perf": {
           "act": [],
-          "text": "天然氣管線中斷 · 醫用氧氣自主庫存"
+          "text": ""
         },
         "endur": {
-          "days": "氧氣 ≈4.1 天",
-          "pct": "71%"
+          "days": "",
+          "pct": ""
         },
         "supply": [
           {
             "name": "天然氣（市政管線）",
-            "value": "中斷",
+            "value": "",
             "online": false,
             "esg": "amber",
             "pct": "",
             "react": "",
-            "autonomous": false
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "院內液氧自主庫存",
-            "value": "供應中",
+            "value": "",
             "online": true,
             "esg": "na",
             "pct": "",
-            "react": "即時",
-            "autonomous": true
+            "react": "",
+            "autonomous": false,
+            "warn": false
           }
         ],
-        "supplySum": "醫用氧氣全靠院內庫存",
+        "supplySum": "",
         "store": [
           {
             "name": "液氧儲槽",
-            "cap": "11,000 L",
-            "pct": 71,
-            "days": "≈4.1 天",
-            "state": "供應中",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
             "warn": false,
             "critical": true
           }
@@ -787,9 +652,9 @@
           "blocks": [
             {
               "name": "醫用氧氣消耗",
-              "pctOfTotal": "—",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "1,290 m³/日",
+              "current": "",
               "unit": "m³",
               "daily": [],
               "lastYearDaily": [],
@@ -809,63 +674,63 @@
           "floors": [
             {
               "floor": "9F",
-              "temp": "26",
-              "rh": "45",
-              "co2": "420"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "8F",
-              "temp": "26",
-              "rh": "46",
-              "co2": "430"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "7F",
-              "temp": "25",
-              "rh": "47",
-              "co2": "410"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "6F",
-              "temp": "26",
-              "rh": "55",
-              "co2": "420"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "5F",
-              "temp": "24",
-              "rh": "56",
-              "co2": "440"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "4F",
-              "temp": "25",
-              "rh": "54",
-              "co2": "430"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "3F",
-              "temp": "26",
-              "rh": "45",
-              "co2": "420"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "2F",
-              "temp": "25",
-              "rh": "47",
-              "co2": "450"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "1F",
-              "temp": "27",
-              "rh": "44",
-              "co2": "480"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "B1",
-              "temp": "24",
-              "rh": "50",
-              "co2": "500"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             }
           ]
         },
@@ -874,39 +739,39 @@
           "floors": [
             {
               "floor": "5F",
-              "temp": "25",
-              "rh": "46",
-              "co2": "430"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "4F",
-              "temp": "26",
-              "rh": "45",
-              "co2": "420"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "3F",
-              "temp": "25",
-              "rh": "47",
-              "co2": "440"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "2F",
-              "temp": "26",
-              "rh": "45",
-              "co2": "450"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "1F",
-              "temp": "27",
-              "rh": "44",
-              "co2": "470"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "B1",
-              "temp": "24",
-              "rh": "49",
-              "co2": "510"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             }
           ]
         },
@@ -915,33 +780,27 @@
           "floors": [
             {
               "floor": "4F",
-              "temp": "26",
-              "rh": "45",
-              "co2": "420"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "3F",
-              "temp": "25",
-              "rh": "46",
-              "co2": "430"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "2F",
-              "temp": "26",
-              "rh": "45",
-              "co2": "440"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "1F",
-              "temp": "27",
-              "rh": "44",
-              "co2": "460"
-            },
-            {
-              "floor": "B1",
-              "temp": "24",
-              "rh": "48",
-              "co2": "500"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             }
           ]
         }
@@ -954,63 +813,63 @@
           "floors": [
             {
               "floor": "9F",
-              "temp": "27",
-              "rh": "44",
-              "co2": "520"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "8F",
-              "temp": "28",
-              "rh": "43",
-              "co2": "560"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "7F",
-              "temp": "29",
-              "rh": "42",
-              "co2": "640"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "6F",
-              "temp": "35",
-              "rh": "20",
-              "co2": "999"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "5F",
-              "temp": "28",
-              "rh": "44",
-              "co2": "580"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "4F",
-              "temp": "27",
-              "rh": "45",
-              "co2": "540"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "3F",
-              "temp": "27",
-              "rh": "46",
-              "co2": "520"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "2F",
-              "temp": "28",
-              "rh": "45",
-              "co2": "560"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "1F",
-              "temp": "29",
-              "rh": "43",
-              "co2": "600"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "B1",
-              "temp": "26",
-              "rh": "50",
-              "co2": "650"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             }
           ]
         },
@@ -1019,39 +878,39 @@
           "floors": [
             {
               "floor": "5F",
-              "temp": "27",
-              "rh": "45",
-              "co2": "560"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "4F",
-              "temp": "28",
-              "rh": "44",
-              "co2": "580"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "3F",
-              "temp": "27",
-              "rh": "46",
-              "co2": "540"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "2F",
-              "temp": "28",
-              "rh": "45",
-              "co2": "600"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "1F",
-              "temp": "29",
-              "rh": "43",
-              "co2": "620"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "B1",
-              "temp": "26",
-              "rh": "49",
-              "co2": "660"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             }
           ]
         },
@@ -1060,42 +919,35 @@
           "floors": [
             {
               "floor": "4F",
-              "temp": "28",
-              "rh": "44",
-              "co2": "560"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "3F",
-              "temp": "27",
-              "rh": "45",
-              "co2": "540"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "2F",
-              "temp": "28",
-              "rh": "45",
-              "co2": "580"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             },
             {
               "floor": "1F",
-              "temp": "29",
-              "rh": "43",
-              "co2": "620"
-            },
-            {
-              "floor": "B1",
-              "temp": "26",
-              "rh": "48",
-              "co2": "660"
+              "temp": "",
+              "rh": "",
+              "co2": ""
             }
           ]
         }
       ]
     },
     "criticalFloors": [
-      "急重症大樓6F",
-      "急重症大樓5F",
-      "急重症大樓4F"
+      "醫療大樓2F",
+      "醫療大樓5F"
     ],
     "carbon": {
       "title": "碳盤查 2024→2026（tCO₂e，2024 基準年）",
@@ -1111,7 +963,7 @@
           "cells": [
             "3,391",
             "3,284",
-            "—"
+            ""
           ]
         },
         {
@@ -1119,7 +971,7 @@
           "cells": [
             "3,063",
             "2,994",
-            "—"
+            ""
           ]
         },
         {
@@ -1127,7 +979,7 @@
           "cells": [
             "293.9",
             "253.8",
-            "—"
+            ""
           ]
         },
         {
@@ -1135,7 +987,7 @@
           "cells": [
             "31.4",
             "28.4",
-            "—"
+            ""
           ]
         },
         {
@@ -1143,7 +995,7 @@
           "cells": [
             "3.25",
             "7.54",
-            "—"
+            ""
           ]
         }
       ]
