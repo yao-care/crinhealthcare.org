@@ -215,7 +215,16 @@
 </div>
 
 <style>
-  .v2 { height: 100dvh; display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); background: var(--color-paper); overflow: hidden; }
+  .v2 {
+    /* 流體字級：依視窗寬度等比縮放（小螢幕自動變小、桌機/大螢幕回設計值）。
+       覆寫全站 --text-*，元件內所有 var(--text-*) 自動跟著縮。 */
+    --text-xs: clamp(8px, 1.0vw, 14px);
+    --text-sm: clamp(9px, 1.2vw, 16px);
+    --text-base: clamp(10px, 1.45vw, 18px);
+    --text-lg: clamp(11px, 1.7vw, 20px);
+    --text-xl: clamp(13px, 2.2vw, 26px);
+    height: 100dvh; display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); background: var(--color-paper); overflow: hidden;
+  }
 
   /* 頂列 */
   .top { display: flex; align-items: center; gap: var(--space-md); border-bottom: 2px solid var(--color-border); padding-bottom: var(--space-xs); flex-shrink: 0; }
@@ -281,7 +290,7 @@
   .seg-h .roll { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); margin-left: 8px; }
   /* overflow:hidden → 放不下的卡片由 use:carousel 自動換頁輪播 */
   .cards { flex: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-content: flex-start; overflow: hidden; min-height: 0; scroll-behavior: smooth; }
-  .card { width: 220px; flex: 0 0 auto; background: var(--color-paper); border: 1px solid var(--color-border); border-top: 3px solid var(--color-chart-1); border-radius: var(--radius-sm); padding: 5px 9px; display: flex; flex-direction: column; gap: 3px; }
+  .card { width: clamp(140px, 16vw, 220px); flex: 0 0 auto; background: var(--color-paper); border: 1px solid var(--color-border); border-top: 3px solid var(--color-chart-1); border-radius: var(--radius-sm); padding: 5px 9px; display: flex; flex-direction: column; gap: 3px; }
   .card.crit { box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--color-alert) 35%, transparent); }
   .ch { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
   .cn { font-size: var(--text-sm); font-weight: 700; }
