@@ -60,7 +60,13 @@
             { "name": "可卸載負載",   "pctOfTotal": "", "lastYear": "", "current": "", "unit": "kW", "daily": [], "lastYearDaily": [], "critical": false, "color": "text-secondary" }
           ]
         }
-      }
+      },
+      "_devices_note": "設備名稱取自能源審查 A 級重大耗能設備(真實)；管理人/聯絡/維護廠商待醫院提供。",
+      "devices": [
+        { "name": "冰水主機 CH-3", "system": "空調", "loc": "南機房(180RT)", "status": "改善優先汰換", "manager": "", "contact": "", "vendor": "" },
+        { "name": "區域水泵",       "system": "空調", "loc": "", "status": "", "manager": "", "contact": "", "vendor": "" },
+        { "name": "不斷電系統 UPS", "system": "配電", "loc": "", "status": "", "manager": "", "contact": "", "vendor": "" }
+      ]
     },
 
     {

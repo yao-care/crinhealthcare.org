@@ -1,0 +1,31 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '@layouts/Base.astro';
+import EmsDetail from '@components/charts/EmsDetail.svelte';
+import { url } from '@utils/url';
+
+export async function getStaticPaths() {
+  const hospitals = await getCollection('hospitals');
+  const paths = [];
+  for (const h of hospitals) {
+    if (h.data.layout !== 'v2') continue; // 僅 v2 醫院產生看詳情頁
+    for (const r of h.data.resources) {
+      paths.push({
+        params: { hospital: h.id, resource: r.id },
+        props: { hospital: h.data, resourceId: r.id, hid: h.id },
+      });
+    }
+  }
+  return paths;
+}
+
+const { hospital, resourceId, hid } = Astro.props;
+const r = hospital.resources.find((x) => x.id === resourceId);
+---
+
+<Base
+  title={`${r?.name ?? ''} 詳情 · ${hospital.name}`}
+  description={`${hospital.name} ${r?.name ?? ''} 平戰轉 EMS 詳情：供 → 儲 → 用、設備清單與權責窗口。`}
+>
+  <EmsDetail hospital={hospital} resourceId={resourceId} backHref={url(`/${hid}/`)} client:visible />
+</Base>

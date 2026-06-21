@@ -271,7 +271,36 @@
             }
           ]
         }
-      }
+      },
+      "devices": [
+        {
+          "name": "冰水主機 CH-3",
+          "system": "空調",
+          "loc": "南機房(180RT)",
+          "status": "改善優先汰換",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "區域水泵",
+          "system": "空調",
+          "loc": "",
+          "status": "",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "不斷電系統 UPS",
+          "system": "配電",
+          "loc": "",
+          "status": "",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        }
+      ]
     },
     {
       "id": "water",

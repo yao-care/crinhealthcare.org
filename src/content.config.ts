@@ -224,6 +224,24 @@ const hospitals = defineCollection({
       name: z.string(),
       peace: emsScenario,
       war: emsScenario,
+      // v2 看詳情：設備層具名清單（選用，有資料才顯示）。每台一條滿版列：
+      //   左=即時訊息(狀態/即時值) · 中=趨勢圖(daily 長條 + refDaily 參考線) · 右=維護者資訊(出問題找誰)
+      devices: z.array(z.object({
+        name: z.string(),
+        loc: z.string().default(''),
+        system: z.string().default(''),
+        // 左：即時訊息
+        status: z.string().default(''),       // 運轉/待命/維護/異常
+        reading: z.string().default(''),      // 即時值/訊息（如 負載68% / 7.2°C）
+        // 中：趨勢圖
+        daily: z.array(z.number()).default([]),
+        refDaily: z.array(z.number()).default([]),
+        unit: z.string().default(''),
+        // 右：維護者資訊
+        manager: z.string().default(''),      // 管理人/權責人
+        contact: z.string().default(''),      // 聯絡（分機/電話）
+        vendor: z.string().default(''),       // 維護廠商
+      })).default([]),
     })),
     // 匯出用：ESG 報告 / 節能標竿獎各自的欄位（項目·數值·單位）
     report: z.object({

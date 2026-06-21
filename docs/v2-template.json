@@ -1,0 +1,153 @@
+{
+  "_template": "v2 通用空白模板。產生器 scripts/scaffold-hospital-v2.ts 會複製此檔、填入 id/名稱後寫到 src/content/hospitals/<id>.json。供/儲/使的項目名稱為常見起點，請依各院實況增刪改名；值一律留空、只填真實資料。env.buildings 需依該院官方樓層介紹填入。",
+  "name": "",
+  "location": "",
+  "version": "v1",
+  "updated": "",
+  "liveData": false,
+  "layout": "v2",
+  "scenarios": [
+    { "id": "peace", "label": "平時" },
+    { "id": "war", "label": "戰時/救災" }
+  ],
+  "resources": [
+    {
+      "id": "power", "icon": "⚡", "name": "電力",
+      "peace": {
+        "perf": { "act": [], "text": "" }, "endur": { "days": "", "pct": "" },
+        "supply": [
+          { "name": "市電（台電）", "value": "", "online": true,  "esg": "grey",  "pct": "", "react": "", "autonomous": false, "warn": false },
+          { "name": "太陽能 PV",     "value": "", "online": false, "esg": "green", "pct": "", "react": "", "autonomous": false, "warn": false },
+          { "name": "柴油發電機",     "value": "", "online": false, "esg": "amber", "pct": "", "react": "", "autonomous": false, "warn": false }
+        ],
+        "supplySum": "",
+        "store": [
+          { "name": "電池儲能 BESS", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": false },
+          { "name": "不斷電系統 UPS", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true }
+        ],
+        "use": { "headline": "", "sub": "", "blocks": [
+          { "name": "空調",     "pctOfTotal": "", "lastYear": "", "current": "", "unit": "kWh", "daily": [], "lastYearDaily": [], "critical": false, "color": "primary" },
+          { "name": "資訊設備", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "kWh", "daily": [], "lastYearDaily": [], "critical": true,  "color": "chart-4" },
+          { "name": "醫療設備", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "kWh", "daily": [], "lastYearDaily": [], "critical": true,  "color": "chart-5" }
+        ] }
+      },
+      "war": {
+        "perf": { "act": [], "text": "" }, "endur": { "days": "", "pct": "" },
+        "supply": [
+          { "name": "市電（台電）", "value": "", "online": false, "esg": "grey",  "pct": "", "react": "", "autonomous": false, "warn": false },
+          { "name": "太陽能 PV",     "value": "", "online": false, "esg": "green", "pct": "", "react": "", "autonomous": false, "warn": false },
+          { "name": "柴油發電機",     "value": "", "online": false, "esg": "amber", "pct": "", "react": "", "autonomous": false, "warn": false }
+        ],
+        "supplySum": "",
+        "store": [
+          { "name": "電池儲能 BESS", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true },
+          { "name": "不斷電系統 UPS", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true }
+        ],
+        "use": { "headline": "", "sub": "", "blocks": [
+          { "name": "維生關鍵負載", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "kW", "daily": [], "lastYearDaily": [], "critical": true,  "color": "alert" },
+          { "name": "可卸載負載",   "pctOfTotal": "", "lastYear": "", "current": "", "unit": "kW", "daily": [], "lastYearDaily": [], "critical": false, "color": "text-secondary" }
+        ] }
+      },
+      "devices": []
+    },
+    {
+      "id": "water", "icon": "💧", "name": "水",
+      "peace": {
+        "perf": { "act": [], "text": "" }, "endur": { "days": "", "pct": "" },
+        "supply": [
+          { "name": "自來水（市政）", "value": "", "online": true,  "esg": "grey", "pct": "", "react": "", "autonomous": false, "warn": false },
+          { "name": "地下水井",       "value": "", "online": false, "esg": "blue", "pct": "", "react": "", "autonomous": false, "warn": false }
+        ],
+        "supplySum": "",
+        "store": [ { "name": "蓄水池/水塔", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true } ],
+        "use": { "headline": "", "sub": "", "blocks": [
+          { "name": "醫療/生活用水", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "m³",  "daily": [], "lastYearDaily": [], "critical": false, "color": "chart-4" },
+          { "name": "污水處理",     "pctOfTotal": "", "lastYear": "", "current": "", "unit": "kWh", "daily": [], "lastYearDaily": [], "critical": false, "color": "text-secondary" }
+        ] }
+      },
+      "war": {
+        "perf": { "act": [], "text": "" }, "endur": { "days": "", "pct": "" },
+        "supply": [
+          { "name": "自來水（市政）", "value": "", "online": false, "esg": "grey", "pct": "", "react": "", "autonomous": false, "warn": false },
+          { "name": "地下水井",       "value": "", "online": false, "esg": "blue", "pct": "", "react": "", "autonomous": false, "warn": false }
+        ],
+        "supplySum": "",
+        "store": [ { "name": "蓄水池/水塔", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true } ],
+        "use": { "headline": "", "sub": "", "blocks": [
+          { "name": "最低維生用水", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "m³", "daily": [], "lastYearDaily": [], "critical": true, "color": "alert" }
+        ] }
+      },
+      "devices": []
+    },
+    {
+      "id": "oil", "icon": "⛽", "name": "油",
+      "peace": {
+        "perf": { "act": [], "text": "" }, "endur": { "days": "", "pct": "" },
+        "supply": [ { "name": "柴油供應商", "value": "", "online": true, "esg": "amber", "pct": "", "react": "", "autonomous": false, "warn": false } ],
+        "supplySum": "",
+        "store": [ { "name": "柴油儲槽", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true } ],
+        "use": { "headline": "", "sub": "", "blocks": [
+          { "name": "發電機耗油", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "L", "daily": [], "lastYearDaily": [], "critical": false, "color": "energy" }
+        ] }
+      },
+      "war": {
+        "perf": { "act": [], "text": "" }, "endur": { "days": "", "pct": "" },
+        "supply": [ { "name": "緊急調度油料", "value": "", "online": false, "esg": "amber", "pct": "", "react": "", "autonomous": false, "warn": false } ],
+        "supplySum": "",
+        "store": [ { "name": "柴油儲槽", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true } ],
+        "use": { "headline": "", "sub": "", "blocks": [
+          { "name": "發電機耗油", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "L/hr", "daily": [], "lastYearDaily": [], "critical": true, "color": "alert" }
+        ] }
+      },
+      "devices": []
+    },
+    {
+      "id": "gas", "icon": "🔥", "name": "氣",
+      "peace": {
+        "perf": { "act": [], "text": "" }, "endur": { "days": "", "pct": "" },
+        "supply": [
+          { "name": "天然氣（市政管線）", "value": "", "online": true, "esg": "amber", "pct": "", "react": "", "autonomous": false, "warn": false },
+          { "name": "液態氧供應",         "value": "", "online": true, "esg": "na",    "pct": "", "react": "", "autonomous": false, "warn": false }
+        ],
+        "supplySum": "",
+        "store": [
+          { "name": "液氧儲槽",    "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true },
+          { "name": "醫用氣體鋼瓶", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true }
+        ],
+        "use": { "headline": "", "sub": "", "blocks": [
+          { "name": "蒸氣鍋爐",    "pctOfTotal": "", "lastYear": "", "current": "", "unit": "kWh", "daily": [], "lastYearDaily": [], "critical": false, "color": "energy" },
+          { "name": "醫用氧氣用量", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "m³",  "daily": [], "lastYearDaily": [], "critical": false, "color": "chart-4" }
+        ] }
+      },
+      "war": {
+        "perf": { "act": [], "text": "" }, "endur": { "days": "", "pct": "" },
+        "supply": [
+          { "name": "天然氣（市政管線）", "value": "", "online": false, "esg": "amber", "pct": "", "react": "", "autonomous": false, "warn": false },
+          { "name": "院內液氧自主庫存",   "value": "", "online": true,  "esg": "na",    "pct": "", "react": "", "autonomous": false, "warn": false }
+        ],
+        "supplySum": "",
+        "store": [ { "name": "液氧儲槽", "cap": "", "pct": 0, "days": "", "state": "", "warn": false, "critical": true } ],
+        "use": { "headline": "", "sub": "", "blocks": [
+          { "name": "醫用氧氣消耗", "pctOfTotal": "", "lastYear": "", "current": "", "unit": "m³", "daily": [], "lastYearDaily": [], "critical": true, "color": "alert" }
+        ] }
+      },
+      "devices": []
+    }
+  ],
+  "env": {
+    "peace": { "buildings": [] },
+    "war": { "buildings": [] },
+    "criticalFloors": [],
+    "carbon": {
+      "title": "碳盤查 2024→2026（tCO₂e，2024 基準年）",
+      "cols": ["項目", "2024", "2025", "2026"],
+      "rows": [
+        { "label": "總碳排",            "cells": ["", "", ""] },
+        { "label": "外購電力",          "cells": ["", "", ""] },
+        { "label": "逸散(化糞池/冷媒)", "cells": ["", "", ""] },
+        { "label": "公務車",            "cells": ["", "", ""] },
+        { "label": "緊急發電機",        "cells": ["", "", ""] }
+      ]
+    }
+  }
+}
