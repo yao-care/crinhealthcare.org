@@ -296,9 +296,9 @@
   .cards { flex: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-content: flex-start; overflow: hidden; min-height: 0; scroll-behavior: smooth; }
   .card { width: clamp(140px, 16vw, 220px); flex: 0 0 auto; background: var(--color-paper); border: 1px solid var(--color-border); border-top: 3px solid var(--color-chart-1); border-radius: var(--radius-sm); padding: 5px 9px; display: flex; flex-direction: column; gap: 3px; }
   .card.crit { box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--color-alert) 35%, transparent); }
-  .ch { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-  .cn { font-size: var(--text-sm); font-weight: 700; }
-  .cb { font-size: var(--text-xs); font-weight: 700; color: var(--color-paper); background: var(--color-alert); border-radius: var(--radius-sm); padding: 0 5px; margin-left: 4px; }
+  .ch { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 6px; flex-wrap: wrap; }
+  .cn { font-size: var(--text-sm); font-weight: 700; min-width: 0; }
+  .cb { font-size: var(--text-xs); font-weight: 700; color: var(--color-paper); background: var(--color-alert); border-radius: var(--radius-sm); padding: 0 5px; margin-left: 4px; white-space: nowrap; display: inline-block; }
   .cp { font-size: var(--text-xs); color: var(--color-text-secondary); white-space: nowrap; }
   .cnums { display: flex; gap: var(--space-sm); }
   .cnum { display: flex; flex-direction: column; line-height: 1.1; }
