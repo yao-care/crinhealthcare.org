@@ -1,8 +1,10 @@
 {
   "name": "國軍高雄總醫院",
   "location": "高雄市苓雅區",
+  "version": "v1",
   "updated": "2026-06-04",
   "liveData": false,
+  "layout": "v2",
   "scenarios": [
     {
       "id": "peace",
@@ -20,11 +22,7 @@
       "name": "電力",
       "peace": {
         "perf": {
-          "act": [
-            17.54
-          ],
-          "base": 17.54,
-          "warn": 18.5,
+          "act": [],
           "text": "<b>EnPI 17.54</b> 基準（kWh/人次）· 年 15,094,528 度 · 電力碳排 7,155 t"
         },
         "endur": {
@@ -36,57 +34,43 @@
             "name": "市電（主）",
             "value": "15,094,528 度/年",
             "online": true,
-            "esg": "grey"
+            "esg": "grey",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "太陽能 PV",
             "value": "發電量待盤點",
             "online": false,
-            "esg": "green"
+            "esg": "green",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "備用發電機",
             "value": "柴油備援",
             "online": false,
-            "esg": "amber"
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           }
         ],
         "supplySum": "年 15,094,528 度",
-        "detailLabel": "能源管理（ISO 50001）",
-        "detail": [
-          {
-            "name": "改善·空調系統升級",
-            "value": "優先 高·難度 中",
-            "warn": false
-          },
-          {
-            "name": "改善·動力系統更新",
-            "value": "優先 中·難度 高",
-            "warn": false
-          },
-          {
-            "name": "改善·照明系統再改造",
-            "value": "優先 中·難度 低",
-            "warn": false
-          },
-          {
-            "name": "能源基線 EnB（F-05）",
-            "value": "多元迴歸 R²=0.76",
-            "warn": false
-          },
-          {
-            "name": "冰水主機檢測（F-08）",
-            "value": "25 項·讀數待接 EMS",
-            "warn": false
-          }
-        ],
         "store": [
           {
             "name": "備援電力",
-            "days": "待盤點",
             "cap": "緊急發電機·柴油（容量待盤點）",
             "pct": 0,
-            "warn": false
+            "days": "待盤點",
+            "state": "",
+            "warn": false,
+            "critical": false
           }
         ],
         "use": {
@@ -95,55 +79,43 @@
           "blocks": [
             {
               "name": "空調系統",
-              "value": "8,247,096 kWh",
-              "sub": "佔比 55%",
-              "color": "primary",
-              "trend": {
-                "act": [
-                  55
-                ],
-                "base": 55,
-                "warn": 60
-              }
+              "pctOfTotal": "55%",
+              "current": "8,247,096 kWh",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "primary"
             },
             {
               "name": "動力系統",
-              "value": "1,199,578 kWh",
-              "sub": "佔比 8%",
-              "color": "chart-4",
-              "trend": {
-                "act": [
-                  8
-                ],
-                "base": 8,
-                "warn": 12
-              }
+              "pctOfTotal": "8%",
+              "current": "1,199,578 kWh",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
             },
             {
               "name": "照明系統",
-              "value": "749,736 kWh",
-              "sub": "佔比 5%",
-              "color": "energy",
-              "trend": {
-                "act": [
-                  5
-                ],
-                "base": 5,
-                "warn": 8
-              }
+              "pctOfTotal": "5%",
+              "current": "749,736 kWh",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "energy"
             },
             {
               "name": "醫療設備",
-              "value": "4,798,310 kWh",
-              "sub": "佔比 32%",
-              "color": "chart-5",
-              "trend": {
-                "act": [
-                  32
-                ],
-                "base": 32,
-                "warn": 36
-              }
+              "pctOfTotal": "32%",
+              "current": "4,798,310 kWh",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-5"
             }
           ]
         }
@@ -162,37 +134,43 @@
             "name": "市電（主）",
             "value": "待盤點",
             "online": false,
-            "esg": "grey"
+            "esg": "grey",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "備用發電機",
             "value": "待盤點",
             "online": false,
-            "esg": "amber"
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           },
           {
             "name": "太陽能 PV",
             "value": "待盤點",
             "online": false,
-            "esg": "green"
+            "esg": "green",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           }
         ],
         "supplySum": "待盤點",
-        "detailLabel": "戰時能源",
-        "detail": [
-          {
-            "name": "備援續航",
-            "value": "待盤點",
-            "warn": false
-          }
-        ],
         "store": [
           {
             "name": "備援電力",
-            "days": "待盤點",
             "cap": "待盤點",
             "pct": 0,
-            "warn": false
+            "days": "待盤點",
+            "state": "",
+            "warn": false,
+            "critical": false
           }
         ],
         "use": {
@@ -201,31 +179,48 @@
           "blocks": [
             {
               "name": "空調系統",
-              "value": "待盤點",
-              "sub": "—",
+              "pctOfTotal": "",
+              "current": "待盤點",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "primary"
             },
             {
               "name": "動力系統",
-              "value": "待盤點",
-              "sub": "—",
+              "pctOfTotal": "",
+              "current": "待盤點",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "chart-4"
             },
             {
               "name": "照明系統",
-              "value": "待盤點",
-              "sub": "—",
+              "pctOfTotal": "",
+              "current": "待盤點",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "energy"
             },
             {
               "name": "醫療設備",
-              "value": "待盤點",
-              "sub": "—",
+              "pctOfTotal": "",
+              "current": "待盤點",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "chart-5"
             }
           ]
         }
-      }
+      },
+      "devices": []
     },
     {
       "id": "water",
@@ -245,35 +240,23 @@
             "name": "自來水",
             "value": "取水量待盤點",
             "online": false,
-            "esg": "na"
+            "esg": "na",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           }
         ],
         "supplySum": "待盤點",
-        "detailLabel": "供水（ESG 盤點）",
-        "detail": [
-          {
-            "name": "用水量(m³)",
-            "value": "自來水帳單·月度",
-            "warn": false
-          },
-          {
-            "name": "填報單位",
-            "value": "設施管理科",
-            "warn": false
-          },
-          {
-            "name": "收集狀態",
-            "value": "ESG 資料收集中",
-            "warn": false
-          }
-        ],
         "store": [
           {
             "name": "蓄水",
-            "days": "待盤點",
             "cap": "待盤點",
             "pct": 0,
-            "warn": false
+            "days": "待盤點",
+            "state": "",
+            "warn": false,
+            "critical": false
           }
         ],
         "use": {
@@ -282,8 +265,12 @@
           "blocks": [
             {
               "name": "全院用水",
-              "value": "待盤點",
-              "sub": "—",
+              "pctOfTotal": "",
+              "current": "待盤點",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "chart-4"
             }
           ]
@@ -303,25 +290,23 @@
             "name": "自來水/備援",
             "value": "待盤點",
             "online": false,
-            "esg": "na"
+            "esg": "na",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           }
         ],
         "supplySum": "待盤點",
-        "detailLabel": "供水",
-        "detail": [
-          {
-            "name": "戰時供水",
-            "value": "待盤點",
-            "warn": false
-          }
-        ],
         "store": [
           {
             "name": "蓄水",
-            "days": "待盤點",
             "cap": "待盤點",
             "pct": 0,
-            "warn": false
+            "days": "待盤點",
+            "state": "",
+            "warn": false,
+            "critical": false
           }
         ],
         "use": {
@@ -330,117 +315,286 @@
           "blocks": [
             {
               "name": "全院用水",
-              "value": "待盤點",
-              "sub": "—",
+              "pctOfTotal": "",
+              "current": "待盤點",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
               "color": "chart-4"
             }
           ]
         }
-      }
+      },
+      "devices": []
+    },
+    {
+      "id": "oil",
+      "icon": "⛽",
+      "name": "油",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "柴油供應商",
+            "value": "",
+            "online": true,
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "柴油儲槽",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": true
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "發電機耗油",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "L",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "energy"
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "緊急調度油料",
+            "value": "",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "柴油儲槽",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": true
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "發電機耗油",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "L/hr",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert"
+            }
+          ]
+        }
+      },
+      "devices": []
+    },
+    {
+      "id": "gas",
+      "icon": "🔥",
+      "name": "氣",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "天然氣（市政管線）",
+            "value": "",
+            "online": true,
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "液態氧供應",
+            "value": "",
+            "online": true,
+            "esg": "na",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "液氧儲槽",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": true
+          },
+          {
+            "name": "醫用氣體鋼瓶",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": true
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "蒸氣鍋爐",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "energy"
+            },
+            {
+              "name": "醫用氧氣用量",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "m³",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "天然氣（市政管線）",
+            "value": "",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "院內液氧自主庫存",
+            "value": "",
+            "online": true,
+            "esg": "na",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "液氧儲槽",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": true
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "醫用氧氣消耗",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "m³",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert"
+            }
+          ]
+        }
+      },
+      "devices": []
     }
   ],
-  "report": {
-    "esg": [
-      {
-        "item": "盤查年度",
-        "value": "2025",
-        "unit": ""
-      },
-      {
-        "item": "整體用電量",
-        "value": "15,094,528",
-        "unit": "度"
-      },
-      {
-        "item": "範疇一 直接排放",
-        "value": "1,435.21",
-        "unit": "tCO2e"
-      },
-      {
-        "item": "範疇二 外購電力",
-        "value": "7,154.81",
-        "unit": "tCO2e"
-      },
-      {
-        "item": "溫室氣體總排放",
-        "value": "8,590.02",
-        "unit": "tCO2e"
-      },
-      {
-        "item": "電力排碳係數",
-        "value": "0.474",
-        "unit": "kgCO2e/kWh"
-      },
-      {
-        "item": "天然氣排放（廚房瓦斯爐）",
-        "value": "26.73",
-        "unit": "tCO2e"
-      },
-      {
-        "item": "液化石油氣排放",
-        "value": "9.37",
-        "unit": "tCO2e"
-      },
-      {
-        "item": "冷媒逸散排放",
-        "value": "1,338.67",
-        "unit": "tCO2e"
-      },
-      {
-        "item": "麻醉氣體排放",
-        "value": "25.82",
-        "unit": "tCO2e"
-      },
-      {
-        "item": "公務車（汽油＋柴油）排放",
-        "value": "32.97",
-        "unit": "tCO2e"
-      }
-    ],
-    "benchmark": [
-      {
-        "item": "EnPI 基準值",
-        "value": "17.54",
-        "unit": "kWh/人次"
-      },
-      {
-        "item": "能源基線 EnB",
-        "value": "14,994,720",
-        "unit": "kWh/年"
-      },
-      {
-        "item": "SEU 能耗-空調系統",
-        "value": "8,247,096",
-        "unit": "kWh"
-      },
-      {
-        "item": "SEU 能耗-醫療設備",
-        "value": "4,798,310",
-        "unit": "kWh"
-      },
-      {
-        "item": "SEU 能耗-動力系統",
-        "value": "1,199,578",
-        "unit": "kWh"
-      },
-      {
-        "item": "SEU 能耗-照明系統",
-        "value": "749,736",
-        "unit": "kWh"
-      },
-      {
-        "item": "改善機會",
-        "value": "空調升級(高)／動力更新(中)／照明改造(中)",
-        "unit": ""
-      }
-    ]
-  },
-  "esgPanels": [
-    {
-      "id": "carbon",
-      "icon": "🌱",
+  "env": {
+    "peace": {
+      "buildings": []
+    },
+    "war": {
+      "buildings": []
+    },
+    "criticalFloors": [],
+    "carbon": {
       "title": "碳盤查 · 2024 → 2025（溫盤，單位 tCO₂e）",
-      "compare": true,
       "cols": [
         "項目",
         "2024",
@@ -545,54 +699,6 @@
           ]
         }
       ]
-    },
-    {
-      "id": "social",
-      "icon": "👥",
-      "title": "社會 S",
-      "rows": [
-        {
-          "label": "全院員工",
-          "value": "約 1,500 人（F-01）"
-        },
-        {
-          "label": "能源教育訓練",
-          "value": "5 場·管理4＋全院1（F-06）"
-        },
-        {
-          "label": "訓練期間",
-          "value": "2026/2–7"
-        },
-        {
-          "label": "職安／病安／社區",
-          "value": "ESG 待收集",
-          "pending": true
-        }
-      ]
-    },
-    {
-      "id": "governance",
-      "icon": "🏛️",
-      "title": "治理 G",
-      "rows": [
-        {
-          "label": "能源管理組織",
-          "value": "召集人院長·18 人（F-02）"
-        },
-        {
-          "label": "風險與機會",
-          "value": "8 項·高2/中5/低1（F-03）"
-        },
-        {
-          "label": "法規遵循",
-          "value": "能源管理法/ISO 50001 等 5 項（F-01）"
-        },
-        {
-          "label": "廉政／資安",
-          "value": "ESG 待收集",
-          "pending": true
-        }
-      ]
     }
-  ]
+  }
 }
