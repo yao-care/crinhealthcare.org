@@ -2,7 +2,7 @@
   "name": "國軍左營總醫院岡山分院",
   "location": "高雄市岡山區",
   "version": "v1",
-  "updated": "2026-06-09",
+  "updated": "2026-06-21",
   "liveData": false,
   "layout": "v2",
   "scenarios": [
@@ -570,12 +570,98 @@
   ],
   "env": {
     "peace": {
-      "buildings": []
+      "buildings": [
+        {
+          "name": "醫療大樓",
+          "floors": [
+            {
+              "floor": "5F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "B1",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        }
+      ]
     },
     "war": {
-      "buildings": []
+      "buildings": [
+        {
+          "name": "醫療大樓",
+          "floors": [
+            {
+              "floor": "5F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "B1",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        }
+      ]
     },
-    "criticalFloors": [],
+    "criticalFloors": [
+      "醫療大樓2F"
+    ],
     "carbon": {
       "title": "碳盤查 2024（首年·基準年，tCO₂e）",
       "cols": [

@@ -2,7 +2,7 @@
   "name": "國軍臺中總醫院中清分院",
   "location": "臺中市北區",
   "version": "v1",
-  "updated": "2026-06-05",
+  "updated": "2026-06-21",
   "liveData": false,
   "layout": "v2",
   "scenarios": [
@@ -517,12 +517,98 @@
   ],
   "env": {
     "peace": {
-      "buildings": []
+      "buildings": [
+        {
+          "name": "醫療大樓",
+          "floors": [
+            {
+              "floor": "5F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "B1",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        }
+      ]
     },
     "war": {
-      "buildings": []
+      "buildings": [
+        {
+          "name": "醫療大樓",
+          "floors": [
+            {
+              "floor": "5F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "B1",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        }
+      ]
     },
-    "criticalFloors": [],
+    "criticalFloors": [
+      "醫療大樓2F"
+    ],
     "carbon": {
       "title": "碳盤查 2025（溫盤清冊 tCO₂e）",
       "cols": [
