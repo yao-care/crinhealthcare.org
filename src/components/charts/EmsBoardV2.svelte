@@ -92,7 +92,7 @@
             {#each d.store as st}
               <div class="tank" class:warn={st.warn} class:crit={st.critical}>
                 <div class="days">{st.days || '—'}</div>
-                <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span><i style="height:{st.pct || 0}%"></i></div>
+                <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span>{#if st.pct}<span class="pct over" style="clip-path: inset(calc(100% - {st.pct}%) 0 0 0)">{st.pct}%</span>{/if}<i style="height:{st.pct || 0}%"></i></div>
                 <div class="tn">{st.name}</div>
                 <div class="tc">{st.cap}{#if st.state} · {st.state}{/if}</div>
               </div>
@@ -285,7 +285,9 @@
   .tank .col { flex: 1; width: 100%; max-width: 46px; background: var(--color-paper); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; display: flex; flex-direction: column-reverse; margin: 3px 0; position: relative; min-height: 24px; }
   .tank .col i { display: block; width: 100%; background: var(--color-primary); }
   .tank.warn .col i, .tank.crit .col i { background: var(--color-alert); }
-  .tank .col .pct { position: absolute; top: 2px; left: 0; right: 0; text-align: center; font-size: var(--text-xs); font-weight: 700; }
+  .tank .col .pct { position: absolute; top: 2px; left: 0; right: 0; text-align: center; font-size: var(--text-xs); font-weight: 700; color: var(--color-text); }
+  /* 淹到水位線以下的數字改用淺色（疊在深色填充上才看得清）；clip 量綁 pct，水面以上露出底層深字 */
+  .tank .col .pct.over { top: 0; bottom: 0; padding-top: 2px; color: var(--color-paper); }
   .tank .tn { font-size: var(--text-xs); font-weight: 700; text-align: center; }
   .tank .tc { font-size: var(--text-xs); color: var(--color-text-secondary); text-align: center; line-height: 1.15; }
 
