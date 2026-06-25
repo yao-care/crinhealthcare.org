@@ -28,8 +28,8 @@
     const id = setInterval(() => {
       const max = node.scrollHeight - node.clientHeight;
       if (max <= 4) return; // 放得下，不輪播
-      let next = node.scrollTop + node.clientHeight * 0.92;
-      if (next >= max - 2) next = 0;
+      // 已到底→回頂；否則前進約一頁，但夾在底部內（內容僅略微溢出時，一頁步距會超過總溢出量，不夾住會誤判成「該歸零」而永遠停在頂端）
+      const next = node.scrollTop >= max - 2 ? 0 : Math.min(node.scrollTop + node.clientHeight * 0.92, max);
       node.scrollTo({ top: next, behavior: 'smooth' });
     }, 5000);
     return { destroy() { clearInterval(id); } };
