@@ -65,7 +65,16 @@
         "store": [
           {
             "name": "備援電力（柴油發電機）",
-            "cap": "緊急發電機·柴油",
+            "cap": "柴油 48,270 L · 79.4 hr",
+            "pct": 0,
+            "days": "3.3 天",
+            "state": "",
+            "warn": false,
+            "critical": false
+          },
+          {
+            "name": "行動氫氣發電機",
+            "cap": "",
             "pct": 0,
             "days": "",
             "state": "",
@@ -235,6 +244,15 @@
         "store": [
           {
             "name": "備援電力（柴油發電機）",
+            "cap": "柴油 48,270 L · 79.4 hr",
+            "pct": 0,
+            "days": "3.3 天",
+            "state": "",
+            "warn": false,
+            "critical": false
+          },
+          {
+            "name": "行動氫氣發電機",
             "cap": "",
             "pct": 0,
             "days": "",
@@ -341,9 +359,9 @@
         "store": [
           {
             "name": "蓄水池/水塔",
-            "cap": "",
+            "cap": "2,458 T · 81.9 hr",
             "pct": 0,
-            "days": "",
+            "days": "3.4 天",
             "state": "",
             "warn": false,
             "critical": false
@@ -413,9 +431,9 @@
         "store": [
           {
             "name": "蓄水池/水塔",
-            "cap": "",
+            "cap": "2,458 T · 81.9 hr",
             "pct": 0,
-            "days": "",
+            "days": "3.4 天",
             "state": "",
             "warn": false,
             "critical": false
@@ -586,9 +604,9 @@
         "store": [
           {
             "name": "液氧儲槽",
-            "cap": "",
+            "cap": "43.39 T · 372 hr",
             "pct": 0,
-            "days": "",
+            "days": "15.5 天",
             "state": "",
             "warn": false,
             "critical": false
@@ -667,9 +685,9 @@
         "store": [
           {
             "name": "液氧儲槽",
-            "cap": "",
+            "cap": "43.39 T · 372 hr",
             "pct": 0,
-            "days": "",
+            "days": "15.5 天",
             "state": "",
             "warn": false,
             "critical": true
