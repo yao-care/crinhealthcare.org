@@ -5,6 +5,7 @@
   "updated": "2026-06-17",
   "liveData": false,
   "layout": "v2",
+  "show": ["power"],
   "scenarios": [
     {
       "id": "peace",

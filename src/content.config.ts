@@ -214,6 +214,8 @@ const hospitals = defineCollection({
     liveData: z.boolean().default(false),
     // 版面：stack＝上半資源/下半面板；split＝左半資源/右半面板(50%)；v2＝五大區塊(電/環境/水/油/氣)新框架
     layout: z.enum(['stack', 'split', 'v2']).default('stack'),
+    // v2 限定只顯示這些區塊（power/water/oil/gas/env）；未設＝全顯示。留下的區塊自動撐滿版面。
+    show: z.array(z.enum(['power', 'water', 'oil', 'gas', 'env'])).optional(),
     // v2 環境參數（特例：不分供/儲/使、無看詳情）
     env: emsEnv.optional(),
     scenarios: z.array(z.object({ id: z.string(), label: z.string() }))

@@ -16,12 +16,17 @@
     criticalFloors?: string[];
     carbon?: { title: string; cols: string[]; rows: { label: string; cells: string[] }[] };
   }
-  interface Hospital { name: string; location?: string; version?: string; updated?: string; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; }
+  interface Hospital { name: string; location?: string; version?: string; updated?: string; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; }
 
   let { hospital }: { hospital: Hospital } = $props();
   let scenario = $state('peace');
   const war = $derived(scenario !== 'peace');
   const other = $derived(hospital.scenarios.find((s) => s.id !== scenario) ?? hospital.scenarios[0]);
+
+  // hospital.show：限定只顯示這些區塊（power/water/oil/gas/env）；未設則全顯示。隱藏其餘後，留下的區塊靠 flex 自動撐滿。
+  const show: string[] | null = hospital.show ?? null;
+  const visible = (id: string) => !show || show.includes(id);
+  const r2list = $derived(hospital.resources.filter((r) => ['water', 'oil', 'gas'].includes(r.id) && visible(r.id)));
 
   // 使用端輪播：項目過多放不下時，每 5 秒自動換頁(垂直捲動)，輪到所有項目。放得下就不動。
   function carousel(node: HTMLElement) {
@@ -145,12 +150,12 @@
   <div class="grid">
     <!-- 上半：電力（寬）+ 環境參數（窄） -->
     <div class="r r1">
-      {#each hospital.resources.filter((r) => r.id === 'power') as r}
+      {#each hospital.resources.filter((r) => r.id === 'power' && visible('power')) as r}
         {@render energyBlock(r)}
       {/each}
 
       <!-- 環境參數（特例：無供/儲/使、無看詳情；主角＝各樓層，碳盤查置底縮小） -->
-      {#if hospital.env}
+      {#if hospital.env && visible('env')}
         {@const env = hospital.env}
         {@const blds = (war ? env.war : env.peace).buildings}
         {@const first = blds[0]}
@@ -205,12 +210,14 @@
       {/if}
     </div>
 
-    <!-- 下半：水 / 油 / 氣 -->
-    <div class="r r2">
-      {#each hospital.resources.filter((r) => ['water', 'oil', 'gas'].includes(r.id)) as r}
-        {@render energyBlock(r)}
-      {/each}
-    </div>
+    <!-- 下半：水 / 油 / 氣（依 hospital.show 篩選；全隱藏則整列不顯示，上半電力撐滿全高） -->
+    {#if r2list.length}
+      <div class="r r2">
+        {#each r2list as r}
+          {@render energyBlock(r)}
+        {/each}
+      </div>
+    {/if}
   </div>
 </div>
 
