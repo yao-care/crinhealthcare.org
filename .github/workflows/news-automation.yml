@@ -36,7 +36,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/content/news/ src/assets/images/auto/news/ data/processed-sources.json
+          for p in src/content/news/ src/assets/images/auto/news/ data/processed-sources.json; do
+            [ -e "$p" ] && git add "$p"
+          done
           git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "news: auto-generated $(date -u +%Y-%m-%d)"
           git push
