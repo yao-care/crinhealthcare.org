@@ -1,8 +1,6 @@
 name: Glossary Quarterly Update
 
 on:
-  schedule:
-    - cron: "0 0 1 1,4,7,10 *"  # First day of Jan/Apr/Jul/Oct
   workflow_dispatch:
 
 permissions:

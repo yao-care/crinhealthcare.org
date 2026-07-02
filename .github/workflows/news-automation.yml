@@ -1,8 +1,6 @@
 name: News Automation
 
 on:
-  schedule:
-    - cron: "0 22,10 * * *"  # UTC = TPE 06:00, 18:00
   workflow_dispatch:
 
 permissions:

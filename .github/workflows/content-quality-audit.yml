@@ -1,8 +1,6 @@
 name: Content Quality Audit
 
 on:
-  schedule:
-    - cron: "0 0 20 1,4,7,10 *"  # 20th of Jan/Apr/Jul/Oct
   workflow_dispatch:
 
 permissions:

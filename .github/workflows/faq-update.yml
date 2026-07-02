@@ -1,8 +1,6 @@
 name: FAQ Quarterly Update
 
 on:
-  schedule:
-    - cron: "0 0 15 1,4,7,10 *"  # 15th of Jan/Apr/Jul/Oct
   workflow_dispatch:
 
 permissions:
