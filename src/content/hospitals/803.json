@@ -2,10 +2,12 @@
   "name": "國軍臺中總醫院",
   "location": "臺中市太平區",
   "version": "v1",
-  "updated": "2026-06-17",
+  "updated": "2026-07-02",
   "liveData": false,
   "layout": "v2",
-  "show": ["power"],
+  "show": [
+    "power"
+  ],
   "scenarios": [
     {
       "id": "peace",
@@ -60,9 +62,29 @@
             "react": "",
             "autonomous": false,
             "warn": false
+          },
+          {
+            "name": "行動儲電櫃",
+            "value": "待命·充電",
+            "online": false,
+            "esg": "blue",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "小型氫能發電",
+            "value": "待命",
+            "online": false,
+            "esg": "green",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
           }
         ],
-        "supplySum": "台電市電為主 · 再生/備援待盤點",
+        "supplySum": "台電市電為主 · 備援：儲電櫃／氫能／柴油",
         "store": [
           {
             "name": "備援電力（柴油發電機）",
@@ -75,6 +97,15 @@
           },
           {
             "name": "行動氫氣發電機",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false
+          },
+          {
+            "name": "行動儲電櫃",
             "cap": "",
             "pct": 0,
             "days": "",
@@ -212,13 +243,13 @@
         "supply": [
           {
             "name": "市電（台電）",
-            "value": "",
+            "value": "中斷",
             "online": false,
             "esg": "grey",
             "pct": "",
             "react": "",
             "autonomous": false,
-            "warn": false
+            "warn": true
           },
           {
             "name": "太陽能 PV",
@@ -238,6 +269,26 @@
             "pct": "",
             "react": "",
             "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "行動儲電櫃",
+            "value": "",
+            "online": true,
+            "esg": "blue",
+            "pct": "",
+            "react": "",
+            "autonomous": true,
+            "warn": false
+          },
+          {
+            "name": "小型氫能發電",
+            "value": "",
+            "online": true,
+            "esg": "green",
+            "pct": "",
+            "react": "",
+            "autonomous": true,
             "warn": false
           }
         ],
@@ -260,6 +311,15 @@
             "state": "",
             "warn": false,
             "critical": false
+          },
+          {
+            "name": "行動儲電櫃",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false
           }
         ],
         "use": {
@@ -267,26 +327,147 @@
           "sub": "",
           "blocks": [
             {
-              "name": "維生關鍵負載",
+              "name": "B1 地下收治場所",
               "pctOfTotal": "",
               "lastYear": "",
               "current": "",
-              "unit": "kW",
-              "daily": [],
-              "lastYearDaily": [],
-              "critical": true,
-              "color": "alert"
-            },
-            {
-              "name": "可卸載負載",
-              "pctOfTotal": "",
-              "lastYear": "",
-              "current": "",
-              "unit": "kW",
+              "unit": "",
               "daily": [],
               "lastYearDaily": [],
               "critical": false,
-              "color": "text-secondary"
+              "color": "primary",
+              "items": [
+                "開設 15 分鐘（1110–1125）",
+                "重13／中8／輕33 共 54 床",
+                "固定電源點 ×4"
+              ]
+            },
+            {
+              "name": "指揮中心",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4",
+              "items": [
+                "電腦×2 · 電話×2",
+                "對講機×2 · 大螢幕×1",
+                "插座×7 · 延長線×2"
+              ]
+            },
+            {
+              "name": "檢傷分類區",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4",
+              "items": [
+                "生理監視器(FRSD)×1",
+                "野戰醫療病床(FRSD)×1",
+                "電腦＋護理工作車×1",
+                "電話×1 · 對講機×1",
+                "插座×2 · 延長線×1"
+              ]
+            },
+            {
+              "name": "重傷區 13床",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert",
+              "items": [
+                "生理監視器×2",
+                "急救車(電擊器)×1",
+                "插座×2 · 延長線×3"
+              ]
+            },
+            {
+              "name": "移動式X光區",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert",
+              "items": [
+                "移動式X光機×1",
+                "無線網路HIS網點×1",
+                "插座×2"
+              ]
+            },
+            {
+              "name": "護理站",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4",
+              "items": [
+                "急救車(電擊器)×1",
+                "電腦×1 · 印表機×1",
+                "電話×1 · 對講機×1",
+                "插座×4 · 延長線×2"
+              ]
+            },
+            {
+              "name": "中傷區 8床",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4",
+              "items": [
+                "生理監視器(FRSD)×1",
+                "插座×2"
+              ]
+            },
+            {
+              "name": "輕傷區 33床",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary",
+              "items": [
+                "插座×2"
+              ]
+            },
+            {
+              "name": "麻深儀",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-5",
+              "items": [
+                "功耗 — W",
+                "1kWh 機動儲能供電"
+              ]
             }
           ]
         }
@@ -315,6 +496,236 @@
           "system": "配電",
           "loc": "",
           "status": "",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "B1 固定電源點 ×4",
+          "system": "收治場所",
+          "loc": "檢傷區·重傷區·護理站·輕傷區 前緣",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "電腦×2 · 電話×2 · 對講機×2 · 大螢幕×1",
+          "system": "指揮中心",
+          "loc": "急重症大樓B1 指揮中心",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "通資組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×7 · 延長線×2",
+          "system": "指揮中心",
+          "loc": "急重症大樓B1 指揮中心",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "生理監視器(FRSD)×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "衛保室",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "野戰醫療病床(FRSD)×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "衛保室",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "電腦＋護理工作車×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "護理部",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "電話×1 · 對講機×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "資管組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2 · 延長線×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "生理監視器×2",
+          "system": "重傷區",
+          "loc": "急重症大樓B1 重傷區(13床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "護理部",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "急救車(電擊器)×1",
+          "system": "重傷區",
+          "loc": "急重症大樓B1 重傷區(13床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "護理部",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2 · 延長線×3",
+          "system": "重傷區",
+          "loc": "急重症大樓B1 重傷區(13床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "移動式X光機×1",
+          "system": "移動式X光區",
+          "loc": "急重症大樓B1 移動式X光機置放區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "放射科",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "無線網路HIS網點×1",
+          "system": "移動式X光區",
+          "loc": "急重症大樓B1 移動式X光機置放區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "資管組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2",
+          "system": "移動式X光區",
+          "loc": "急重症大樓B1 移動式X光機置放區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "急救車(含電擊器)×1",
+          "system": "護理站",
+          "loc": "急重症大樓B1 護理站",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "護理部",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "電腦×1 · 印表機×1 · 電話×1 · 對講機×1",
+          "system": "護理站",
+          "loc": "急重症大樓B1 護理站",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "資管組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×4 · 延長線×2",
+          "system": "護理站",
+          "loc": "急重症大樓B1 護理站",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "生理監視器(FRSD)×1",
+          "system": "中傷區",
+          "loc": "急重症大樓B1 中傷區(8床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "衛保室",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2",
+          "system": "中傷區",
+          "loc": "急重症大樓B1 中傷區(8床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2",
+          "system": "輕傷區",
+          "loc": "急重症大樓B1 輕傷區(33床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "行動儲電櫃",
+          "system": "供電",
+          "loc": "",
+          "status": "戰時開設配置",
+          "reading": "負載 —kW·—V·—A ｜ 市電 —kW·—V·—A·—Hz·狀態 — ｜ 電池SOC —%",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "小型氫能發電機",
+          "system": "供電",
+          "loc": "",
+          "status": "戰時開設配置",
+          "reading": "氣瓶儲量 —",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "麻深儀",
+          "system": "醫療",
+          "loc": "",
+          "status": "戰時開設配置",
+          "reading": "功耗 — W · 1kWh 機動儲能供電",
           "manager": "",
           "contact": "",
           "vendor": ""
@@ -692,6 +1103,15 @@
             "state": "",
             "warn": false,
             "critical": true
+          },
+          {
+            "name": "醫用氣體鋼瓶",
+            "cap": "氧氣鋼瓶 21 瓶（重傷13＋中傷8）",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false
           }
         ],
         "use": {

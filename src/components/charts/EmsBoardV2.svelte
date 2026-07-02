@@ -5,7 +5,7 @@
   import { isSupplyAbnormal, barFills, envSeverity } from '@utils/ems';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; }
   interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; }
-  interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; }
+  interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; }
   interface Scenario { perf: { text: string }; endur: { days: string; pct: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[] }; }
   interface Resource { id: string; icon: string; name: string; peace: Scenario; war: Scenario; }
   interface EnvFloor { floor: string; temp: string; rh: string; co2: string; }
@@ -113,20 +113,27 @@
             <div class="card" class:crit={b.critical} style="border-top-color:{tone(b.color ?? 'chart-1')}">
               <div class="ch">
                 <span class="cn">{b.name}{#if b.critical}<span class="cb">維生</span>{/if}</span>
-                <span class="cp">佔總量 {b.pctOfTotal || '—'}</span>
+                {#if !b.items?.length}<span class="cp">佔總量 {b.pctOfTotal || '—'}</span>{/if}
               </div>
-              <div class="cnums">
-                <span class="cnum"><em>去年同期</em><b>{b.lastYear || '—'}</b></span>
-                <span class="cnum now"><em>現況電表</em><b>{b.current || '—'}</b></span>
-              </div>
-              <div class="cchart">
-                {#if c}
-                  <svg viewBox="0 0 {c.W} {c.H}" preserveAspectRatio="none" aria-hidden="true">
-                    {#each c.bars as bar}<rect x={bar.x} y={bar.y} width={bar.w} height={bar.h} fill={bar.fill} />{/each}
-                    {#if c.refLine}<polyline points={c.refLine} class="ref" />{/if}
-                  </svg>
-                {:else}<span class="nodata">每日統計 · 待盤點</span>{/if}
-              </div>
+              {#if b.items?.length}
+                <!-- 收治區型卡片：卡身＝該區用電設備清單（品名×數量），取代電表欄 -->
+                <ul class="citems">
+                  {#each b.items as it}<li>{it}</li>{/each}
+                </ul>
+              {:else}
+                <div class="cnums">
+                  <span class="cnum"><em>去年同期</em><b>{b.lastYear || '—'}</b></span>
+                  <span class="cnum now"><em>現況電表</em><b>{b.current || '—'}</b></span>
+                </div>
+                <div class="cchart">
+                  {#if c}
+                    <svg viewBox="0 0 {c.W} {c.H}" preserveAspectRatio="none" aria-hidden="true">
+                      {#each c.bars as bar}<rect x={bar.x} y={bar.y} width={bar.w} height={bar.h} fill={bar.fill} />{/each}
+                      {#if c.refLine}<polyline points={c.refLine} class="ref" />{/if}
+                    </svg>
+                  {:else}<span class="nodata">每日統計 · 待盤點</span>{/if}
+                </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -314,6 +321,9 @@
   .cnum em { font-size: var(--text-xs); color: var(--color-text-secondary); font-style: normal; }
   .cnum b { font-size: var(--text-base); }
   .cnum.now b { color: var(--color-primary); }
+  .citems { margin: 0; padding: 0 0 0 2px; list-style: none; font-size: var(--text-xs); line-height: 1.45; }
+  .citems li { display: flex; align-items: baseline; gap: 5px; }
+  .citems li::before { content: '·'; font-weight: 700; color: var(--color-text-secondary); }
   .cchart { height: 40px; margin-top: 2px; }
   .cchart svg { width: 100%; height: 100%; display: block; }
   /* bar fill 由 @utils/ems barFills 提供(前三高不同色)，逐條 inline */

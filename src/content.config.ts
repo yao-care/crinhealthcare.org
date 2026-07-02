@@ -135,6 +135,8 @@ const emsBlock = z.object({
   daily: z.array(z.number()).default([]),
   lastYearDaily: z.array(z.number()).default([]),
   critical: z.boolean().default(false),
+  // v2 使用端卡片（戰時收治區型）：卡身＝該區用電設備清單（品名×數量）；有值時取代電表欄
+  items: z.array(z.string()).default([]),
 });
 
 const emsScenario = z.object({
