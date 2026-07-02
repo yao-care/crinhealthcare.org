@@ -97,7 +97,7 @@
           },
           {
             "name": "行動氫氣發電機",
-            "cap": "",
+            "cap": "氣瓶儲量 10 L",
             "pct": 0,
             "days": "",
             "state": "",
@@ -106,7 +106,7 @@
           },
           {
             "name": "行動儲電櫃",
-            "cap": "",
+            "cap": "容量 — kWh · SOC —%",
             "pct": 0,
             "days": "",
             "state": "",
@@ -273,7 +273,7 @@
           },
           {
             "name": "行動儲電櫃",
-            "value": "",
+            "value": "負載 — kW",
             "online": true,
             "esg": "blue",
             "pct": "",
@@ -305,7 +305,7 @@
           },
           {
             "name": "行動氫氣發電機",
-            "cap": "",
+            "cap": "氣瓶儲量 10 L",
             "pct": 0,
             "days": "",
             "state": "",
@@ -314,7 +314,7 @@
           },
           {
             "name": "行動儲電櫃",
-            "cap": "",
+            "cap": "容量 — kWh · SOC —%",
             "pct": 0,
             "days": "",
             "state": "",
@@ -465,8 +465,8 @@
               "critical": false,
               "color": "chart-5",
               "items": [
-                "功耗 — W",
-                "1kWh 機動儲能供電"
+                "功耗 1 kW（1 度電/小時）",
+                "1kWh 機動儲能 · 約撐 1 小時"
               ]
             }
           ]
@@ -715,7 +715,7 @@
           "system": "供電",
           "loc": "",
           "status": "戰時開設配置",
-          "reading": "氣瓶儲量 —",
+          "reading": "氣瓶儲量 10 L",
           "manager": "",
           "contact": "",
           "vendor": ""
@@ -725,7 +725,7 @@
           "system": "醫療",
           "loc": "",
           "status": "戰時開設配置",
-          "reading": "功耗 — W · 1kWh 機動儲能供電",
+          "reading": "功耗 1 kW · 1kWh 機動儲能供電 · 約撐 1 小時",
           "manager": "",
           "contact": "",
           "vendor": ""
