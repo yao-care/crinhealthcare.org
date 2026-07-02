@@ -6,7 +6,9 @@
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; }
   interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; }
   interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; }
-  interface Scenario { perf: { text: string }; endur: { days: string; pct: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[] }; }
+  interface MapBox { label: string; kind?: string; star?: boolean; }
+  interface UseMap { title?: string; legend?: string; boxes: MapBox[]; }
+  interface Scenario { perf: { text: string }; endur: { days: string; pct: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[]; map?: UseMap }; }
   interface Resource { id: string; icon: string; name: string; peace: Scenario; war: Scenario; }
   interface EnvFloor { floor: string; temp: string; rh: string; co2: string; }
   interface EnvBuilding { name: string; floors: EnvFloor[]; }
@@ -137,6 +139,21 @@
             </div>
           {/each}
         </div>
+        <!-- 開設配置圖（選用）：帶狀方塊呈現場地佈置（★＝固定電源點） -->
+        {#if d.use.map?.boxes?.length}
+          {@const m = d.use.map}
+          <div class="b1map">
+            <div class="b1map-h">{m.title}{#if m.legend}<small>{m.legend}</small>{/if}</div>
+            <div class="b1map-row">
+              {#each m.boxes as box}
+                <div class="mbox {box.kind ?? 'zone'}">
+                  <span class="mlabel">{box.label}</span>
+                  {#if box.star}<span class="mstar">★</span>{/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
     </div>
   </section>
@@ -311,6 +328,8 @@
   /* overflow:hidden → 放不下的卡片由 use:carousel 自動換頁輪播 */
   .cards { flex: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-content: flex-start; overflow: hidden; min-height: 0; scroll-behavior: smooth; }
   .card { width: clamp(140px, 16vw, 220px); flex: 0 0 auto; background: var(--color-paper); border: 1px solid var(--color-border); border-top: 3px solid var(--color-chart-1); border-radius: var(--radius-sm); padding: 5px 9px; display: flex; flex-direction: column; gap: 3px; }
+  /* 設備清單型卡片（items）內容較多 → 加寬；不影響電表型卡片（其他醫院/平時） */
+  .card:has(.citems) { width: clamp(180px, 19vw, 275px); }
   .card.crit { box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--color-alert) 35%, transparent); }
   .ch { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 6px; flex-wrap: wrap; }
   .cn { font-size: var(--text-sm); font-weight: 700; min-width: 0; }
@@ -321,6 +340,18 @@
   .cnum em { font-size: var(--text-xs); color: var(--color-text-secondary); font-style: normal; }
   .cnum b { font-size: var(--text-base); }
   .cnum.now b { color: var(--color-primary); }
+  /* 開設配置圖：帶狀方塊（依 p4 規劃圖語彙：收治區黃 / 設施橘 / 車道藍綠 / 指揮藍；★＝電源點） */
+  .b1map { flex-shrink: 0; border-top: 1px dashed var(--color-border); padding-top: 4px; margin-top: 4px; }
+  .b1map-h { font-size: var(--text-xs); font-weight: 700; color: var(--color-primary); margin-bottom: 3px; }
+  .b1map-h small { color: var(--color-text-secondary); font-weight: 400; margin-left: 8px; }
+  .b1map-row { display: flex; gap: 4px; align-items: stretch; }
+  .mbox { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: var(--radius-sm); border: 1px solid var(--color-border); padding: 6px 3px; font-size: var(--text-xs); font-weight: 700; line-height: 1.25; position: relative; min-height: 76px; }
+  .mbox.zone { background: color-mix(in oklch, var(--color-energy) 30%, var(--color-paper)); border-color: var(--color-energy); }
+  .mbox.facility { background: color-mix(in oklch, var(--color-energy) 55%, var(--color-alert) 20%); border-color: var(--color-energy); }
+  .mbox.road { background: color-mix(in oklch, var(--color-chart-4) 22%, var(--color-paper)); border-color: var(--color-chart-4); color: var(--color-text-secondary); font-weight: 400; }
+  .mbox.command { background: color-mix(in oklch, var(--color-chart-4) 38%, var(--color-paper)); border-color: var(--color-chart-4); }
+  .mbox .mlabel { overflow-wrap: anywhere; }
+  .mbox .mstar { color: var(--color-chart-4); font-size: var(--text-sm); line-height: 1; margin-top: 2px; }
   .citems { margin: 0; padding: 0 0 0 2px; list-style: none; font-size: var(--text-xs); line-height: 1.45; }
   .citems li { display: flex; align-items: baseline; gap: 5px; }
   .citems li::before { content: '·'; font-weight: 700; color: var(--color-text-secondary); }

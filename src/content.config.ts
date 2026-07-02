@@ -174,6 +174,16 @@ const emsScenario = z.object({
     headline: z.string(),
     sub: z.string().default(''),
     blocks: z.array(emsBlock),
+    // v2 開設配置圖（選用）：一列帶狀方塊呈現場地佈置（如 803 B1 地下收治場所，p4 規劃圖）
+    map: z.object({
+      title: z.string().default(''),
+      legend: z.string().default(''),
+      boxes: z.array(z.object({
+        label: z.string(),
+        kind: z.string().default('zone'),   // zone(收治區)/facility(設施)/road(車道)/command(指揮)
+        star: z.boolean().default(false),   // ★ 固定電源點
+      })).default([]),
+    }).optional(),
   }),
 });
 
