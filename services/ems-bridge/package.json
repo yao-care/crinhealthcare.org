@@ -1,0 +1,15 @@
+{
+  "name": "ems-bridge",
+  "version": "1.0.0",
+  "description": "儲能櫃 Modbus TCP → HTTPS JSON 橋接服務（crinhealthcare.org 803 平戰轉 EMS）",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js",
+    "start:sim": "node src/index.js --sim",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "modbus-serial": "^8.0.21"
+  }
+}

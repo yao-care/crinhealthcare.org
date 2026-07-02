@@ -1,21 +1,27 @@
 <script lang="ts">
   // v2 看詳情：單一資源(電/水/油/氣)鑽取詳情頁。可捲動、供/儲/使完整攤開、設備層具名清單(含管理人/聯絡)。
   import { barFills } from '@utils/ems';
+  import { createEssPoller, applyEssToScenario, applyEssToDevices } from '@utils/essLive.svelte';
 
-  interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; }
-  interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; }
+  interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
+  interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: string[]; live?: string; }
   interface UseBlock { name: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; }
-  interface Scenario { perf: { text: string }; endur: { days: string; pct: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[] }; }
-  interface Device { name: string; loc?: string; system?: string; status?: string; reading?: string; daily?: number[]; refDaily?: number[]; unit?: string; manager?: string; contact?: string; vendor?: string; }
+  interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[] }; }
+  interface Device { name: string; loc?: string; system?: string; status?: string; reading?: string; daily?: number[]; refDaily?: number[]; unit?: string; manager?: string; contact?: string; vendor?: string; live?: string; }
   interface Resource { id: string; icon: string; name: string; peace: Scenario; war: Scenario; devices?: Device[]; }
-  interface Hospital { name: string; version?: string; updated?: string; scenarios: { id: string; label: string }[]; resources: Resource[]; }
+  interface Hospital { name: string; version?: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: Resource[]; }
 
   let { hospital, resourceId, backHref }: { hospital: Hospital; resourceId: string; backHref: string } = $props();
   const r = $derived(hospital.resources.find((x) => x.id === resourceId));
   let scenario = $state('peace');
   const war = $derived(scenario !== 'peace');
   const other = $derived(hospital.scenarios.find((s) => s.id !== scenario) ?? hospital.scenarios[0]);
-  const d = $derived(r ? (war ? r.war : r.peace) : null);
+
+  // 儲能櫃即時資料（同 EmsBoardV2）：只在 liveData 醫院的電力資源頁輪詢
+  const ess = hospital.liveData && resourceId === 'power' ? createEssPoller() : null;
+  $effect(() => { if (ess) return ess.start(); });
+  const d = $derived(r ? (ess ? applyEssToScenario(war ? r.war : r.peace, ess.data, war) : (war ? r.war : r.peace)) : null);
+  const devices = $derived(r?.devices?.length ? (ess ? applyEssToDevices(r.devices, ess.data) : r.devices) : []);
 
   const ESG: Record<string, string> = { grey: 'text-secondary', green: 'accent', blue: 'chart-4', amber: 'energy', na: 'border' };
   const tone = (k: string) => `var(--color-${k})`;
@@ -55,7 +61,7 @@
         {#each d.supply as s}
           <div class="srow" class:off={!s.online} class:abn={s.warn} style="border-left-color:{tone(ESG[s.esg] ?? 'border')}">
             <span class="nm">{s.name}{#if s.autonomous}<span class="tag">自主</span>{/if}</span>
-            <span class="vv">{s.value || '—'}</span>
+            <span class="vv" class:vlive={s.live === 'ess' && ess?.status === 'live'} class:vdemo={s.live === 'ess' && ess?.status === 'demo'}>{s.value || '—'}</span>
             <span class="ex">{s.pct || ''}{#if s.react} · {s.react}{/if}{#if !s.online} · 離線{/if}</span>
           </div>
         {/each}
@@ -68,13 +74,18 @@
       <h2>🔋 儲存端 <small>剩多久{war ? '・夠不夠' : ''}</small></h2>
       <div class="cards">
         {#each d.store as st}
-          <div class="stcard" class:warn={st.warn} class:crit={st.critical}>
-            <div class="stn">{st.name}{#if st.critical}<span class="tag crit">關鍵</span>{/if}</div>
+          <div class="stcard" class:warn={st.warn} class:crit={st.critical} class:mlive={st.live === 'ess' && ess?.status === 'live'} class:mdemo={st.live === 'ess' && ess?.status === 'demo'}>
+            <div class="stn">{st.name}{#if st.critical}<span class="tag crit">關鍵</span>{/if}{#if st.live === 'ess' && ess && ess.status !== 'loading'}<span class="srcbadge" class:demo={ess.status === 'demo'}>● {ess.status === 'live' ? '即時' : '展示資料'}</span>{/if}</div>
             <div class="strow"><span>容量</span><b>{st.cap || '—'}</b></div>
             <div class="strow"><span>存量</span><b>{st.pct ? st.pct + '%' : '—'}</b></div>
             <div class="bar"><i style="width:{st.pct || 0}%"></i></div>
             <div class="strow"><span>可供</span><b>{st.days || '—'}</b></div>
             {#if st.state}<div class="strow"><span>狀態</span><b>{st.state}</b></div>{/if}
+            {#if st.metrics?.length}
+              <ul class="stmetrics">
+                {#each st.metrics as m}<li>{m}</li>{/each}
+              </ul>
+            {/if}
           </div>
         {/each}
       </div>
@@ -107,7 +118,7 @@
       <section class="sec">
         <h2>🛠️ 設備清單 <small>左 即時訊息 ・ 中 趨勢 ・ 右 維護者（出問題找誰）</small></h2>
         <div class="devrows">
-          {#each r.devices as v}
+          {#each devices as v}
             {@const c = chart(v.daily, v.refDaily)}
             <div class="devrow">
               <div class="dz dleft">
@@ -115,7 +126,8 @@
                 {#if v.loc}<div class="dloc">📍 {v.loc}</div>{/if}
                 <div class="dmeta">
                   {#if v.status}<span class="dstatus">{v.status}</span>{/if}
-                  {#if v.reading}<span class="dreading">{v.reading}</span>{/if}
+                  {#if v.live === 'ess' && ess && ess.status !== 'loading'}<span class="srcbadge" class:demo={ess.status === 'demo'}>● {ess.status === 'live' ? '即時' : '展示資料'}</span>{/if}
+                  {#if v.reading}<span class="dreading" class:vlive={v.live === 'ess' && ess?.status === 'live'} class:vdemo={v.live === 'ess' && ess?.status === 'demo'}>{v.reading}</span>{/if}
                 </div>
               </div>
               <div class="dz dmid">
@@ -174,6 +186,14 @@
   .stcard .bar { height: 10px; background: var(--color-paper); border: 1px solid var(--color-border); border-radius: 99px; overflow: hidden; margin: 3px 0; }
   .stcard .bar i { display: block; height: 100%; background: var(--color-primary); }
   .stcard.warn .bar i, .stcard.crit .bar i { background: var(--color-alert); }
+  /* 即時資料三態（同 EmsBoardV2）：live=綠、demo=琥珀、loading=原樣 */
+  .stmetrics { list-style: none; margin: 4px 0 0; padding: 4px 0 0; border-top: 1px dashed var(--color-border); font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.4; }
+  .stcard.mlive .strow b, .stcard.mlive .stmetrics { color: var(--color-accent); }
+  .stcard.mdemo .strow b, .stcard.mdemo .stmetrics { color: var(--color-energy); }
+  .srcbadge { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); margin-left: 6px; white-space: nowrap; }
+  .srcbadge.demo { color: var(--color-energy); }
+  .vv.vlive, .dreading.vlive { color: var(--color-accent); }
+  .vv.vdemo, .dreading.vdemo { color: var(--color-energy); }
 
   .ucards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-sm); }
   .ucard { background: var(--color-surface); border: 1px solid var(--color-border); border-top: 4px solid var(--color-chart-1); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); }

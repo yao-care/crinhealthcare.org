@@ -141,7 +141,8 @@ const emsBlock = z.object({
 
 const emsScenario = z.object({
   perf: emsTrend.extend({ text: z.string() }),
-  endur: z.object({ days: z.string(), pct: z.string() }),
+  // live：即時資料覆蓋標記（'ess'=儲能櫃 Modbus 橋接；見 utils/essLive）。用機器鍵不比對名稱字串。
+  endur: z.object({ days: z.string(), pct: z.string(), live: z.string().default('') }),
   supply: z.array(z.object({
     name: z.string(),
     value: z.string(),
@@ -152,6 +153,7 @@ const emsScenario = z.object({
     react: z.string().default(''),
     autonomous: z.boolean().default(false),
     warn: z.boolean().default(false),
+    live: z.string().default(''),
   })),
   supplySum: z.string(),
   detailLabel: z.string().default(''),
@@ -171,6 +173,7 @@ const emsScenario = z.object({
     critical: z.boolean().default(false),
     // v2：智慧儲存設備（如行動儲電櫃）的關鍵量測列表（選用）；欄位以設備通訊協定（Modbus 點位表）為準
     metrics: z.array(z.string()).default([]),
+    live: z.string().default(''),
   })),
   use: z.object({
     headline: z.string(),
@@ -257,6 +260,7 @@ const hospitals = defineCollection({
         manager: z.string().default(''),      // 管理人/權責人
         contact: z.string().default(''),      // 聯絡（分機/電話）
         vendor: z.string().default(''),       // 維護廠商
+        live: z.string().default(''),         // 即時資料覆蓋標記（'ess'）
       })).default([]),
     })),
     // 匯出用：ESG 報告 / 節能標竿獎各自的欄位（項目·數值·單位）

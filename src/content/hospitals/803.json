@@ -3,7 +3,7 @@
   "location": "臺中市太平區",
   "version": "v1",
   "updated": "2026-07-02",
-  "liveData": false,
+  "liveData": true,
   "layout": "v2",
   "show": [
     "power"
@@ -71,7 +71,8 @@
             "pct": "",
             "react": "",
             "autonomous": false,
-            "warn": false
+            "warn": false,
+            "live": "ess"
           },
           {
             "name": "小型氫能發電",
@@ -119,7 +120,8 @@
               "充電 — kW · 今日充 — kWh",
               "可用充/放 — / — kW",
               "櫃內 — ℃ · 濕度 —%"
-            ]
+            ],
+            "live": "ess"
           }
         ],
         "use": {
@@ -246,7 +248,8 @@
         },
         "endur": {
           "days": "",
-          "pct": ""
+          "pct": "",
+          "live": "ess"
         },
         "supply": [
           {
@@ -287,7 +290,8 @@
             "pct": "",
             "react": "",
             "autonomous": true,
-            "warn": false
+            "warn": false,
+            "live": "ess"
           },
           {
             "name": "小型氫能發電",
@@ -335,7 +339,8 @@
               "輸出 — V · — Hz · PF —",
               "今日放 — kWh · 效率 —%",
               "SOC 下限 —% · IGBT — ℃"
-            ]
+            ],
+            "live": "ess"
           }
         ],
         "use": {
@@ -814,7 +819,8 @@
           "reading": "負載 —kW·—V·—A ｜ 市電 —kW·—V·—A·—Hz·併/離網 — ｜ 電池 SOC —%·SOH —%·可放電 —Ah·溫 —℃",
           "manager": "",
           "contact": "",
-          "vendor": ""
+          "vendor": "",
+          "live": "ess"
         },
         {
           "name": "小型氫能發電機",

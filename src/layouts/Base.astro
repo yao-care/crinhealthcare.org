@@ -26,6 +26,8 @@ const {
 
 const siteTitle = `${title} | 國際醫療減碳協會`;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+// 儲能櫃即時資料橋接 API（utils/essLive）需列入 CSP connect-src；本地 dev 以 PUBLIC_ESS_API 覆蓋
+const essApiOrigin = new URL(import.meta.env.PUBLIC_ESS_API ?? 'https://ems-api.crinhealthcare.org').origin;
 ---
 
 <!doctype html>
@@ -40,7 +42,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; form-action 'self'; upgrade-insecure-requests"
+      content={`default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ${essApiOrigin}; form-action 'self'; upgrade-insecure-requests`}
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{siteTitle}</title>
