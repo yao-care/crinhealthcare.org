@@ -109,9 +109,16 @@
             "cap": "容量 — kWh · SOC —%",
             "pct": 0,
             "days": "",
-            "state": "",
+            "state": "併網待命",
             "warn": false,
-            "critical": false
+            "critical": false,
+            "metrics": [
+              "健康度 SOH —% · 循環 — 次",
+              "充電 — kW · 今日充 — kWh",
+              "可放電 — Ah · 可用 — kW",
+              "電池溫 — ℃ · 櫃內 — ℃",
+              "警報 — · 模式 —"
+            ]
           }
         ],
         "use": {
@@ -316,10 +323,17 @@
             "name": "行動儲電櫃",
             "cap": "容量 — kWh · SOC —%",
             "pct": 0,
-            "days": "",
-            "state": "",
+            "days": "續航 — 小時",
+            "state": "離網放電",
             "warn": false,
-            "critical": false
+            "critical": true,
+            "metrics": [
+              "放電 — kW · 餘裕 — kW",
+              "可放電 — Ah · 下限 —%",
+              "輸出 — V · — Hz",
+              "今日放 — kWh · 電池 — ℃",
+              "警報 — · 故障 —"
+            ]
           }
         ],
         "use": {
@@ -795,7 +809,7 @@
           "system": "供電",
           "loc": "",
           "status": "戰時開設配置",
-          "reading": "負載 —kW·—V·—A ｜ 市電 —kW·—V·—A·—Hz·狀態 — ｜ 電池SOC —%",
+          "reading": "負載 —kW·—V·—A ｜ 市電 —kW·—V·—A·—Hz·併/離網 — ｜ 電池 SOC —%·SOH —%·可放電 —Ah·溫 —℃",
           "manager": "",
           "contact": "",
           "vendor": ""

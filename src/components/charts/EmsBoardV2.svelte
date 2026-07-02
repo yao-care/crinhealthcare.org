@@ -4,7 +4,7 @@
   // 「資料→呈現」規則集中在 @utils/ems（供給紅底/bar 前三高配色/環境分級底色）。
   import { isSupplyAbnormal, barFills, envSeverity } from '@utils/ems';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; }
-  interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; }
+  interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: string[]; }
   interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; }
   interface MapBox { label: string; kind?: string; star?: boolean; }
   interface UseMap { title?: string; legend?: string; boxes: MapBox[]; }
@@ -102,6 +102,12 @@
                 <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span>{#if st.pct}<span class="pct over" style="clip-path: inset(calc(100% - {st.pct}%) 0 0 0)">{st.pct}%</span>{/if}<i style="height:{st.pct || 0}%"></i></div>
                 <div class="tn">{st.name}</div>
                 <div class="tc">{st.cap}{#if st.state} · {st.state}{/if}</div>
+                {#if st.metrics?.length}
+                  <!-- 智慧儲存設備關鍵量測（如儲電櫃 Modbus 點位）：平時看健康/充電、戰時看續航/餘裕/輸出品質 -->
+                  <ul class="tmetrics">
+                    {#each st.metrics as m}<li>{m}</li>{/each}
+                  </ul>
+                {/if}
               </div>
             {/each}
           </div>
@@ -321,6 +327,9 @@
   .tank .col .pct.over { top: 0; bottom: 0; padding-top: 2px; color: var(--color-paper); }
   .tank .tn { font-size: var(--text-xs); font-weight: 700; text-align: center; }
   .tank .tc { font-size: var(--text-xs); color: var(--color-text-secondary); text-align: center; line-height: 1.15; }
+  /* 智慧儲存設備量測列表：左對齊小字，置於筒下方；有值的筒自然變高，其餘筒 stretch 對齊 */
+  .tank .tmetrics { list-style: none; margin: 3px 0 0; padding: 2px 5px 0; width: 100%; border-top: 1px dashed var(--color-border); font-size: var(--text-xs); color: var(--color-text-secondary); text-align: left; line-height: 1.3; }
+  .tank .tmetrics li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* 使用端：固定尺寸卡片 + 自適應換行 */
   .usecol { display: flex; flex-direction: column; padding: 4px var(--space-sm); min-height: 0; }
