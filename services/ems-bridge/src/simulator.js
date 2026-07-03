@@ -27,15 +27,25 @@ const drift = {
   dailyChargeKwh: 0.05, cabinetTempC: 0.1, loadVoltageV: 0.8, gridVoltageV: 0.8, loadMeterV: 0.8, essVoltageV: 0.8,
 };
 
+// 游走界限：長時間運行不可飄出合理範圍（k → [min, max]）
+const bounds = {
+  socPct: [20, 97], batteryCurrentA: [20, 50], batteryMaxTempC: [22, 35], chargerKw: [2, 5],
+  pcsActivePowerKw: [-20, -5], batteryPowerKw: [5, 20], igbtTempC: [30, 55],
+  gridPowerKw: [120, 210], loadPowerKw: [120, 210], essPowerKw: [-20, -5],
+  gridCurrentA: [180, 320], loadCurrentA: [180, 320], essCurrentA: [8, 35],
+  dailyChargeKwh: [0, 200], cabinetTempC: [20, 32],
+  loadVoltageV: [370, 390], gridVoltageV: [370, 390], loadMeterV: [370, 390], essVoltageV: [370, 390],
+};
+
 export function createSimulator({ readPlan }) {
   const state = { ...initial };
 
   function tick() {
     for (const [k, amp] of Object.entries(drift)) {
       state[k] += (Math.random() * 2 - 1) * amp;
+      const b = bounds[k];
+      if (b) state[k] = Math.min(b[1], Math.max(b[0], state[k]));
     }
-    state.socPct = Math.min(97, Math.max(20, state.socPct));
-    state.dailyChargeKwh = Math.max(0, state.dailyChargeKwh);
   }
 
   return {
