@@ -171,8 +171,10 @@ const emsScenario = z.object({
     // v2：充/放/待命狀態 / 是否關鍵儲備
     state: z.string().default(''),
     critical: z.boolean().default(false),
-    // v2：智慧儲存設備（如行動儲電櫃）的關鍵量測列表（選用）；欄位以設備通訊協定（Modbus 點位表）為準
-    metrics: z.array(z.string()).default([]),
+    // v2：智慧儲存設備（如行動儲電櫃）的儀表板格點（選用）；欄位以設備通訊協定（Modbus 點位表）為準
+    // metrics＝標籤/數值格（stat-tile 格點）；flags＝狀態 pills（運轉/併網/警報，tone: ok/warn/alert/off）
+    metrics: z.array(z.object({ k: z.string(), v: z.string() })).default([]),
+    flags: z.array(z.object({ label: z.string(), tone: z.enum(['ok', 'warn', 'alert', 'off']).default('off') })).default([]),
     live: z.string().default(''),
   })),
   use: z.object({

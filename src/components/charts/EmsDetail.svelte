@@ -4,7 +4,7 @@
   import { createEssPoller, applyEssToScenario, applyEssToDevices } from '@utils/essLive.svelte';
 
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
-  interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: string[]; live?: string; }
+  interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: { k: string; v: string }[]; flags?: { label: string; tone: string }[]; live?: string; }
   interface UseBlock { name: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; }
   interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[] }; }
   interface Device { name: string; loc?: string; system?: string; status?: string; reading?: string; daily?: number[]; refDaily?: number[]; unit?: string; manager?: string; contact?: string; vendor?: string; live?: string; }
@@ -74,17 +74,25 @@
       <h2>🔋 儲存端 <small>剩多久{war ? '・夠不夠' : ''}</small></h2>
       <div class="cards">
         {#each d.store as st}
-          <div class="stcard" class:warn={st.warn} class:crit={st.critical} class:mlive={st.live === 'ess' && ess?.status === 'live'} class:mdemo={st.live === 'ess' && ess?.status === 'demo'}>
+          <div class="stcard" class:crit={st.critical} class:wide={st.metrics?.length} class:mdemo={st.live === 'ess' && ess?.status === 'demo'} class:warn={st.warn}>
             <div class="stn">{st.name}{#if st.critical}<span class="tag crit">關鍵</span>{/if}{#if st.live === 'ess' && ess && ess.status !== 'loading'}<span class="srcbadge" class:demo={ess.status === 'demo'}>● {ess.status === 'live' ? '即時' : '展示資料'}</span>{/if}</div>
-            <div class="strow"><span>容量</span><b>{st.cap || '—'}</b></div>
-            <div class="strow"><span>存量</span><b>{st.pct ? st.pct + '%' : '—'}</b></div>
+            {#if st.flags?.length}
+              <div class="stflags">
+                {#each st.flags as f}<span class="pill {f.tone}">{f.label}</span>{/each}
+              </div>
+            {/if}
+            {#if st.cap}<div class="strow"><span>容量</span><b>{st.cap}</b></div>{/if}
+            <div class="strow"><span>{st.metrics?.length ? 'SOC' : '存量'}</span><b>{st.pct ? st.pct + '%' : '—'}</b></div>
             <div class="bar"><i style="width:{st.pct || 0}%"></i></div>
             <div class="strow"><span>可供</span><b>{st.days || '—'}</b></div>
             {#if st.state}<div class="strow"><span>狀態</span><b>{st.state}</b></div>{/if}
             {#if st.metrics?.length}
-              <ul class="stmetrics">
-                {#each st.metrics as m}<li>{m}</li>{/each}
-              </ul>
+              <!-- 儀表板格點：標籤 secondary／數值 semibold＋tabular-nums；狀態靠 pills，數值墨色 -->
+              <div class="stgrid">
+                {#each st.metrics as m}
+                  <div class="stcell"><span class="sk">{m.k}</span><span class="sv">{m.v}</span></div>
+                {/each}
+              </div>
             {/if}
           </div>
         {/each}
@@ -186,10 +194,18 @@
   .stcard .bar { height: 10px; background: var(--color-paper); border: 1px solid var(--color-border); border-radius: 99px; overflow: hidden; margin: 3px 0; }
   .stcard .bar i { display: block; height: 100%; background: var(--color-primary); }
   .stcard.warn .bar i, .stcard.crit .bar i { background: var(--color-alert); }
-  /* 即時資料三態（同 EmsBoardV2）：live=綠、demo=琥珀、loading=原樣 */
-  .stmetrics { list-style: none; margin: 4px 0 0; padding: 4px 0 0; border-top: 1px dashed var(--color-border); font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.4; }
-  .stcard.mlive .strow b, .stcard.mlive .stmetrics { color: var(--color-accent); }
-  .stcard.mdemo .strow b, .stcard.mdemo .stmetrics { color: var(--color-energy); }
+  /* ── 儀表板卡（智慧儲存設備）：pills＋標籤/數值格點；數值墨色、狀態靠 pill ── */
+  .stcard.wide { max-width: 420px; flex: 1.6 1 280px; }
+  .stflags { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 4px; }
+  .pill { font-size: var(--text-xs); font-weight: 700; line-height: 1.5; padding: 0 8px; border-radius: 99px; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-paper); white-space: nowrap; }
+  .pill.ok { color: var(--color-accent); border-color: var(--color-accent); background: color-mix(in oklch, var(--color-accent) 10%, transparent); }
+  .pill.warn { color: var(--color-energy); border-color: var(--color-energy); background: color-mix(in oklch, var(--color-energy) 12%, transparent); }
+  .pill.alert { color: var(--color-alert); border-color: var(--color-alert); background: color-mix(in oklch, var(--color-alert) 12%, transparent); }
+  .stgrid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; margin-top: 5px; padding-top: 4px; border-top: 1px dashed var(--color-border); }
+  .stcell { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 2px 0; border-bottom: 1px dashed color-mix(in oklch, var(--color-border) 55%, transparent); }
+  .stcell .sk { font-size: var(--text-xs); color: var(--color-text-secondary); white-space: nowrap; }
+  .stcell .sv { font-size: var(--text-sm); font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stcard.mdemo { background: color-mix(in oklch, var(--color-energy) 6%, var(--color-surface)); }
   .srcbadge { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); margin-left: 6px; white-space: nowrap; }
   .srcbadge.demo { color: var(--color-energy); }
   .vv.vlive, .dreading.vlive { color: var(--color-accent); }

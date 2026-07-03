@@ -55,39 +55,71 @@ const hexOrNone = (w: number) => (w ? '0x' + w.toString(16).toUpperCase() : '無
 const n1 = (v: number) => (Math.round(v * 10) / 10).toString();
 const n0 = (v: number) => Math.round(v).toString();
 
+type Tone = 'ok' | 'warn' | 'alert' | 'off';
+type Flag = { label: string; tone: Tone };
+
+// 狀態 pills：運轉/併網（或離網）/警報/故障——狀態靠圖示＋文字，數值格一律墨色（dataviz：text wears text tokens）
+function flagsPeace(d: EssData): Flag[] {
+  return [
+    { label: `運轉 ${OPERATION[d.system.operation] ?? d.system.operation}`, tone: d.system.operation === 1 ? 'ok' : 'off' },
+    { label: d.system.gridSwitch === 1 ? '併網' : '解聯', tone: d.system.gridSwitch === 1 ? 'ok' : 'warn' },
+    { label: `模式 ${MODE[d.system.mode] ?? d.system.mode}`, tone: 'off' },
+    { label: `警報 ${hexOrNone(d.system.alarmWord)}`, tone: d.system.alarmWord ? 'alert' : 'ok' },
+  ];
+}
+function flagsWar(d: EssData): Flag[] {
+  return [
+    { label: d.system.offGridState === 0 ? '併網' : '離網運行', tone: d.system.offGridState === 0 ? 'warn' : 'ok' },
+    { label: `故障 ${hexOrNone(d.pcs.faultFlags)}`, tone: d.pcs.faultFlags ? 'alert' : 'ok' },
+    { label: `警報 ${hexOrNone(d.system.alarmWord)}`, tone: d.system.alarmWord ? 'alert' : 'ok' },
+  ];
+}
+
 export function formatStorePeace(d: EssData) {
   return {
-    cap: `SOC ${n0(d.battery.socPct)}% · 可放電 ${n0(d.battery.dischargeCapAh)} Ah`,
+    cap: '',
     pct: Math.round(d.battery.socPct),
-    state: `${OPERATION[d.system.operation] ?? d.system.operation}·${d.system.gridSwitch === 1 ? '併網' : '解聯'}`,
+    state: '',
+    flags: flagsPeace(d),
     metrics: [
-      `模式 ${MODE[d.system.mode] ?? d.system.mode} · 警報 ${hexOrNone(d.system.alarmWord)}`,
-      `SOH ${n1(d.battery.sohPct)}% · 循環 ${n0(d.battery.cycleCount)} 次`,
-      `電池 ${n0(d.battery.voltageV)}V·${n1(d.battery.currentA)}A·${n1(d.battery.maxTempC)}℃`,
-      `充電 ${n1(Math.max(d.pcs.batteryPowerKw, 0))}kW · 今日充 ${n0(d.pcs.dailyChargeKwh)}kWh`,
-      `可用充/放 ${n0(d.system.availChargeKw)} / ${n0(d.system.availDischargeKw)} kW`,
-      `櫃內 ${n1(d.system.cabinetTempC)}℃ · 濕度 ${n0(d.system.cabinetRhPct)}%`,
+      { k: '可放電', v: `${n0(d.battery.dischargeCapAh)} Ah` },
+      { k: 'SOH', v: `${n1(d.battery.sohPct)}%` },
+      { k: '充電', v: `${n1(Math.max(d.pcs.batteryPowerKw, 0))} kW` },
+      { k: '今日充電', v: `${n0(d.pcs.dailyChargeKwh)} kWh` },
+      { k: '可用充電', v: `${n0(d.system.availChargeKw)} kW` },
+      { k: '可用放電', v: `${n0(d.system.availDischargeKw)} kW` },
+      { k: '電池電壓', v: `${n0(d.battery.voltageV)} V` },
+      { k: '電池電流', v: `${n1(d.battery.currentA)} A` },
+      { k: '電池溫度', v: `${n1(d.battery.maxTempC)} ℃` },
+      { k: '循環次數', v: `${n0(d.battery.cycleCount)} 次` },
+      { k: '櫃內溫度', v: `${n1(d.system.cabinetTempC)} ℃` },
+      { k: '櫃內濕度', v: `${n0(d.system.cabinetRhPct)}%` },
     ],
   };
 }
 
 export function formatStoreWar(d: EssData) {
   const endur = computeEndurance(d);
+  const p = d.pcs.activePowerKw; // 放正充負（§5）
   return {
-    cap: `SOC ${n0(d.battery.socPct)}% · 可放電 ${n0(d.battery.dischargeCapAh)} Ah`,
+    cap: '',
     pct: Math.round(d.battery.socPct),
-    days: endur.days ? `續航 ${endur.days}` : '續航 — 小時',
-    state: d.system.offGridState === 0 ? '併網' : '離網',
+    days: endur.days || '— 小時',
+    state: '',
+    flags: flagsWar(d),
     metrics: [
-      `故障 ${hexOrNone(d.pcs.faultFlags)} · 警報 ${hexOrNone(d.system.alarmWord)}`,
-      // PCS 有功功率放正充負（§5）：依符號標示放電/充電
-      d.pcs.activePowerKw >= 0
-        ? `放電 ${n1(d.pcs.activePowerKw)}kW · 可用 ${n0(d.system.availDischargeKw)}kW`
-        : `充電 ${n1(-d.pcs.activePowerKw)}kW · 可用 ${n0(d.system.availDischargeKw)}kW`,
-      `電池 ${n0(d.battery.voltageV)}V·${n1(d.battery.currentA)}A·${n1(d.battery.maxTempC)}℃`,
-      `輸出 ${n0(d.pcs.loadVoltageV)}V·${n0(d.pcs.loadFreqHz)}Hz·PF ${d.pcs.pf.toFixed(2)}`,
-      `今日放 ${n0(d.pcs.dailyDischargeKwh)}kWh · 效率 ${n0(d.pcs.efficiencyPct)}%`,
-      `SOC下限 ${n0(d.system.socMinPct)}% · IGBT ${n1(d.pcs.igbtTempC)}℃`,
+      { k: '可放電', v: `${n0(d.battery.dischargeCapAh)} Ah` },
+      { k: 'SOC 下限', v: `${n0(d.system.socMinPct)}%` },
+      { k: p >= 0 ? '放電功率' : '充電功率', v: `${n1(Math.abs(p))} kW` },
+      { k: '可用放電', v: `${n0(d.system.availDischargeKw)} kW` },
+      { k: '輸出電壓', v: `${n0(d.pcs.loadVoltageV)} V` },
+      { k: '輸出頻率', v: `${n0(d.pcs.loadFreqHz)} Hz` },
+      { k: '功率因數', v: d.pcs.pf.toFixed(2) },
+      { k: '轉換效率', v: `${n0(d.pcs.efficiencyPct)}%` },
+      { k: '今日放電', v: `${n0(d.pcs.dailyDischargeKwh)} kWh` },
+      { k: 'IGBT 溫度', v: `${n1(d.pcs.igbtTempC)} ℃` },
+      { k: '電池電流', v: `${n1(d.battery.currentA)} A` },
+      { k: '電池溫度', v: `${n1(d.battery.maxTempC)} ℃` },
     ],
   };
 }

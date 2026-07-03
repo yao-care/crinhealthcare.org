@@ -5,7 +5,7 @@
   import { isSupplyAbnormal, barFills, envSeverity } from '@utils/ems';
   import { createEssPoller, applyEssToScenario } from '@utils/essLive.svelte';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
-  interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: string[]; live?: string; }
+  interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: { k: string; v: string }[]; flags?: { label: string; tone: string }[]; live?: string; }
   interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; }
   interface MapBox { label: string; kind?: string; star?: boolean; }
   interface UseMap { title?: string; legend?: string; boxes: MapBox[]; }
@@ -104,18 +104,38 @@
           <div class="seg-h">🔋 儲存端 <small>{war ? '剩多久·夠不夠' : '剩多久'}</small></div>
           <div class="tanks">
             {#each d.store as st}
-              <div class="tank" class:warn={st.warn} class:crit={st.critical} class:mlive={st.live === 'ess' && ess?.status === 'live'} class:mdemo={st.live === 'ess' && ess?.status === 'demo'}>
-                <div class="days">{st.days || '—'}</div>
-                <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span>{#if st.pct}<span class="pct over" style="clip-path: inset(calc(100% - {st.pct}%) 0 0 0)">{st.pct}%</span>{/if}<i style="height:{st.pct || 0}%"></i></div>
-                <div class="tn">{st.name}{#if st.live === 'ess' && ess && ess.status !== 'loading'}<span class="srcbadge" class:demo={ess.status === 'demo'}>● {ess.status === 'live' ? '即時' : '展示資料'}</span>{/if}</div>
-                <div class="tc">{st.cap}{#if st.state} · {st.state}{/if}</div>
-                {#if st.metrics?.length}
-                  <!-- 智慧儲存設備關鍵量測（如儲電櫃 Modbus 點位）：平時看健康/充電、戰時看續航/餘裕/輸出品質 -->
-                  <ul class="tmetrics">
-                    {#each st.metrics as m}<li>{m}</li>{/each}
-                  </ul>
-                {/if}
-              </div>
+              {#if st.metrics?.length}
+                <!-- 儀表板磁磚（智慧儲存設備，如儲電櫃）：左＝SOC 水位＋續航；右＝狀態 pills＋標籤/數值格點。
+                     數值一律墨色；即時/展示狀態由 ●+文字 pill 承載（不整片染色）。 -->
+                <div class="tank wide" class:warn={st.warn} class:crit={st.critical} class:mdemo={st.live === 'ess' && ess?.status === 'demo'}>
+                  <div class="tside">
+                    <div class="tcap">{war ? '⏳ 續航' : '續航'}</div>
+                    <div class="days">{st.days || '—'}</div>
+                    <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span>{#if st.pct}<span class="pct over" style="clip-path: inset(calc(100% - {st.pct}%) 0 0 0)">{st.pct}%</span>{/if}<i style="height:{st.pct || 0}%"></i></div>
+                    <div class="tsoc">SOC</div>
+                  </div>
+                  <div class="tmain">
+                    <div class="tn">{st.name}{#if st.live === 'ess' && ess && ess.status !== 'loading'}<span class="srcbadge" class:demo={ess.status === 'demo'}>● {ess.status === 'live' ? '即時' : '展示資料'}</span>{/if}</div>
+                    {#if st.flags?.length}
+                      <div class="tflags">
+                        {#each st.flags as f}<span class="pill {f.tone}">{f.label}</span>{/each}
+                      </div>
+                    {/if}
+                    <div class="tgrid">
+                      {#each st.metrics as m}
+                        <div class="tcell"><span class="tk">{m.k}</span><span class="tv">{m.v}</span></div>
+                      {/each}
+                    </div>
+                  </div>
+                </div>
+              {:else}
+                <div class="tank" class:warn={st.warn} class:crit={st.critical}>
+                  <div class="days">{st.days || '—'}</div>
+                  <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span>{#if st.pct}<span class="pct over" style="clip-path: inset(calc(100% - {st.pct}%) 0 0 0)">{st.pct}%</span>{/if}<i style="height:{st.pct || 0}%"></i></div>
+                  <div class="tn">{st.name}</div>
+                  <div class="tc">{st.cap}{#if st.state} · {st.state}{/if}</div>
+                </div>
+              {/if}
             {/each}
           </div>
         </div>
@@ -336,13 +356,30 @@
   .tank .col .pct.over { top: 0; bottom: 0; padding-top: 2px; color: var(--color-paper); }
   .tank .tn { font-size: var(--text-xs); font-weight: 700; text-align: center; }
   .tank .tc { font-size: var(--text-xs); color: var(--color-text-secondary); text-align: center; line-height: 1.15; }
-  /* 智慧儲存設備量測列表：左對齊小字，置於筒下方；有值的筒自然變高，其餘筒 stretch 對齊 */
-  .tank .tmetrics { list-style: none; margin: 3px 0 0; padding: 2px 5px 0; width: 100%; border-top: 1px dashed var(--color-border); font-size: var(--text-xs); color: var(--color-text-secondary); text-align: left; line-height: 1.3; }
-  .tank .tmetrics li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* 即時資料三態：live=綠（真實 Modbus 讀值）、demo=琥珀（展示資料）、loading=原樣（— 佔位） */
-  .tank.mlive .tc, .tank.mlive .tmetrics { color: var(--color-accent); }
-  .tank.mdemo .tc, .tank.mdemo .tmetrics { color: var(--color-energy); }
-  .srcbadge { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); margin-left: 4px; white-space: nowrap; }
+  /* ── 儀表板磁磚（智慧儲存設備）：左窄欄 SOC 筒＋右側 pills/格點；數值墨色、狀態靠 pill ── */
+  .tank.wide { flex: 2.2; flex-direction: row; align-items: stretch; gap: 8px; background: var(--color-paper); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 8px; text-align: left; min-width: 0; }
+  .tank.wide.crit { border-color: var(--color-alert); }
+  .tank.wide .tside { display: flex; flex-direction: column; align-items: center; flex: 0 0 64px; min-height: 0; }
+  .tank.wide .tside .tcap { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-secondary); white-space: nowrap; }
+  .tank.wide .tside .days { font-size: var(--text-sm); text-align: center; white-space: nowrap; }
+  .tank.wide .tside .col { max-width: 40px; }
+  .tank.wide .tsoc { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-secondary); }
+  .tank.wide .tmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .tank.wide .tn { text-align: left; display: flex; align-items: center; gap: 6px; }
+  /* 狀態 pills：圖示＋文字承載狀態（ok 綠/warn 琥珀/alert 紅/off 灰），不靠顏色單獨傳達 */
+  .tflags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .pill { font-size: var(--text-xs); font-weight: 700; line-height: 1.4; padding: 0 7px; border-radius: 99px; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface); white-space: nowrap; }
+  .pill.ok { color: var(--color-accent); border-color: var(--color-accent); background: color-mix(in oklch, var(--color-accent) 10%, transparent); }
+  .pill.warn { color: var(--color-energy); border-color: var(--color-energy); background: color-mix(in oklch, var(--color-energy) 12%, transparent); }
+  .pill.alert { color: var(--color-alert); border-color: var(--color-alert); background: color-mix(in oklch, var(--color-alert) 12%, transparent); }
+  /* 標籤/數值格點（stat-tile 格）：標籤 secondary、數值 semibold＋tabular-nums 對齊 */
+  .tgrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; align-content: start; }
+  .tcell { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; padding: 1px 0; border-bottom: 1px dashed color-mix(in oklch, var(--color-border) 55%, transparent); min-width: 0; }
+  .tcell .tk { font-size: var(--text-xs); color: var(--color-text-secondary); white-space: nowrap; }
+  .tcell .tv { font-size: var(--text-xs); font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* 展示資料：底紋微染做輔助提示（主要辨識靠 ● pill），即時則維持原底 */
+  .tank.wide.mdemo { background: color-mix(in oklch, var(--color-energy) 6%, var(--color-paper)); }
+  .srcbadge { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); margin-left: auto; white-space: nowrap; }
   .srcbadge.demo { color: var(--color-energy); }
   .srow .vv.vlive { color: var(--color-accent); }
   .srow .vv.vdemo { color: var(--color-energy); }
