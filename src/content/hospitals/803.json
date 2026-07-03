@@ -636,8 +636,8 @@
               "critical": false,
               "color": "chart-5",
               "items": [
-                "功耗 1 kW（1 度電/小時）",
-                "1kWh 機動儲能 · 約撐 1 小時"
+                "自備電池 · 可用 6 小時",
+                "充電需求 5V 2A（10 W）"
               ]
             }
           ],
@@ -953,7 +953,7 @@
           "system": "醫療",
           "loc": "",
           "status": "戰時開設配置",
-          "reading": "功耗 1 kW · 1kWh 機動儲能供電 · 約撐 1 小時",
+          "reading": "自備電池可用 6 小時 · 充電需求 5V 2A（10 W）",
           "manager": "",
           "contact": "",
           "vendor": ""
