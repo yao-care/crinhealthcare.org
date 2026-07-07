@@ -1,0 +1,1993 @@
+{
+  "name": "國軍左營總醫院",
+  "location": "高雄市左營區",
+  "version": "v1",
+  "updated": "2026-07-02",
+  "liveData": true,
+  "layout": "v2",
+  "peakShave": true,
+  "scenarios": [
+    {
+      "id": "peace",
+      "label": "平時"
+    },
+    {
+      "id": "war",
+      "label": "戰時/救災"
+    }
+  ],
+  "resources": [
+    {
+      "id": "power",
+      "icon": "⚡",
+      "name": "電力",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": "用電 6,302,756 度 · 電力碳排 2,988 t · SEU 能源審查 1,673 台"
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "市電·大坑變電所",
+            "value": "供電中",
+            "online": true,
+            "esg": "grey",
+            "pct": "22.8KV 雙迴路 → 急重症大樓",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "市電·太平變電所",
+            "value": "供電中",
+            "online": true,
+            "esg": "grey",
+            "pct": "11.4KV 單饋線 → 醫療·綜合大樓",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "太陽能 PV",
+            "value": "規劃中",
+            "online": false,
+            "esg": "green",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G1 600KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "醫裝380V/空調460V · 24.5h",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G2 600KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "醫裝380V/空調460V · 24.5h",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G3 750KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "插座110/220V · 82.6h",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G4 750KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "插座110/220V · 82.6h",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G5 1500KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "急重症大樓 · 25h(關空調40h)",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G6 1500KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "急重症大樓 · 25h(關空調40h)",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "UPS 不斷電",
+            "value": "待命",
+            "online": false,
+            "esg": "blue",
+            "pct": "急重1000KVA·30分",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "行動儲電櫃",
+            "value": "待命·充電",
+            "online": false,
+            "esg": "blue",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false,
+            "live": "ess"
+          },
+          {
+            "name": "小型氫能發電",
+            "value": "待命",
+            "online": false,
+            "esg": "green",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "備援電力（柴油發電機 ×6）",
+            "cap": "5,700 kW · 有效油量 13,085 L",
+            "pct": 95,
+            "days": "24.5–82.6 h",
+            "state": "",
+            "warn": false,
+            "critical": false
+          },
+          {
+            "name": "行動氫氣發電機",
+            "cap": "氣瓶 1 L",
+            "pct": 0,
+            "days": "",
+            "state": "待命",
+            "warn": false,
+            "critical": false
+          },
+          {
+            "name": "行動儲電櫃",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false,
+            "metrics": [
+              {
+                "k": "可放電",
+                "v": "—"
+              },
+              {
+                "k": "SOH",
+                "v": "—"
+              },
+              {
+                "k": "充電",
+                "v": "—"
+              },
+              {
+                "k": "今日充電",
+                "v": "—"
+              },
+              {
+                "k": "可用充電",
+                "v": "—"
+              },
+              {
+                "k": "可用放電",
+                "v": "—"
+              },
+              {
+                "k": "電池電壓",
+                "v": "—"
+              },
+              {
+                "k": "電池電流",
+                "v": "—"
+              },
+              {
+                "k": "電池溫度",
+                "v": "—"
+              },
+              {
+                "k": "循環次數",
+                "v": "—"
+              },
+              {
+                "k": "櫃內溫度",
+                "v": "—"
+              },
+              {
+                "k": "櫃內濕度",
+                "v": "—"
+              }
+            ],
+            "live": "ess",
+            "flags": [
+              {
+                "label": "運轉 —",
+                "tone": "off"
+              },
+              {
+                "label": "併網 —",
+                "tone": "off"
+              },
+              {
+                "label": "模式 —",
+                "tone": "off"
+              },
+              {
+                "label": "警報 —",
+                "tone": "off"
+              }
+            ]
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "SEU 電力 10 系統（天然氣鍋爐／污水另列）",
+          "blocks": [
+            {
+              "name": "空調",
+              "pctOfTotal": "53%",
+              "lastYear": "",
+              "current": "3,739,418",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "primary"
+            },
+            {
+              "name": "資訊設備",
+              "pctOfTotal": "16%",
+              "lastYear": "",
+              "current": "1,101,591",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
+            },
+            {
+              "name": "醫療設備",
+              "pctOfTotal": "12%",
+              "lastYear": "",
+              "current": "887,419",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-5"
+            },
+            {
+              "name": "熱泵",
+              "pctOfTotal": "6%",
+              "lastYear": "",
+              "current": "451,572",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "energy"
+            },
+            {
+              "name": "照明",
+              "pctOfTotal": "5%",
+              "lastYear": "",
+              "current": "346,572",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "accent"
+            },
+            {
+              "name": "其餘雜項",
+              "pctOfTotal": "2%",
+              "lastYear": "",
+              "current": "140,641",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary"
+            },
+            {
+              "name": "電梯",
+              "pctOfTotal": "1%",
+              "lastYear": "",
+              "current": "77,259",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
+            },
+            {
+              "name": "車輛",
+              "pctOfTotal": "1%",
+              "lastYear": "",
+              "current": "39,513",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary"
+            },
+            {
+              "name": "抽排風",
+              "pctOfTotal": "0%",
+              "lastYear": "",
+              "current": "32,193",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
+            },
+            {
+              "name": "消防",
+              "pctOfTotal": "0%",
+              "lastYear": "",
+              "current": "25,101",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary"
+            },
+            {
+              "name": "現場狀況回傳：視訊1",
+              "img": "/feeds/803-cctv-1.jpg",
+              "caption": "",
+              "color": "chart-4",
+              "imgs": [
+                "/feeds/803-cctv-1.jpg",
+                "/feeds/658763_0.jpg",
+                "/feeds/658764_0.jpg",
+                "/feeds/658765_0.jpg",
+                "/feeds/658766_0.jpg",
+                "/feeds/658767_0.jpg",
+                "/feeds/658768_0.jpg"
+              ]
+            },
+            {
+              "name": "現場狀況回傳：視訊2",
+              "img": "/feeds/803-cctv-2.jpg",
+              "caption": "",
+              "color": "chart-4",
+              "imgs": [
+                "/feeds/803-cctv-2.jpg",
+                "/feeds/658769_0.jpg",
+                "/feeds/658770_0.jpg",
+                "/feeds/658771_0.jpg",
+                "/feeds/658772_0.jpg",
+                "/feeds/658773_0.jpg",
+                "/feeds/658774_0.jpg"
+              ]
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": "",
+          "live": "ess"
+        },
+        "supply": [
+          {
+            "name": "市電·大坑變電所",
+            "value": "中斷",
+            "online": false,
+            "esg": "grey",
+            "pct": "",
+            "react": "22.8KV 雙迴路 → 急重症大樓",
+            "autonomous": false,
+            "warn": true
+          },
+          {
+            "name": "市電·太平變電所",
+            "value": "中斷",
+            "online": false,
+            "esg": "grey",
+            "pct": "",
+            "react": "11.4KV 單饋線 → 醫療·綜合大樓",
+            "autonomous": false,
+            "warn": true
+          },
+          {
+            "name": "太陽能 PV",
+            "value": "規劃中",
+            "online": false,
+            "esg": "green",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G1 600KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "醫裝380V/空調460V · 24.5h",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G2 600KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "醫裝380V/空調460V · 24.5h",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G3 750KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "插座110/220V · 82.6h",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G4 750KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "插座110/220V · 82.6h",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G5 1500KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "急重症大樓 · 25h(關空調40h)",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G6 1500KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "急重症大樓 · 25h(關空調40h)",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "UPS 不斷電",
+            "value": "待命",
+            "online": false,
+            "esg": "blue",
+            "pct": "",
+            "react": "1000KVA·30分",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "行動儲電櫃",
+            "value": "負載 — kW",
+            "online": true,
+            "esg": "blue",
+            "pct": "",
+            "react": "",
+            "autonomous": true,
+            "warn": false,
+            "live": "ess"
+          },
+          {
+            "name": "小型氫能發電",
+            "value": "待命",
+            "online": false,
+            "esg": "green",
+            "pct": "",
+            "react": "",
+            "autonomous": true,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "備援電力（柴油發電機 ×6）",
+            "cap": "5,700 kW · 有效油量 13,085 L",
+            "pct": 95,
+            "days": "24.5–82.6 h",
+            "state": "",
+            "warn": false,
+            "critical": false
+          },
+          {
+            "name": "行動氫氣發電機",
+            "cap": "氣瓶 1 L",
+            "pct": 0,
+            "days": "",
+            "state": "待命",
+            "warn": false,
+            "critical": false
+          },
+          {
+            "name": "行動儲電櫃",
+            "cap": "",
+            "pct": 0,
+            "days": "— 小時",
+            "state": "",
+            "warn": false,
+            "critical": true,
+            "metrics": [
+              {
+                "k": "可放電",
+                "v": "—"
+              },
+              {
+                "k": "SOC 下限",
+                "v": "—"
+              },
+              {
+                "k": "放電功率",
+                "v": "—"
+              },
+              {
+                "k": "可用放電",
+                "v": "—"
+              },
+              {
+                "k": "輸出電壓",
+                "v": "—"
+              },
+              {
+                "k": "輸出頻率",
+                "v": "—"
+              },
+              {
+                "k": "功率因數",
+                "v": "—"
+              },
+              {
+                "k": "轉換效率",
+                "v": "—"
+              },
+              {
+                "k": "今日放電",
+                "v": "—"
+              },
+              {
+                "k": "IGBT 溫度",
+                "v": "—"
+              },
+              {
+                "k": "電池電流",
+                "v": "—"
+              },
+              {
+                "k": "電池溫度",
+                "v": "—"
+              }
+            ],
+            "live": "ess",
+            "flags": [
+              {
+                "label": "離網 —",
+                "tone": "off"
+              },
+              {
+                "label": "故障 —",
+                "tone": "off"
+              },
+              {
+                "label": "警報 —",
+                "tone": "off"
+              }
+            ]
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "B1 地下收治場所",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "primary",
+              "items": [
+                "開設 15 分鐘（1110–1125）",
+                "重13／中8／輕33 共 54 床",
+                "固定電源點 ×4",
+                "動線：檢傷→重傷(X光)→護理站→中傷→輕傷",
+                "血品即捐即用 5 分（1125–1130）",
+                "演練 7/15–7/21 · 正式操演 7/22"
+              ]
+            },
+            {
+              "name": "指揮中心",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4",
+              "items": [
+                "任務：指管 · 災情 · 調度 · 資源 · 對外聯繫",
+                "電腦×2 · 電話×2 · 對講機×2",
+                "大螢幕×1 · 白板×1",
+                "長桌×3 · 椅×6",
+                "插座×7 · 延長線×2"
+              ]
+            },
+            {
+              "name": "麻深儀",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-5",
+              "items": [
+                "自備電池 · 可用 6 小時",
+                "充電需求 5V 2A（10 W）"
+              ]
+            },
+            {
+              "name": "衛材補給點 ×2",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-5",
+              "items": [
+                "人員：衛補人員×2",
+                "任務：衛材補充 · 耗材管理 · 補給支援",
+                "衛藥材補給架×2 · 相關衛材"
+              ]
+            },
+            {
+              "name": "移動式X光區",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert",
+              "items": [
+                "人員：放射師×1",
+                "床邊影像 · 即時傳輸 · 減少搬運風險",
+                "移動式X光機×1 · 鉛屏×1",
+                "無線網路HIS網點×1 · 插座×2"
+              ]
+            },
+            {
+              "name": "護理站",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4",
+              "items": [
+                "任務：醫囑 · 病歷 · 急救設備 · 護理人力",
+                "急救車(電擊器)×1",
+                "電腦×1 · 印表機×1 · 電話×1 · 對講機×1",
+                "長桌×1 · 椅×2 · 插座×4 · 延長線×2"
+              ]
+            },
+            {
+              "name": "中傷區 8床",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4",
+              "items": [
+                "收治：生命徵象穩定 · 需進一步治療",
+                "人員：醫師×1 · 護理師×1",
+                "病床×8 · 點滴架×8",
+                "氧氣鋼瓶×8 · 管路(面罩)×8",
+                "生理監視器(FRSD)×1 · 護理工作車×1 · 換藥車×1",
+                "插座×2"
+              ]
+            },
+            {
+              "name": "輕傷區 33床",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary",
+              "items": [
+                "收治：包紮 · 換藥 · 觀察 · 離院評估",
+                "人員：護理師×1",
+                "擔架床×33 · 換藥車×1 · 插座×2",
+                "重點：避免重症資源遭輕症占用"
+              ]
+            },
+            {
+              "name": "重傷區 13床",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert",
+              "items": [
+                "收治：生命徵象不穩定 · 需立即處置",
+                "人員：外科醫師×1 · 加護病房護理師×1",
+                "病床×13 · 點滴架×13",
+                "氧氣鋼瓶×13 · 管路(面罩)×13",
+                "生理監視器×2 · 急救車(電擊器)×1",
+                "護理工作車×1 · 換藥車×1",
+                "插座×2 · 延長線×3 · 穩定後轉OR/ICU"
+              ]
+            },
+            {
+              "name": "檢傷分類區",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4",
+              "items": [
+                "人員：急診醫師×1 · 急診護理師×1",
+                "任務：接收 · 檢傷分類 · 登錄 · 分流",
+                "生理監視器(FRSD)×1 · 野戰醫療病床(FRSD)×1",
+                "血糖機 · 耳溫槍 · 眼耳鏡 各×1",
+                "擔架×5 · 衛材架×1 · 電腦＋護理工作車×1",
+                "電話×1 · 對講機×1 · 插座×2 · 延長線×1"
+              ]
+            },
+            {
+              "name": "照明桅杆",
+              "color": "energy",
+              "items": [
+                "任務：夜間場地 · 動線 · 工作面照明",
+                "配置：伸縮式照明桅杆 · 場地周邊布設",
+                "供電：行動儲電櫃／發電機",
+                "功率：每支 100 W（數量待盤點）"
+              ]
+            },
+            {
+              "name": "現場狀況回傳：視訊1",
+              "img": "/feeds/803-cctv-1.jpg",
+              "caption": "",
+              "color": "chart-4",
+              "imgs": [
+                "/feeds/803-cctv-1.jpg",
+                "/feeds/658763_0.jpg",
+                "/feeds/658764_0.jpg",
+                "/feeds/658765_0.jpg",
+                "/feeds/658766_0.jpg",
+                "/feeds/658767_0.jpg",
+                "/feeds/658768_0.jpg"
+              ]
+            },
+            {
+              "name": "現場狀況回傳：視訊2",
+              "img": "/feeds/803-cctv-2.jpg",
+              "caption": "",
+              "color": "chart-4",
+              "imgs": [
+                "/feeds/803-cctv-2.jpg",
+                "/feeds/658769_0.jpg",
+                "/feeds/658770_0.jpg",
+                "/feeds/658771_0.jpg",
+                "/feeds/658772_0.jpg",
+                "/feeds/658773_0.jpg",
+                "/feeds/658774_0.jpg"
+              ]
+            }
+          ],
+          "map": {
+            "title": "🗺 B1 開設配置圖（急重症大樓 地下停車場）",
+            "legend": "★ 固定電源點 ×4",
+            "boxes": [
+              {
+                "label": "衛材補給點",
+                "kind": "facility",
+                "star": false
+              },
+              {
+                "label": "輕傷區 擔架床33床",
+                "kind": "zone",
+                "star": true
+              },
+              {
+                "label": "中傷區 病床8床",
+                "kind": "zone",
+                "star": false
+              },
+              {
+                "label": "護理站",
+                "kind": "zone",
+                "star": true
+              },
+              {
+                "label": "重傷區 病床13床",
+                "kind": "zone",
+                "star": true
+              },
+              {
+                "label": "檢傷區",
+                "kind": "zone",
+                "star": true
+              },
+              {
+                "label": "移動式X光機",
+                "kind": "facility",
+                "star": false
+              },
+              {
+                "label": "救護車迴轉道",
+                "kind": "road",
+                "star": false
+              },
+              {
+                "label": "指揮中心",
+                "kind": "command",
+                "star": false
+              },
+              {
+                "label": "救護車進出車道",
+                "kind": "road",
+                "star": false
+              }
+            ]
+          }
+        }
+      },
+      "devices": [
+        {
+          "name": "冰水主機 CH-3",
+          "system": "空調",
+          "loc": "南機房(180RT)",
+          "status": "改善優先汰換",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "區域水泵",
+          "system": "空調",
+          "loc": "",
+          "status": "",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "不斷電系統 UPS",
+          "system": "備援電力",
+          "loc": "急重症大樓",
+          "status": "",
+          "manager": "",
+          "contact": "",
+          "vendor": "",
+          "reading": "1000KVA · 維持約 30 分鐘"
+        },
+        {
+          "name": "B1 固定電源點 ×4",
+          "system": "收治場所",
+          "loc": "檢傷區·重傷區·護理站·輕傷區 前緣",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "電腦×2 · 電話×2 · 對講機×2 · 大螢幕×1",
+          "system": "指揮中心",
+          "loc": "急重症大樓B1 指揮中心",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "通資組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×7 · 延長線×2",
+          "system": "指揮中心",
+          "loc": "急重症大樓B1 指揮中心",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "生理監視器(FRSD)×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "衛保室",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "野戰醫療病床(FRSD)×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "衛保室",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "電腦＋護理工作車×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "護理部",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "電話×1 · 對講機×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "資管組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2 · 延長線×1",
+          "system": "檢傷分類區",
+          "loc": "急重症大樓B1 檢傷分類區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "生理監視器×2",
+          "system": "重傷區",
+          "loc": "急重症大樓B1 重傷區(13床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "護理部",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "急救車(電擊器)×1",
+          "system": "重傷區",
+          "loc": "急重症大樓B1 重傷區(13床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "護理部",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2 · 延長線×3",
+          "system": "重傷區",
+          "loc": "急重症大樓B1 重傷區(13床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "移動式X光機×1",
+          "system": "移動式X光區",
+          "loc": "急重症大樓B1 移動式X光機置放區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "放射科",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "無線網路HIS網點×1",
+          "system": "移動式X光區",
+          "loc": "急重症大樓B1 移動式X光機置放區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "資管組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2",
+          "system": "移動式X光區",
+          "loc": "急重症大樓B1 移動式X光機置放區",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "急救車(含電擊器)×1",
+          "system": "護理站",
+          "loc": "急重症大樓B1 護理站",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "護理部",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "電腦×1 · 印表機×1 · 電話×1 · 對講機×1",
+          "system": "護理站",
+          "loc": "急重症大樓B1 護理站",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "資管組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×4 · 延長線×2",
+          "system": "護理站",
+          "loc": "急重症大樓B1 護理站",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "生理監視器(FRSD)×1",
+          "system": "中傷區",
+          "loc": "急重症大樓B1 中傷區(8床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "衛保室",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2",
+          "system": "中傷區",
+          "loc": "急重症大樓B1 中傷區(8床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "插座×2",
+          "system": "輕傷區",
+          "loc": "急重症大樓B1 輕傷區(33床)",
+          "status": "戰時開設配置",
+          "reading": "",
+          "manager": "行政組",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "行動儲電櫃",
+          "system": "供電",
+          "loc": "",
+          "status": "戰時開設配置",
+          "reading": "負載 —kW·—V·—A ｜ 市電 —kW·—V·—A·—Hz·併/離網 — ｜ 電池 SOC —%·SOH —%·可放電 —Ah·溫 —℃",
+          "manager": "",
+          "contact": "",
+          "vendor": "",
+          "live": "ess"
+        },
+        {
+          "name": "小型氫能發電機",
+          "system": "供電",
+          "loc": "",
+          "status": "戰時開設配置",
+          "reading": "氣瓶 1 L",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "麻深儀",
+          "system": "醫療",
+          "loc": "",
+          "status": "戰時開設配置",
+          "reading": "自備電池可用 6 小時 · 充電需求 5V 2A（10 W）",
+          "manager": "",
+          "contact": "",
+          "vendor": ""
+        },
+        {
+          "name": "大坑變電所 22.8KV（雙迴路）",
+          "system": "受電",
+          "loc": "總院 → 急重症總站",
+          "status": "",
+          "reading": "急重症責任分界點 · 雙迴路"
+        },
+        {
+          "name": "太平變電所 11.4KV（單饋線）",
+          "system": "受電",
+          "loc": "總院 → 既有總站",
+          "status": "",
+          "reading": "既有責任分界點 · 單饋線"
+        },
+        {
+          "name": "柴油發電機 G1 600KW",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓（380V醫裝／460V空調）",
+          "status": "",
+          "reading": "油槽有效 2,375 L(95%，與 G2 共用) · 約供電 24.5 h"
+        },
+        {
+          "name": "柴油發電機 G2 600KW",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓（380V醫裝／460V空調）",
+          "status": "",
+          "reading": "油槽有效 2,375 L(95%，與 G1 共用) · 約供電 24.5 h"
+        },
+        {
+          "name": "柴油發電機 G3 750KW",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓（110/220V 插座用電）",
+          "status": "",
+          "reading": "油槽有效 1,710 L(95%，與 G4 共用) · 約供電 82.6 h"
+        },
+        {
+          "name": "柴油發電機 G4 750KW",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓（110/220V 插座用電）",
+          "status": "",
+          "reading": "油槽有效 1,710 L(95%，與 G3 共用) · 約供電 82.6 h"
+        },
+        {
+          "name": "柴油發電機 G5 1500KW",
+          "system": "備援電力",
+          "loc": "急重症大樓",
+          "status": "",
+          "reading": "機房 1,800 L(95%) + 地下 7,200 L(80%，與 G6 共用) · 約供電 25 h（關空調約 40 h）"
+        },
+        {
+          "name": "柴油發電機 G6 1500KW",
+          "system": "備援電力",
+          "loc": "急重症大樓",
+          "status": "",
+          "reading": "機房 1,800 L(95%) + 地下 7,200 L(80%，與 G5 共用) · 約供電 25 h（關空調約 40 h）"
+        },
+        {
+          "name": "UPS 不斷電系統",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓",
+          "status": "",
+          "reading": "2F 40KVA · 1F 30KVA · B1F 50KVA · 維持約 30 分鐘"
+        },
+        {
+          "name": "醫療大樓 蓄水",
+          "system": "供水",
+          "loc": "",
+          "status": "",
+          "reading": "RF地下 175 t + RF自來水 289 t + RF暫存 87 t + 水塔(15 t×3 + 27 t) · 140 度/日推估 約 90 h"
+        },
+        {
+          "name": "綜合大樓 蓄水",
+          "system": "供水",
+          "loc": "",
+          "status": "",
+          "reading": "RF地下 82.5 t + RF水塔 10 t(5 t×2) · 40 度/日推估 約 50 h"
+        },
+        {
+          "name": "急重症大樓 蓄水",
+          "system": "供水",
+          "loc": "",
+          "status": "",
+          "reading": "RF自來水池 200 t + B1地下 100 t + B1自來水 322 t · 160 度/日推估 約 80 h"
+        }
+      ]
+    },
+    {
+      "id": "water",
+      "icon": "💧",
+      "name": "水",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "自來水（市政）",
+            "value": "",
+            "online": true,
+            "esg": "grey",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "地下水井",
+            "value": "",
+            "online": false,
+            "esg": "blue",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "蓄水池/水塔",
+            "cap": "現值 2,458 / 滿載 2,500 T",
+            "pct": 98.3,
+            "days": "3.4 天",
+            "state": "",
+            "warn": false,
+            "critical": false
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "醫療/生活用水",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "m³",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
+            },
+            {
+              "name": "污水處理",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "96,990",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "text-secondary"
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "自來水（市政）",
+            "value": "",
+            "online": false,
+            "esg": "grey",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "地下水井",
+            "value": "",
+            "online": false,
+            "esg": "blue",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "蓄水池/水塔",
+            "cap": "現值 2,458 / 滿載 2,500 T",
+            "pct": 98.3,
+            "days": "3.4 天",
+            "state": "",
+            "warn": false,
+            "critical": false
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "最低維生用水",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "m³",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "oil",
+      "icon": "⛽",
+      "name": "油",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "柴油供應商",
+            "value": "",
+            "online": true,
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "柴油儲槽",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "發電機耗油",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "L",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "energy"
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "緊急調度油料",
+            "value": "",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "柴油儲槽",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": true
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "發電機耗油",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "L/hr",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "gas",
+      "icon": "🔥",
+      "name": "氣",
+      "peace": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "天然氣（市政管線）",
+            "value": "",
+            "online": true,
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "液態氧供應",
+            "value": "",
+            "online": true,
+            "esg": "na",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "液氧儲槽",
+            "cap": "現值 43.39 / 滿載 45 T",
+            "pct": 96.4,
+            "days": "15.5 天",
+            "state": "",
+            "warn": false,
+            "critical": false
+          },
+          {
+            "name": "醫用氣體鋼瓶",
+            "cap": "",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "蒸氣鍋爐",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "162,720",
+              "unit": "kWh",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "energy"
+            },
+            {
+              "name": "醫用氧氣用量",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "m³",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": false,
+              "color": "chart-4"
+            }
+          ]
+        }
+      },
+      "war": {
+        "perf": {
+          "act": [],
+          "text": ""
+        },
+        "endur": {
+          "days": "",
+          "pct": ""
+        },
+        "supply": [
+          {
+            "name": "天然氣（市政管線）",
+            "value": "",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "院內液氧自主庫存",
+            "value": "",
+            "online": true,
+            "esg": "na",
+            "pct": "",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          }
+        ],
+        "supplySum": "",
+        "store": [
+          {
+            "name": "液氧儲槽",
+            "cap": "現值 43.39 / 滿載 45 T",
+            "pct": 96.4,
+            "days": "15.5 天",
+            "state": "",
+            "warn": false,
+            "critical": true
+          },
+          {
+            "name": "醫用氣體鋼瓶",
+            "cap": "氧氣鋼瓶 21 瓶（重傷13＋中傷8）",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false
+          }
+        ],
+        "use": {
+          "headline": "",
+          "sub": "",
+          "blocks": [
+            {
+              "name": "醫用氧氣消耗",
+              "pctOfTotal": "",
+              "lastYear": "",
+              "current": "",
+              "unit": "m³",
+              "daily": [],
+              "lastYearDaily": [],
+              "critical": true,
+              "color": "alert"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "env": {
+    "peace": {
+      "buildings": [
+        {
+          "name": "急重症大樓",
+          "floors": [
+            {
+              "floor": "9F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "8F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "7F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "6F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "5F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "B1",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        },
+        {
+          "name": "醫療大樓",
+          "floors": [
+            {
+              "floor": "5F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "B1",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        },
+        {
+          "name": "綜合大樓",
+          "floors": [
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        }
+      ]
+    },
+    "war": {
+      "buildings": [
+        {
+          "name": "急重症大樓",
+          "floors": [
+            {
+              "floor": "9F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "8F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "7F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "6F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "5F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "B1",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        },
+        {
+          "name": "醫療大樓",
+          "floors": [
+            {
+              "floor": "5F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "B1",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        },
+        {
+          "name": "綜合大樓",
+          "floors": [
+            {
+              "floor": "4F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "3F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "2F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        }
+      ]
+    },
+    "criticalFloors": [
+      "醫療大樓2F",
+      "醫療大樓5F"
+    ],
+    "carbon": {
+      "title": "碳盤查 2024→2026（tCO₂e，2024 基準年）",
+      "cols": [
+        "項目",
+        "2024",
+        "2025",
+        "2026"
+      ],
+      "rows": [
+        {
+          "label": "總碳排",
+          "cells": [
+            "3,391",
+            "3,284",
+            ""
+          ]
+        },
+        {
+          "label": "外購電力",
+          "cells": [
+            "3,063",
+            "2,994",
+            ""
+          ]
+        },
+        {
+          "label": "逸散(化糞池/冷媒)",
+          "cells": [
+            "293.9",
+            "253.8",
+            ""
+          ]
+        },
+        {
+          "label": "公務車",
+          "cells": [
+            "31.4",
+            "28.4",
+            ""
+          ]
+        },
+        {
+          "label": "緊急發電機",
+          "cells": [
+            "3.25",
+            "7.54",
+            ""
+          ]
+        }
+      ]
+    }
+  }
+}
