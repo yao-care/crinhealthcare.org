@@ -35,11 +35,21 @@
         },
         "supply": [
           {
-            "name": "市電（台電）",
-            "value": "6,302,756 度/年",
+            "name": "市電·大坑變電所",
+            "value": "供電中",
             "online": true,
             "esg": "grey",
-            "pct": "大坑22.8/太平11.4KV 雙迴路",
+            "pct": "22.8KV 雙迴路 → 急重症大樓",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "市電·太平變電所",
+            "value": "供電中",
+            "online": true,
+            "esg": "grey",
+            "pct": "11.4KV 單饋線 → 醫療·綜合大樓",
             "react": "",
             "autonomous": false,
             "warn": false
@@ -55,11 +65,61 @@
             "warn": false
           },
           {
-            "name": "柴油發電機",
+            "name": "柴油機 G1 600KW",
             "value": "待命",
             "online": false,
             "esg": "amber",
-            "pct": "6台5,700kW",
+            "pct": "醫裝380V/空調460V · 24.5h",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G2 600KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "醫裝380V/空調460V · 24.5h",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G3 750KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "插座110/220V · 82.6h",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G4 750KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "插座110/220V · 82.6h",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G5 1500KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "急重症大樓 · 25h(關空調40h)",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G6 1500KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "急重症大樓 · 25h(關空調40h)",
             "react": "",
             "autonomous": false,
             "warn": false
@@ -96,7 +156,7 @@
             "warn": false
           }
         ],
-        "supplySum": "台電市電為主 · 備援：柴油／UPS／儲電櫃／氫能",
+        "supplySum": "",
         "store": [
           {
             "name": "備援電力（柴油發電機 ×6）",
@@ -313,13 +373,31 @@
               "name": "現場狀況回傳：視訊1",
               "img": "/feeds/803-cctv-1.jpg",
               "caption": "",
-              "color": "chart-4"
+              "color": "chart-4",
+              "imgs": [
+                "/feeds/803-cctv-1.jpg",
+                "/feeds/658763_0.jpg",
+                "/feeds/658764_0.jpg",
+                "/feeds/658765_0.jpg",
+                "/feeds/658766_0.jpg",
+                "/feeds/658767_0.jpg",
+                "/feeds/658768_0.jpg"
+              ]
             },
             {
               "name": "現場狀況回傳：視訊2",
               "img": "/feeds/803-cctv-2.jpg",
               "caption": "",
-              "color": "chart-4"
+              "color": "chart-4",
+              "imgs": [
+                "/feeds/803-cctv-2.jpg",
+                "/feeds/658769_0.jpg",
+                "/feeds/658770_0.jpg",
+                "/feeds/658771_0.jpg",
+                "/feeds/658772_0.jpg",
+                "/feeds/658773_0.jpg",
+                "/feeds/658774_0.jpg"
+              ]
             }
           ]
         }
@@ -336,12 +414,22 @@
         },
         "supply": [
           {
-            "name": "市電（台電）",
+            "name": "市電·大坑變電所",
             "value": "中斷",
             "online": false,
             "esg": "grey",
             "pct": "",
-            "react": "",
+            "react": "22.8KV 雙迴路 → 急重症大樓",
+            "autonomous": false,
+            "warn": true
+          },
+          {
+            "name": "市電·太平變電所",
+            "value": "中斷",
+            "online": false,
+            "esg": "grey",
+            "pct": "",
+            "react": "11.4KV 單饋線 → 醫療·綜合大樓",
             "autonomous": false,
             "warn": true
           },
@@ -356,12 +444,62 @@
             "warn": false
           },
           {
-            "name": "柴油發電機",
+            "name": "柴油機 G1 600KW",
             "value": "待命",
             "online": false,
             "esg": "amber",
             "pct": "",
-            "react": "6台5,700kW",
+            "react": "醫裝380V/空調460V · 24.5h",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G2 600KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "醫裝380V/空調460V · 24.5h",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G3 750KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "插座110/220V · 82.6h",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G4 750KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "插座110/220V · 82.6h",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G5 1500KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "急重症大樓 · 25h(關空調40h)",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "柴油機 G6 1500KW",
+            "value": "待命",
+            "online": false,
+            "esg": "amber",
+            "pct": "",
+            "react": "急重症大樓 · 25h(關空調40h)",
             "autonomous": false,
             "warn": false
           },
@@ -687,13 +825,31 @@
               "name": "現場狀況回傳：視訊1",
               "img": "/feeds/803-cctv-1.jpg",
               "caption": "",
-              "color": "chart-4"
+              "color": "chart-4",
+              "imgs": [
+                "/feeds/803-cctv-1.jpg",
+                "/feeds/658763_0.jpg",
+                "/feeds/658764_0.jpg",
+                "/feeds/658765_0.jpg",
+                "/feeds/658766_0.jpg",
+                "/feeds/658767_0.jpg",
+                "/feeds/658768_0.jpg"
+              ]
             },
             {
               "name": "現場狀況回傳：視訊2",
               "img": "/feeds/803-cctv-2.jpg",
               "caption": "",
-              "color": "chart-4"
+              "color": "chart-4",
+              "imgs": [
+                "/feeds/803-cctv-2.jpg",
+                "/feeds/658769_0.jpg",
+                "/feeds/658770_0.jpg",
+                "/feeds/658771_0.jpg",
+                "/feeds/658772_0.jpg",
+                "/feeds/658773_0.jpg",
+                "/feeds/658774_0.jpg"
+              ]
             }
           ],
           "map": {

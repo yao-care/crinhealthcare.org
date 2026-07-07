@@ -137,8 +137,9 @@ const emsBlock = z.object({
   critical: z.boolean().default(false),
   // v2 使用端卡片（戰時收治區型）：卡身＝該區用電設備清單（品名×數量）；有值時取代電表欄
   items: z.array(z.string()).default([]),
-  // v2 使用端卡片（現場影像回傳型）：img＝照片/串流截圖路徑（有值時卡身改鋪影像），caption＝圖說
+  // v2 使用端卡片（現場影像回傳型）：img＝單張照片/串流截圖路徑；imgs＝多張輪播（每隔數秒換一張）；caption＝圖說
   img: z.string().default(''),
+  imgs: z.array(z.string()).default([]),
   caption: z.string().default(''),
 });
 

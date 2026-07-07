@@ -8,7 +8,7 @@
   import PeakShaveChart from './PeakShaveChart.svelte';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
   interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: { k: string; v: string }[]; flags?: { label: string; tone: string }[]; live?: string; }
-  interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; img?: string; caption?: string; }
+  interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; img?: string; imgs?: string[]; caption?: string; }
   interface MapBox { label: string; kind?: string; star?: boolean; }
   interface UseMap { title?: string; legend?: string; boxes: MapBox[]; }
   interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[]; map?: UseMap }; }
@@ -69,6 +69,17 @@
     const ro = new ResizeObserver(schedule);
     if (node.parentElement) ro.observe(node.parentElement);
     return { destroy() { cancelAnimationFrame(raf); ro.disconnect(); } };
+  }
+
+  // 現場影像回傳卡輪播：多張圖每 delay 毫秒換一張；offset 讓兩個視訊框錯開不同時翻。
+  function rotateFeed(node: HTMLImageElement, opts: { imgs: string[]; delay: number; offset: number }) {
+    const imgs = opts.imgs ?? [];
+    if (imgs.length <= 1) return;
+    let i = 0, id = 0;
+    const tick = () => { i = (i + 1) % imgs.length; node.src = imgs[i]; };
+    // 先讓第一張顯示完整一個週期再開始換；offset 讓視訊1/2 錯開不同時翻
+    const to = window.setTimeout(() => { tick(); id = window.setInterval(tick, opts.delay); }, opts.delay + (opts.offset || 0));
+    return { destroy() { clearTimeout(to); clearInterval(id); } };
   }
 
   // 區塊邊框色（依附圖：電綠 / 環境紅 / 水藍 / 油橘 / 氣紫）
@@ -171,17 +182,18 @@
       <div class="usecol">
         <div class="seg-h">⚙️ 使用端 <small>{war ? '維生優先·可卸載' : '即時·趨勢'}</small>{#if d.use.blocks.length > 2}<span class="roll">● 自動輪播</span>{/if}</div>
         <div class="cards" use:carousel>
-          {#each d.use.blocks as b}
+          {#each d.use.blocks as b, bi}
             {@const c = chart(b.daily, b.lastYearDaily)}
-            <div class="card" class:crit={b.critical} class:feedcard={b.img} style="border-top-color:{tone(b.color ?? 'chart-1')}">
+            {@const feed = (b.imgs?.length ? b.imgs : b.img ? [b.img] : []).map(url)}
+            <div class="card" class:crit={b.critical} class:feedcard={feed.length} style="border-top-color:{tone(b.color ?? 'chart-1')}">
               <div class="ch">
                 <span class="cn">{b.name}{#if b.critical}<span class="cb">維生</span>{/if}</span>
-                {#if b.img}<span class="feedtag">● 回傳</span>{:else if !b.items?.length}<span class="cp">佔總量 {b.pctOfTotal || '—'}</span>{/if}
+                {#if feed.length}<span class="feedtag">● 回傳</span>{:else if !b.items?.length}<span class="cp">佔總量 {b.pctOfTotal || '—'}</span>{/if}
               </div>
-              {#if b.img}
-                <!-- 現場影像回傳卡：目前接靜態照片，未來可換即時串流截圖（同一 img 路徑） -->
+              {#if feed.length}
+                <!-- 現場影像回傳卡：多張＝每 7s 輪播（視訊1/2 錯開）；未來可換即時串流截圖 -->
                 <figure class="feed">
-                  <img src={url(b.img)} alt={b.name} loading="lazy" />
+                  <img src={feed[0]} alt={b.name} loading="lazy" use:rotateFeed={{ imgs: feed, delay: 7000, offset: (bi % 2) * 3500 }} />
                   {#if b.caption}<figcaption>{b.caption}</figcaption>{/if}
                 </figure>
               {:else if b.items?.length}
@@ -194,14 +206,14 @@
                   <span class="cnum"><em>去年同期</em><b>{b.lastYear || '—'}</b></span>
                   <span class="cnum now"><em>現況電表</em><b>{b.current || '—'}</b></span>
                 </div>
-                <div class="cchart">
-                  {#if c}
+                {#if c}
+                  <div class="cchart">
                     <svg viewBox="0 0 {c.W} {c.H}" preserveAspectRatio="none" aria-hidden="true">
                       {#each c.bars as bar}<rect x={bar.x} y={bar.y} width={bar.w} height={bar.h} fill={bar.fill} />{/each}
                       {#if c.refLine}<polyline points={c.refLine} class="ref" />{/if}
                     </svg>
-                  {:else}<span class="nodata">每日統計 · 待盤點</span>{/if}
-                </div>
+                  </div>
+                {/if}
               {/if}
             </div>
           {/each}
