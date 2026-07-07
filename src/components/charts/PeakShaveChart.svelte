@@ -65,8 +65,9 @@
     <span class="ps-hint">離峰充(00–09) · 尖峰放(16–22) · 台電夏月三段式</span>
   </div>
 
-  <!-- KPI 橫排 chips -->
+  <!-- KPI 橫排 chips（前置小標頭） -->
   <div class="ps-kpis">
+    <span class="kpis-h">今日累計</span>
     {#each kpis as t}
       <div class="kchip" style="border-left-color:{tone(t.tone)}">
         <span class="kk">{t.k}</span>
@@ -121,7 +122,9 @@
   .ps-src { font-size: var(--text-xs); font-weight: 700; color: var(--color-energy); white-space: nowrap; }
   .ps-hint { font-size: var(--text-xs); color: var(--color-text-secondary); margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .ps-kpis { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 4px 0 2px; flex-shrink: 0; }
+  .ps-kpis { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px 6px; padding: 4px 0 2px; flex-shrink: 0; }
+  /* KPI 小標頭：與 chips 同排、右側細分隔線，標明這排是今日累計數 */
+  .kpis-h { display: flex; align-items: center; font-size: var(--text-xs); font-weight: 700; color: var(--color-text-secondary); padding-right: 7px; border-right: 1px solid var(--color-border); white-space: nowrap; }
   .kchip { display: flex; flex-direction: column; line-height: 1.1; background: var(--color-paper); border: 1px solid var(--color-border); border-left: 3px solid var(--color-chart-1); border-radius: var(--radius-sm); padding: 2px 7px; }
   .kchip .kk { font-size: var(--text-xs); color: var(--color-text-secondary); }
   .kchip .kv { font-size: var(--text-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
