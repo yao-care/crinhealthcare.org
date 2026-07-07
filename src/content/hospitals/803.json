@@ -59,7 +59,17 @@
             "value": "待命",
             "online": false,
             "esg": "amber",
-            "pct": "",
+            "pct": "6台5,700kW",
+            "react": "",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "UPS 不斷電",
+            "value": "待命",
+            "online": false,
+            "esg": "blue",
+            "pct": "急重1000KVA·30分",
             "react": "",
             "autonomous": false,
             "warn": false
@@ -86,13 +96,13 @@
             "warn": false
           }
         ],
-        "supplySum": "台電市電為主 · 備援：儲電櫃／氫能／柴油",
+        "supplySum": "市電雙迴路(大坑22.8/太平11.4KV) · 備援：柴油6台5,700kW／UPS／儲電櫃／氫能",
         "store": [
           {
-            "name": "備援電力（柴油發電機）",
-            "cap": "現值 48,270 / 滿載 50,000 L",
-            "pct": 96.5,
-            "days": "3.3 天",
+            "name": "備援電力（柴油發電機 ×6）",
+            "cap": "5,700 kW · 有效油量 13,085 L",
+            "pct": 95,
+            "days": "24.5–82.6 h",
             "state": "",
             "warn": false,
             "critical": false
@@ -351,7 +361,17 @@
             "online": false,
             "esg": "amber",
             "pct": "",
-            "react": "",
+            "react": "6台5,700kW",
+            "autonomous": false,
+            "warn": false
+          },
+          {
+            "name": "UPS 不斷電",
+            "value": "待命",
+            "online": false,
+            "esg": "blue",
+            "pct": "",
+            "react": "1000KVA·30分",
             "autonomous": false,
             "warn": false
           },
@@ -380,10 +400,10 @@
         "supplySum": "",
         "store": [
           {
-            "name": "備援電力（柴油發電機）",
-            "cap": "現值 48,270 / 滿載 50,000 L",
-            "pct": 96.5,
-            "days": "3.3 天",
+            "name": "備援電力（柴油發電機 ×6）",
+            "cap": "5,700 kW · 有效油量 13,085 L",
+            "pct": 95,
+            "days": "24.5–82.6 h",
             "state": "",
             "warn": false,
             "critical": false
@@ -755,12 +775,13 @@
         },
         {
           "name": "不斷電系統 UPS",
-          "system": "配電",
-          "loc": "",
+          "system": "備援電力",
+          "loc": "急重症大樓",
           "status": "",
           "manager": "",
           "contact": "",
-          "vendor": ""
+          "vendor": "",
+          "reading": "1000KVA · 維持約 30 分鐘"
         },
         {
           "name": "B1 固定電源點 ×4",
@@ -992,6 +1013,90 @@
           "manager": "",
           "contact": "",
           "vendor": ""
+        },
+        {
+          "name": "大坑變電所 22.8KV（雙迴路）",
+          "system": "受電",
+          "loc": "總院 → 急重症總站",
+          "status": "",
+          "reading": "急重症責任分界點 · 雙迴路"
+        },
+        {
+          "name": "太平變電所 11.4KV（單饋線）",
+          "system": "受電",
+          "loc": "總院 → 既有總站",
+          "status": "",
+          "reading": "既有責任分界點 · 單饋線"
+        },
+        {
+          "name": "柴油發電機 G1 600KW",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓（380V醫裝／460V空調）",
+          "status": "",
+          "reading": "油槽有效 2,375 L(95%，與 G2 共用) · 約供電 24.5 h"
+        },
+        {
+          "name": "柴油發電機 G2 600KW",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓（380V醫裝／460V空調）",
+          "status": "",
+          "reading": "油槽有效 2,375 L(95%，與 G1 共用) · 約供電 24.5 h"
+        },
+        {
+          "name": "柴油發電機 G3 750KW",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓（110/220V 插座用電）",
+          "status": "",
+          "reading": "油槽有效 1,710 L(95%，與 G4 共用) · 約供電 82.6 h"
+        },
+        {
+          "name": "柴油發電機 G4 750KW",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓（110/220V 插座用電）",
+          "status": "",
+          "reading": "油槽有效 1,710 L(95%，與 G3 共用) · 約供電 82.6 h"
+        },
+        {
+          "name": "柴油發電機 G5 1500KW",
+          "system": "備援電力",
+          "loc": "急重症大樓",
+          "status": "",
+          "reading": "機房 1,800 L(95%) + 地下 7,200 L(80%，與 G6 共用) · 約供電 25 h（關空調約 40 h）"
+        },
+        {
+          "name": "柴油發電機 G6 1500KW",
+          "system": "備援電力",
+          "loc": "急重症大樓",
+          "status": "",
+          "reading": "機房 1,800 L(95%) + 地下 7,200 L(80%，與 G5 共用) · 約供電 25 h（關空調約 40 h）"
+        },
+        {
+          "name": "UPS 不斷電系統",
+          "system": "備援電力",
+          "loc": "醫療·綜合大樓",
+          "status": "",
+          "reading": "2F 40KVA · 1F 30KVA · B1F 50KVA · 維持約 30 分鐘"
+        },
+        {
+          "name": "醫療大樓 蓄水",
+          "system": "供水",
+          "loc": "",
+          "status": "",
+          "reading": "RF地下 175 t + RF自來水 289 t + RF暫存 87 t + 水塔(15 t×3 + 27 t) · 140 度/日推估 約 90 h"
+        },
+        {
+          "name": "綜合大樓 蓄水",
+          "system": "供水",
+          "loc": "",
+          "status": "",
+          "reading": "RF地下 82.5 t + RF水塔 10 t(5 t×2) · 40 度/日推估 約 50 h"
+        },
+        {
+          "name": "急重症大樓 蓄水",
+          "system": "供水",
+          "loc": "",
+          "status": "",
+          "reading": "RF自來水池 200 t + B1地下 100 t + B1自來水 322 t · 160 度/日推估 約 80 h"
         }
       ]
     },
