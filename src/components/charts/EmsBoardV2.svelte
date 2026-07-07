@@ -4,9 +4,10 @@
   // 「資料→呈現」規則集中在 @utils/ems（供給紅底/bar 前三高配色/環境分級底色）。
   import { isSupplyAbnormal, barFills, envSeverity } from '@utils/ems';
   import { createEssPoller, applyEssToScenario } from '@utils/essLive.svelte';
+  import { url } from '@utils/url';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
   interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: { k: string; v: string }[]; flags?: { label: string; tone: string }[]; live?: string; }
-  interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; }
+  interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; img?: string; caption?: string; }
   interface MapBox { label: string; kind?: string; star?: boolean; }
   interface UseMap { title?: string; legend?: string; boxes: MapBox[]; }
   interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[]; map?: UseMap }; }
@@ -54,6 +55,12 @@
   const ESG: Record<string, string> = { grey: 'text-secondary', green: 'accent', blue: 'chart-4', amber: 'energy', na: 'border' };
   const tone = (key: string) => `var(--color-${key})`;
 
+  // 供給端顯示值：設備 online 但尚無實際讀數（空值/僅破折號）→ 顯示「使用中」；
+  // 一旦有數字（JSON 更新或即時串流灌入 value）自動改顯示數字；離線則維持原值/—。
+  const DASHONLY = /^[\s—–-]*$/;
+  const supplyInUse = (s: Supply) => !!s.online && DASHONLY.test(s.value ?? '');
+  const supplyText = (s: Supply) => (supplyInUse(s) ? '使用中' : s.value || '—');
+
   function roc(iso?: string): string {
     if (!iso) return '';
     const [y, m, d] = iso.split('-').map(Number);
@@ -95,7 +102,7 @@
           {#each d.supply as s}
             <div class="srow" class:off={!s.online} class:abn={isSupplyAbnormal(s)} style="border-left-color:{tone(ESG[s.esg] ?? 'border')}">
               <span class="nm">{s.name}{#if war && s.autonomous}<span class="auto">自主</span>{/if}</span>
-              <span class="vv" class:vlive={s.live === 'ess' && ess?.status === 'live'} class:vdemo={s.live === 'ess' && ess?.status === 'demo'}>{s.value || '—'}{#if war && s.react}<small> {s.react}</small>{:else if !war && s.pct}<small> {s.pct}</small>{/if}</span>
+              <span class="vv" class:inuse={supplyInUse(s)} class:vlive={s.live === 'ess' && ess?.status === 'live'} class:vdemo={s.live === 'ess' && ess?.status === 'demo'}>{supplyText(s)}{#if war && s.react}<small> {s.react}</small>{:else if !war && s.pct}<small> {s.pct}</small>{/if}</span>
             </div>
           {/each}
           {#if d.supplySum}<div class="srow sum"><span class="nm">合計</span><span class="vv">{d.supplySum}</span></div>{/if}
@@ -145,12 +152,18 @@
         <div class="cards" use:carousel>
           {#each d.use.blocks as b}
             {@const c = chart(b.daily, b.lastYearDaily)}
-            <div class="card" class:crit={b.critical} style="border-top-color:{tone(b.color ?? 'chart-1')}">
+            <div class="card" class:crit={b.critical} class:feedcard={b.img} style="border-top-color:{tone(b.color ?? 'chart-1')}">
               <div class="ch">
                 <span class="cn">{b.name}{#if b.critical}<span class="cb">維生</span>{/if}</span>
-                {#if !b.items?.length}<span class="cp">佔總量 {b.pctOfTotal || '—'}</span>{/if}
+                {#if b.img}<span class="feedtag">● 回傳</span>{:else if !b.items?.length}<span class="cp">佔總量 {b.pctOfTotal || '—'}</span>{/if}
               </div>
-              {#if b.items?.length}
+              {#if b.img}
+                <!-- 現場影像回傳卡：目前接靜態照片，未來可換即時串流截圖（同一 img 路徑） -->
+                <figure class="feed">
+                  <img src={url(b.img)} alt={b.name} loading="lazy" />
+                  {#if b.caption}<figcaption>{b.caption}</figcaption>{/if}
+                </figure>
+              {:else if b.items?.length}
                 <!-- 收治區型卡片：卡身＝該區用電設備清單（品名×數量），取代電表欄 -->
                 <ul class="citems">
                   {#each b.items as it}<li>{it}</li>{/each}
@@ -194,7 +207,7 @@
 
 <div class="v2">
   <header class="top">
-    <h1 class="ttl">🔋 平戰轉EMS · {hospital.name}</h1>
+    <h1 class="ttl">🔋 平 - 戰(災) EMS · {hospital.name}</h1>
     <button type="button" class="scn" class:war onclick={() => (scenario = other.id)}>
       {war ? '☀️ ' : '🚨 '}轉{other.label}
     </button>
@@ -383,6 +396,8 @@
   .srcbadge.demo { color: var(--color-energy); }
   .srow .vv.vlive { color: var(--color-accent); }
   .srow .vv.vdemo { color: var(--color-energy); }
+  /* 供給端「使用中」：online 無讀數的狀態標示（綠＝在供），與離線的灰 — 明確區隔 */
+  .srow .vv.inuse { color: var(--color-accent); }
 
   /* 使用端：固定尺寸卡片 + 自適應換行 */
   .usecol { display: flex; flex-direction: column; padding: 4px var(--space-sm); min-height: 0; }
@@ -402,6 +417,12 @@
   .cnum em { font-size: var(--text-xs); color: var(--color-text-secondary); font-style: normal; }
   .cnum b { font-size: var(--text-base); }
   .cnum.now b { color: var(--color-primary); }
+  /* 現場影像回傳卡：照片鋪滿卡寬（4:3），紅「● 回傳」暗示即時來源；未接圖時底色佔位不破版 */
+  .card.feedcard { width: clamp(180px, 20vw, 260px); }
+  .feedtag { font-size: var(--text-xs); font-weight: 700; color: var(--color-alert); white-space: nowrap; }
+  .feed { margin: 0; }
+  .feed img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; border-radius: var(--radius-sm); background: var(--color-surface); border: 1px solid var(--color-border); }
+  .feed figcaption { font-size: var(--text-xs); color: var(--color-text-secondary); margin-top: 2px; line-height: 1.3; }
   /* 開設配置圖：帶狀方塊（依 p4 規劃圖語彙：收治區黃 / 設施橘 / 車道藍綠 / 指揮藍；★＝電源點） */
   .b1map { flex-shrink: 0; border-top: 1px dashed var(--color-border); padding-top: 4px; margin-top: 4px; }
   .b1map-h { font-size: var(--text-xs); font-weight: 700; color: var(--color-primary); margin-bottom: 3px; }

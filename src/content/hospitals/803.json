@@ -297,6 +297,18 @@
               "lastYearDaily": [],
               "critical": false,
               "color": "text-secondary"
+            },
+            {
+              "name": "現場狀況回傳：視訊1",
+              "img": "/feeds/803-cctv-1.jpg",
+              "caption": "",
+              "color": "chart-4"
+            },
+            {
+              "name": "現場狀況回傳：視訊2",
+              "img": "/feeds/803-cctv-2.jpg",
+              "caption": "",
+              "color": "chart-4"
             }
           ]
         }
@@ -639,6 +651,28 @@
                 "自備電池 · 可用 6 小時",
                 "充電需求 5V 2A（10 W）"
               ]
+            },
+            {
+              "name": "照明桅杆",
+              "color": "energy",
+              "items": [
+                "任務：夜間場地 · 動線 · 工作面照明",
+                "配置：伸縮式照明桅杆 · 場地周邊布設",
+                "供電：行動儲電櫃／發電機",
+                "數量 · 功率：待盤點"
+              ]
+            },
+            {
+              "name": "現場狀況回傳：視訊1",
+              "img": "/feeds/803-cctv-1.jpg",
+              "caption": "",
+              "color": "chart-4"
+            },
+            {
+              "name": "現場狀況回傳：視訊2",
+              "img": "/feeds/803-cctv-2.jpg",
+              "caption": "",
+              "color": "chart-4"
             }
           ],
           "map": {
