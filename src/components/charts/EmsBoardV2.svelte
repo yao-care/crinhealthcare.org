@@ -5,6 +5,7 @@
   import { isSupplyAbnormal, barFills, envSeverity } from '@utils/ems';
   import { createEssPoller, applyEssToScenario } from '@utils/essLive.svelte';
   import { url } from '@utils/url';
+  import PeakShaveChart from './PeakShaveChart.svelte';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
   interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: { k: string; v: string }[]; flags?: { label: string; tone: string }[]; live?: string; }
   interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; img?: string; caption?: string; }
@@ -20,7 +21,7 @@
     criticalFloors?: string[];
     carbon?: { title: string; cols: string[]; rows: { label: string; cells: string[] }[] };
   }
-  interface Hospital { name: string; location?: string; version?: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; }
+  interface Hospital { name: string; location?: string; version?: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; peakShave?: boolean; }
 
   let { hospital }: { hospital: Hospital } = $props();
   let scenario = $state('peace');
@@ -289,6 +290,13 @@
       </div>
     {/if}
   </div>
+
+  <!-- 削峰填谷 · 需量控制（選用）：接在滿版看板下方，頁面可捲動，不壓縮既有區塊 -->
+  {#if hospital.peakShave}
+    <div class="psrow">
+      <PeakShaveChart />
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -302,6 +310,9 @@
     --text-xl: clamp(13px, 2.2vw, 26px);
     height: 100dvh; display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); background: var(--color-paper); overflow: hidden;
   }
+  /* 有削峰填谷區塊時：整頁改為可捲動；第一屏（top＋grid）維持滿版看板，削峰填谷接於其下 */
+  .v2:has(.psrow) { height: auto; min-height: 100dvh; overflow: visible; }
+  .v2:has(.psrow) .grid { flex: none; height: calc(100dvh - 3.4rem); }
 
   /* 盤面控制項(看詳情/情境切換)：解除全站 44px 觸控下限，依盤面字級緊湊呈現
      (kiosk 以大螢幕展示為主、非觸控優先；全站其他頁面仍維持 44px 無障礙)。 */
@@ -325,6 +336,9 @@
   .r1 > .block:first-child { flex: 1.6; }
   .r1 > .env { flex: 1; }
   .r2 > .block { flex: 1; }
+  /* 削峰填谷：接在滿版看板下方；此頁改為可捲動，第一屏維持原本的滿版電力看板不被壓縮 */
+  .psrow { display: flex; min-height: 62dvh; padding-top: var(--space-sm); }
+  .psrow > :global(.ps) { flex: 1; min-width: 0; }
 
   /* 區塊 */
   .block { display: flex; flex-direction: column; border: 3px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); overflow: hidden; min-height: 0; }

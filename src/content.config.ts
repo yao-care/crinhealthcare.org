@@ -238,6 +238,8 @@ const hospitals = defineCollection({
     layout: z.enum(['stack', 'split', 'v2']).default('stack'),
     // v2 限定只顯示這些區塊（power/water/oil/gas/env）；未設＝全顯示。留下的區塊自動撐滿版面。
     show: z.array(z.enum(['power', 'water', 'oil', 'gas', 'env'])).optional(),
+    // v2 主看板底部加「削峰填谷 · 需量控制」即時圖區塊（PeakShaveChart，展示資料）
+    peakShave: z.boolean().default(false),
     // v2 環境參數（特例：不分供/儲/使、無看詳情）
     env: emsEnv.optional(),
     scenarios: z.array(z.object({ id: z.string(), label: z.string() }))
