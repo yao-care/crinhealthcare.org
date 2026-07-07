@@ -25,13 +25,16 @@
   const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
   const tone = (k: string) => `var(--color-${k})`;
 
-  // 幾何
-  const W = 1000, H = 300, padL = 46, padR = 44, padT = 20, padB = 26;
+  // 幾何：量測容器實際寬高 → viewBox 用實際像素（1:1），文字不被 preserveAspectRatio 拉伸變形。
+  let cw = $state(0), ch = $state(0);
+  const W = $derived(cw || 900);
+  const H = $derived(ch || 220);
+  const padL = 46, padR = 44, padT = 20, padB = 26;
   const pts = $derived<HourPoint[]>([...data.hours, { ...data.hours[23], h: 24 }]);
   const maxP = $derived(Math.max(...pts.map((p) => Math.max(p.load, p.grid + p.pv + p.discharge))) * 1.12);
   const x = $derived(scaleLinear().domain([0, 24]).range([padL, W - padR]));
   const yP = $derived(scaleLinear().domain([0, maxP]).range([H - padB, padT]));
-  const yS = scaleLinear().domain([0, 100]).range([H - padB, padT]);
+  const yS = $derived(scaleLinear().domain([0, 100]).range([H - padB, padT]));
 
   const aGrid = $derived(area<HourPoint>().x((p) => x(p.h)).y0(yP(0)).y1((p) => yP(p.grid)).curve(curveMonotoneX)(pts) ?? '');
   const aPv = $derived(area<HourPoint>().x((p) => x(p.h)).y0((p) => yP(p.grid)).y1((p) => yP(p.grid + p.pv)).curve(curveMonotoneX)(pts) ?? '');
@@ -76,9 +79,10 @@
     {/each}
   </div>
 
-  <!-- 24h D3 即時圖 -->
+  <!-- 24h D3 即時圖：量測容器實際寬高，viewBox 用實際像素，文字 1:1 不變形 -->
   <div class="chart">
-    <svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" role="img" aria-label="削峰填谷 24 小時即時圖">
+    <div class="svgwrap" bind:clientWidth={cw} bind:clientHeight={ch}>
+    <svg viewBox="0 0 {W} {H}" width={W} height={H} role="img" aria-label="削峰填谷 24 小時即時圖">
       {#each BANDS as bd}
         <rect x={x(bd.s)} y={padT} width={x(bd.e) - x(bd.s)} height={H - padB - padT}
               fill="color-mix(in srgb, {tone(TARIFF[bd.b].tone)} 9%, transparent)" />
@@ -105,6 +109,7 @@
       <line x1={x(data.nowHour)} x2={x(data.nowHour)} y1={padT} y2={H - padB} class="now" />
       <text x={x(data.nowHour)} y={H - padB + 15} class="nowtxt" text-anchor="middle">現在</text>
     </svg>
+    </div>
     <div class="legend">
       <span><i class="sw load"></i>負載</span>
       <span><i class="sw grid"></i>台電購電</span>
@@ -131,7 +136,8 @@
   .kchip .kv em { font-size: var(--text-xs); font-style: normal; font-weight: 400; color: var(--color-text-secondary); margin-left: 2px; }
 
   .chart { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-  .chart svg { flex: 1; width: 100%; min-height: 0; display: block; }
+  .svgwrap { flex: 1; min-height: 0; min-width: 0; position: relative; }
+  .svgwrap svg { position: absolute; inset: 0; display: block; }
   .grid { stroke: color-mix(in srgb, var(--color-border) 60%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
   .load { fill: none; stroke: var(--color-text); stroke-width: 2; vector-effect: non-scaling-stroke; }
   .soc { fill: none; stroke: var(--color-primary); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
