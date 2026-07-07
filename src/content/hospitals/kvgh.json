@@ -1,10 +1,14 @@
 {
-  "name": "臺中榮民總醫院嘉義分院",
-  "location": "嘉義市",
+  "name": "高雄榮民總醫院",
+  "location": "高雄市左營區",
   "version": "v1",
-  "updated": "2026-06-30",
-  "liveData": false,
+  "updated": "2026-07-02",
+  "liveData": true,
   "layout": "v2",
+  "peakShave": true,
+  "show": [
+    "power"
+  ],
   "scenarios": [
     {
       "id": "peace",
@@ -1623,6 +1627,15 @@
             "state": "",
             "warn": false,
             "critical": true
+          },
+          {
+            "name": "醫用氣體鋼瓶",
+            "cap": "氧氣鋼瓶 21 瓶（重傷13＋中傷8）",
+            "pct": 0,
+            "days": "",
+            "state": "",
+            "warn": false,
+            "critical": false
           }
         ],
         "use": {
@@ -1979,9 +1992,5 @@
         }
       ]
     }
-  },
-  "show": [
-    "power"
-  ],
-  "peakShave": true
+  }
 }
