@@ -1731,8 +1731,5 @@
       ]
     }
   },
-  "show": [
-    "power"
-  ],
-  "peakShave": true
+  "peakShave": false
 }

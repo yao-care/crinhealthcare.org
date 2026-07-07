@@ -5,10 +5,7 @@
   "updated": "2026-07-02",
   "liveData": true,
   "layout": "v2",
-  "peakShave": true,
-  "show": [
-    "power"
-  ],
+  "peakShave": false,
   "scenarios": [
     {
       "id": "peace",
