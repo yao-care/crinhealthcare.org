@@ -45,7 +45,7 @@
           },
           {
             "name": "太陽能 PV",
-            "value": "",
+            "value": "規劃中",
             "online": false,
             "esg": "green",
             "pct": "",
@@ -55,7 +55,7 @@
           },
           {
             "name": "柴油發電機",
-            "value": "",
+            "value": "待命",
             "online": false,
             "esg": "amber",
             "pct": "",
@@ -98,10 +98,10 @@
           },
           {
             "name": "行動氫氣發電機",
-            "cap": "氣瓶 1 L（水容積）",
+            "cap": "氣瓶 1 L",
             "pct": 0,
             "days": "",
-            "state": "",
+            "state": "待命",
             "warn": false,
             "critical": false
           },
@@ -336,7 +336,7 @@
           },
           {
             "name": "太陽能 PV",
-            "value": "",
+            "value": "規劃中",
             "online": false,
             "esg": "green",
             "pct": "",
@@ -346,7 +346,7 @@
           },
           {
             "name": "柴油發電機",
-            "value": "",
+            "value": "待命",
             "online": false,
             "esg": "amber",
             "pct": "",
@@ -367,8 +367,8 @@
           },
           {
             "name": "小型氫能發電",
-            "value": "",
-            "online": true,
+            "value": "待命",
+            "online": false,
             "esg": "green",
             "pct": "",
             "react": "",
@@ -389,10 +389,10 @@
           },
           {
             "name": "行動氫氣發電機",
-            "cap": "氣瓶 1 L（水容積）",
+            "cap": "氣瓶 1 L",
             "pct": 0,
             "days": "",
-            "state": "",
+            "state": "待命",
             "warn": false,
             "critical": false
           },
@@ -513,7 +513,7 @@
               ]
             },
             {
-              "name": "檢傷分類區",
+              "name": "麻深儀",
               "pctOfTotal": "",
               "lastYear": "",
               "current": "",
@@ -521,34 +521,26 @@
               "daily": [],
               "lastYearDaily": [],
               "critical": false,
-              "color": "chart-4",
+              "color": "chart-5",
               "items": [
-                "人員：急診醫師×1 · 急診護理師×1",
-                "任務：接收 · 檢傷分類 · 登錄 · 分流",
-                "生理監視器(FRSD)×1 · 野戰醫療病床(FRSD)×1",
-                "血糖機 · 耳溫槍 · 眼耳鏡 各×1",
-                "擔架×5 · 衛材架×1 · 電腦＋護理工作車×1",
-                "電話×1 · 對講機×1 · 插座×2 · 延長線×1"
+                "自備電池 · 可用 6 小時",
+                "充電需求 5V 2A（10 W）"
               ]
             },
             {
-              "name": "重傷區 13床",
+              "name": "衛材補給點 ×2",
               "pctOfTotal": "",
               "lastYear": "",
               "current": "",
               "unit": "",
               "daily": [],
               "lastYearDaily": [],
-              "critical": true,
-              "color": "alert",
+              "critical": false,
+              "color": "chart-5",
               "items": [
-                "收治：生命徵象不穩定 · 需立即處置",
-                "人員：外科醫師×1 · 加護病房護理師×1",
-                "病床×13 · 點滴架×13",
-                "氧氣鋼瓶×13 · 管路(面罩)×13",
-                "生理監視器×2 · 急救車(電擊器)×1",
-                "護理工作車×1 · 換藥車×1",
-                "插座×2 · 延長線×3 · 穩定後轉OR/ICU"
+                "人員：衛補人員×2",
+                "任務：衛材補充 · 耗材管理 · 補給支援",
+                "衛藥材補給架×2 · 相關衛材"
               ]
             },
             {
@@ -622,23 +614,27 @@
               ]
             },
             {
-              "name": "衛材補給點 ×2",
+              "name": "重傷區 13床",
               "pctOfTotal": "",
               "lastYear": "",
               "current": "",
               "unit": "",
               "daily": [],
               "lastYearDaily": [],
-              "critical": false,
-              "color": "chart-5",
+              "critical": true,
+              "color": "alert",
               "items": [
-                "人員：衛補人員×2",
-                "任務：衛材補充 · 耗材管理 · 補給支援",
-                "衛藥材補給架×2 · 相關衛材"
+                "收治：生命徵象不穩定 · 需立即處置",
+                "人員：外科醫師×1 · 加護病房護理師×1",
+                "病床×13 · 點滴架×13",
+                "氧氣鋼瓶×13 · 管路(面罩)×13",
+                "生理監視器×2 · 急救車(電擊器)×1",
+                "護理工作車×1 · 換藥車×1",
+                "插座×2 · 延長線×3 · 穩定後轉OR/ICU"
               ]
             },
             {
-              "name": "麻深儀",
+              "name": "檢傷分類區",
               "pctOfTotal": "",
               "lastYear": "",
               "current": "",
@@ -646,10 +642,14 @@
               "daily": [],
               "lastYearDaily": [],
               "critical": false,
-              "color": "chart-5",
+              "color": "chart-4",
               "items": [
-                "自備電池 · 可用 6 小時",
-                "充電需求 5V 2A（10 W）"
+                "人員：急診醫師×1 · 急診護理師×1",
+                "任務：接收 · 檢傷分類 · 登錄 · 分流",
+                "生理監視器(FRSD)×1 · 野戰醫療病床(FRSD)×1",
+                "血糖機 · 耳溫槍 · 眼耳鏡 各×1",
+                "擔架×5 · 衛材架×1 · 電腦＋護理工作車×1",
+                "電話×1 · 對講機×1 · 插座×2 · 延長線×1"
               ]
             },
             {
@@ -977,7 +977,7 @@
           "system": "供電",
           "loc": "",
           "status": "戰時開設配置",
-          "reading": "氣瓶 1 L（水容積）",
+          "reading": "氣瓶 1 L",
           "manager": "",
           "contact": "",
           "vendor": ""
