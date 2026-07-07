@@ -103,14 +103,14 @@
         <text x={(x(bd.s) + x(bd.e)) / 2} y={padT + 11} class="bandlbl" text-anchor="middle" fill={tone(TARIFF[bd.b].tone)}>{TARIFF[bd.b].label} ${TARIFF[bd.b].price}</text>
       {/each}
       <line x1={x(data.nowHour)} x2={x(data.nowHour)} y1={padT} y2={H - padB} class="now" />
-      <text x={x(data.nowHour)} y={H - padB + 15} class="nowtxt" text-anchor="middle">now</text>
+      <text x={x(data.nowHour)} y={H - padB + 15} class="nowtxt" text-anchor="middle">現在</text>
     </svg>
     <div class="legend">
       <span><i class="sw load"></i>負載</span>
       <span><i class="sw grid"></i>台電購電</span>
       <span><i class="sw pv"></i>太陽能</span>
       <span><i class="sw dis"></i>儲電櫃放電</span>
-      <span><i class="sw soc"></i>SOC</span>
+      <span><i class="sw soc"></i>電池電量</span>
     </div>
   </div>
 </div>

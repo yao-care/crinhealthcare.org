@@ -120,7 +120,7 @@
                     <div class="tcap">{war ? '⏳ 續航' : '續航'}</div>
                     <div class="days">{st.days || '—'}</div>
                     <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span>{#if st.pct}<span class="pct over" style="clip-path: inset(calc(100% - {st.pct}%) 0 0 0)">{st.pct}%</span>{/if}<i style="height:{st.pct || 0}%"></i></div>
-                    <div class="tsoc">SOC</div>
+                    <div class="tsoc">電量</div>
                   </div>
                   <div class="tmain">
                     <div class="tn">{st.name}{#if st.live === 'ess' && ess && ess.status !== 'loading'}<span class="srcbadge" class:demo={ess.status === 'demo'}>● {ess.status === 'live' ? '即時' : '展示資料'}</span>{/if}</div>
