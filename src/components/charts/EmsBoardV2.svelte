@@ -12,7 +12,9 @@
   interface MapBox { label: string; kind?: string; star?: boolean; }
   interface UseMap { title?: string; legend?: string; boxes: MapBox[]; }
   interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[]; map?: UseMap }; }
-  interface Resource { id: string; icon: string; name: string; peace: Scenario; war: Scenario; }
+  interface Device { name: string; system?: string; loc?: string; reading?: string; status?: string; }
+  interface Resource { id: string; icon: string; name: string; peace: Scenario; war: Scenario; devices?: Device[]; }
+  interface ReportRow { item: string; value: string; unit: string; }
   interface EnvFloor { floor: string; temp: string; rh: string; co2: string; }
   interface EnvBuilding { name: string; floors: EnvFloor[]; }
   interface Env {
@@ -21,11 +23,49 @@
     criticalFloors?: string[];
     carbon?: { title: string; cols: string[]; rows: { label: string; cells: string[] }[] };
   }
-  interface Hospital { name: string; location?: string; version?: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; peakShave?: boolean; }
+  interface Hospital { name: string; location?: string; version?: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; peakShave?: boolean; report?: { esg?: ReportRow[]; benchmark?: ReportRow[] }; }
 
   let { hospital }: { hospital: Hospital } = $props();
   let scenario = $state('peace');
   const war = $derived(scenario !== 'peace');
+  let exportOpen = $state(false);
+
+  // 匯出呈報資料為 CSV：從板上「手邊有的」實際數據組出（ESG 碳盤／節能標竿獎各取相關段落）。
+  // ESG/標竿為平時呈報概念 → 一律取 peace 資料，與當前情境無關。
+  function csvEsc(s: unknown): string { const t = String(s ?? ''); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; }
+  function doExport(kind: 'esg' | 'benchmark') {
+    exportOpen = false;
+    const label = kind === 'esg' ? 'ESG碳盤報告' : '節能標竿獎所需資料';
+    const power = hospital.resources.find((r) => r.id === 'power');
+    const pe = power?.peace;
+    const L: string[] = [`${hospital.name} — ${label}`, `資料版本,${hospital.version || ''},更新(民國),${roc(hospital.updated)}`, ''];
+
+    L.push('【電力總量】', '項目');
+    (pe?.perf?.text || '').split('·').map((s) => s.trim()).filter(Boolean).forEach((seg) => L.push(csvEsc(seg)));
+    L.push('');
+
+    L.push('【使用端分項用電（SEU）】', '項目,現況電表(kWh),佔總量');
+    (pe?.use?.blocks || []).filter((b) => b.current).forEach((b) => L.push([b.name, b.current, b.pctOfTotal].map(csvEsc).join(',')));
+    L.push('');
+
+    if (kind === 'esg') {
+      L.push('【供給結構】', '來源,狀態,說明');
+      (pe?.supply || []).forEach((s) => L.push([s.name, s.value, s.pct || s.react || ''].map(csvEsc).join(',')));
+    } else {
+      L.push('【備援與韌性設備（發電機／UPS／供水等）】', '設備,系統,位置,說明');
+      (power?.devices || []).forEach((dv) => L.push([dv.name, dv.system || '', dv.loc || '', dv.reading || dv.status || ''].map(csvEsc).join(',')));
+    }
+
+    const rep = hospital.report?.[kind];
+    if (rep?.length) { L.push('', `【${label}（結構化欄位）】`, '項目,數值,單位'); rep.forEach((r) => L.push([r.item, r.value, r.unit].map(csvEsc).join(','))); }
+
+    const blob = new Blob(['﻿' + L.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${hospital.name}_${label}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
   // 儲能櫃即時資料：liveData 醫院才輪詢橋接 API；live=綠「即時」、失敗/模擬=琥珀「展示資料」
   const ess = hospital.liveData ? createEssPoller() : null;
@@ -252,6 +292,15 @@
       <div><dt>版本</dt><dd>{hospital.version || '—'}</dd></div>
       <div><dt>更新</dt><dd>{roc(hospital.updated)}</dd></div>
     </dl>
+    <div class="export">
+      <button type="button" class="export-btn" onclick={() => (exportOpen = !exportOpen)} aria-haspopup="menu" aria-expanded={exportOpen}>📤 匯出所需資料 ▾</button>
+      {#if exportOpen}
+        <div class="export-menu" role="menu">
+          <button type="button" role="menuitem" onclick={() => doExport('esg')}>📄 ESG 碳盤報告</button>
+          <button type="button" role="menuitem" onclick={() => doExport('benchmark')}>🏆 節能標竿獎所需資料</button>
+        </div>
+      {/if}
+    </div>
   </header>
 
   <div class="grid">
@@ -353,6 +402,12 @@
   .meta div { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; }
   .meta dt { background: var(--color-surface); color: var(--color-text-secondary); font-size: var(--text-xs); padding: 2px 8px; margin: 0; }
   .meta dd { font-size: var(--text-sm); font-weight: 700; padding: 2px 10px; margin: 0; }
+  /* 匯出所需資料（ESG 碳盤／節能標竿獎）：右上角下拉，直接下載 CSV */
+  .export { position: relative; }
+  .export-btn { font-size: var(--text-sm); font-weight: 700; padding: 0.4rem 0.9rem; border-radius: var(--radius-md); border: 2px solid var(--color-primary); background: var(--color-primary); color: var(--color-paper); cursor: pointer; white-space: nowrap; }
+  .export-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; gap: 2px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); box-shadow: 0 4px 16px color-mix(in oklch, var(--color-text) 22%, transparent); padding: 4px; }
+  .export-menu button { font-size: var(--text-sm); font-weight: 600; text-align: left; padding: 6px 12px; border: none; background: none; color: var(--color-text); cursor: pointer; border-radius: var(--radius-sm); white-space: nowrap; }
+  .export-menu button:hover { background: var(--color-primary-pale); color: var(--color-primary); }
 
   /* 骨架：上下兩列，比例(%)分配 */
   .grid { flex: 1; display: flex; flex-direction: column; gap: var(--space-sm); min-height: 0; }
