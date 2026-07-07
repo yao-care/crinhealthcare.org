@@ -3,21 +3,23 @@ import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import EmsBoard from '../components/charts/EmsBoard.svelte';
 import EmsBoardV2 from '../components/charts/EmsBoardV2.svelte';
+import { url } from '@utils/url';
 
 export async function getStaticPaths() {
   const hospitals = await getCollection('hospitals');
   return hospitals.map((h) => ({
     params: { hospital: h.id },
-    props: { hospital: h.data },
+    props: { hospital: h.data, hid: h.id },
   }));
 }
 
-const { hospital } = Astro.props;
+const { hospital, hid } = Astro.props;
 ---
 
 <Base
   title={`${hospital.name} · 平戰轉EMS`}
   description={`${hospital.name} 平戰轉 EMS 能源資源看板：供 → 儲 → 用 → 效，平時／戰時切換。`}
+  ogImage={url(`/og/h/${hid}.png`)}
 >
   {hospital.layout === 'v2'
     ? <EmsBoardV2 hospital={hospital} client:visible />

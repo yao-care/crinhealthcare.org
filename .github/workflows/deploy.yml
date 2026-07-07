@@ -28,6 +28,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # OG 分享圖是 build 期 SVG→PNG(sharp)，需中文字型否則中文變豆腐
+      - name: Install CJK fonts (for OG images)
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - run: pnpm build
       - name: Build Pagefind index
         run: npx pagefind --site dist

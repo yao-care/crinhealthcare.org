@@ -27,6 +27,15 @@ export const getStaticPaths: GetStaticPaths = async () => {
     }
   }
 
+  // 醫院看板頁：每家一張專屬 OG（顯示院名），slug＝h/<id>
+  const hospitals = await getCollection('hospitals');
+  for (const h of hospitals) {
+    paths.push({
+      params: { slug: `h/${h.id}` },
+      props: { title: `${(h.data as { name: string }).name} · 平戰轉EMS`, collection: 'website' },
+    });
+  }
+
   // Static pages
   const staticPages = [
     { slug: 'index', title: '協助醫療院所達成淨零排放', collection: 'website' },
