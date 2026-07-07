@@ -51,6 +51,26 @@
     return { destroy() { clearInterval(id); } };
   }
 
+  // 合計行「塞不下才縮」：不動基準字級（守等比原則）。量測內容寬 vs 容器寬，
+  // 只有溢出時以 transform:scale 動態縮到剛好塞滿；塞得下＝維持 scale(1) 滿尺寸。隨容器寬變動重量測。
+  function fitText(node: HTMLElement) {
+    let raf = 0;
+    const fit = () => {
+      node.style.transform = 'scale(1)';
+      const box = node.parentElement;
+      if (!box) return;
+      const avail = box.clientWidth;
+      const natural = node.scrollWidth;
+      if (!avail || !natural) return;
+      node.style.transform = `scale(${Math.min(1, avail / natural)})`;
+    };
+    const schedule = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); };
+    schedule();
+    const ro = new ResizeObserver(schedule);
+    if (node.parentElement) ro.observe(node.parentElement);
+    return { destroy() { cancelAnimationFrame(raf); ro.disconnect(); } };
+  }
+
   // 區塊邊框色（依附圖：電綠 / 環境紅 / 水藍 / 油橘 / 氣紫）
   const FRAME: Record<string, string> = { power: 'accent', water: 'chart-4', oil: 'energy', gas: 'chart-5' };
   const ESG: Record<string, string> = { grey: 'text-secondary', green: 'accent', blue: 'chart-4', amber: 'energy', na: 'border' };
@@ -103,10 +123,10 @@
           {#each d.supply as s}
             <div class="srow" class:off={!s.online} class:abn={isSupplyAbnormal(s)} style="border-left-color:{tone(ESG[s.esg] ?? 'border')}">
               <span class="nm">{s.name}{#if war && s.autonomous}<span class="auto">自主</span>{/if}</span>
-              <span class="vv" class:inuse={supplyInUse(s)} class:vlive={s.live === 'ess' && ess?.status === 'live'} class:vdemo={s.live === 'ess' && ess?.status === 'demo'}>{supplyText(s)}{#if war && s.react}<small> {s.react}</small>{:else if !war && s.pct}<small> {s.pct}</small>{/if}</span>
+              <span class="vv" class:inuse={supplyInUse(s)} class:vlive={s.live === 'ess' && ess?.status === 'live'} class:vdemo={s.live === 'ess' && ess?.status === 'demo'}><span class="fit" use:fitText>{supplyText(s)}{#if war && s.react}<small> {s.react}</small>{:else if !war && s.pct}<small> {s.pct}</small>{/if}</span></span>
             </div>
           {/each}
-          {#if d.supplySum}<div class="srow sum"><span class="nm">合計</span><span class="vv">{d.supplySum}</span></div>{/if}
+          {#if d.supplySum}<div class="srow sum"><span class="nm">合計</span><span class="vv"><span class="fit" use:fitText>{d.supplySum}</span></span></div>{/if}
         </div>
         <div class="seg store">
           <div class="seg-h">🔋 儲存端 <small>{war ? '剩多久·夠不夠' : '剩多久'}</small></div>
@@ -357,15 +377,18 @@
   /* 供給端異常 → 紅底（@utils/ems isSupplyAbnormal） */
   .srow.abn { background: color-mix(in oklch, var(--color-alert) 22%, var(--color-paper)); border-left-color: var(--color-alert) !important; color: var(--color-text); }
   .srow.abn .vv { color: var(--color-alert); }
-  .srow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .srow .nm .auto { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0 4px; margin-left: 5px; }
-  .srow .vv { font-weight: 700; white-space: nowrap; }
+  .srow .vv { font-weight: 700; white-space: nowrap; overflow: hidden; min-width: 0; }
   .srow .vv small { color: var(--color-text-secondary); font-weight: 400; }
-  .srow.sum { background: none; border-left-color: transparent; border-top: 2px solid var(--color-border); margin-top: 2px; font-weight: 700; color: var(--color-primary); align-items: baseline; }
-  /* 合計：字級縮一號＋允許換行，長字串（含變電所架構等）永遠塞得下、不被截尾 */
-  .srow.sum { font-size: var(--text-xs); }
+  /* fitText 目標：值塞不下才縮到剛好（不動基準字級）。值向右縮、合計向左縮。 */
+  .srow .fit { display: inline-block; white-space: nowrap; transform-origin: right center; }
+  .srow.sum { background: none; border-left-color: transparent; border-top: 2px solid var(--color-border); margin-top: 2px; font-weight: 700; color: var(--color-primary); }
+  /* 合計：基準字級與其他列一致（守 kiosk 等比縮放大原則，不永久改小）。
+     只有這一行塞不下時，才由 use:fitText 動態把它縮到剛好塞滿寬度；塞得下就維持滿尺寸。 */
   .srow.sum .nm { flex: 0 0 auto; }
-  .srow.sum .vv { flex: 1; white-space: normal; text-align: left; }
+  .srow.sum .vv { flex: 1; overflow: hidden; white-space: nowrap; text-align: left; }
+  .srow.sum .vv .fit { transform-origin: left center; }
 
   .tanks { flex: 1; display: flex; gap: var(--space-sm); align-items: stretch; min-height: 0; padding: 2px 0; }
   .tank { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
