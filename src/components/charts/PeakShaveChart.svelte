@@ -26,7 +26,7 @@
   const tone = (k: string) => `var(--color-${k})`;
 
   // 幾何
-  const W = 1000, H = 300, padL = 46, padR = 44, padT = 34, padB = 26;
+  const W = 1000, H = 300, padL = 46, padR = 44, padT = 20, padB = 26;
   const pts = $derived<HourPoint[]>([...data.hours, { ...data.hours[23], h: 24 }]);
   const maxP = $derived(Math.max(...pts.map((p) => Math.max(p.load, p.grid + p.pv + p.discharge))) * 1.12);
   const x = $derived(scaleLinear().domain([0, 24]).range([padL, W - padR]));
@@ -100,7 +100,7 @@
         <text x={x(t)} y={H - padB + 15} class="xtxt" text-anchor="middle">{t}</text>
       {/each}
       {#each BANDS as bd}
-        <text x={(x(bd.s) + x(bd.e)) / 2} y={21} class="bandlbl" text-anchor="middle" dominant-baseline="middle" fill={tone(TARIFF[bd.b].tone)}>{TARIFF[bd.b].label} ${TARIFF[bd.b].price}</text>
+        <text x={(x(bd.s) + x(bd.e)) / 2} y={3} class="bandlbl" text-anchor="middle" dominant-baseline="hanging" fill={tone(TARIFF[bd.b].tone)}>{TARIFF[bd.b].label} ${TARIFF[bd.b].price}</text>
       {/each}
       <line x1={x(data.nowHour)} x2={x(data.nowHour)} y1={padT} y2={H - padB} class="now" />
       <text x={x(data.nowHour)} y={H - padB + 15} class="nowtxt" text-anchor="middle">現在</text>
@@ -139,7 +139,8 @@
   .ytxt { font-size: 16px; fill: var(--color-text-secondary); }
   .ytxt.soc { fill: var(--color-primary); }
   .xtxt { font-size: 16px; fill: var(--color-text-secondary); }
-  .bandlbl { font-size: 15px; font-weight: 700; opacity: 0.85; }
+  /* 電價帶標籤：放大＋白色描邊光暈，壓在 SOC 虛線/圖上也清楚可讀 */
+  .bandlbl { font-size: 21px; font-weight: 700; paint-order: stroke; stroke: var(--color-paper); stroke-width: 3.5px; stroke-linejoin: round; }
   .nowtxt { font-size: 15px; font-weight: 700; fill: var(--color-alert); }
 
   .legend { display: flex; flex-wrap: wrap; gap: 3px 12px; padding-top: 2px; font-size: var(--text-xs); color: var(--color-text-secondary); flex-shrink: 0; }
