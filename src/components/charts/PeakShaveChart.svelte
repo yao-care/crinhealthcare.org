@@ -104,7 +104,7 @@
         <text x={x(t)} y={H - padB + 15} class="xtxt" text-anchor="middle">{t}</text>
       {/each}
       {#each BANDS as bd}
-        <text x={(x(bd.s) + x(bd.e)) / 2} y={3} class="bandlbl" text-anchor="middle" dominant-baseline="hanging" fill={tone(TARIFF[bd.b].tone)}>{TARIFF[bd.b].label} ${TARIFF[bd.b].price}</text>
+        <text x={(x(bd.s) + x(bd.e)) / 2} y={(H - padB) - 0.1 * ((H - padB) - padT)} class="bandlbl" text-anchor="middle" dominant-baseline="middle" fill={tone(TARIFF[bd.b].tone)}>{TARIFF[bd.b].label} ${TARIFF[bd.b].price}</text>
       {/each}
       <line x1={x(data.nowHour)} x2={x(data.nowHour)} y1={padT} y2={H - padB} class="now" />
       <text x={x(data.nowHour)} y={H - padB + 15} class="nowtxt" text-anchor="middle">現在</text>
