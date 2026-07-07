@@ -343,8 +343,9 @@
   .endur.vlive { color: var(--color-accent); background: color-mix(in oklch, var(--color-accent) 14%, transparent); border-color: var(--color-accent); }
   .endur.low { color: var(--color-alert); background: color-mix(in oklch, var(--color-alert) 14%, transparent); border-color: var(--color-alert); }
 
-  .bbody { flex: 1; display: grid; grid-template-columns: 0.85fr 1.6fr; min-height: 0; }
-  .leftcol { display: flex; flex-direction: column; border-right: 1px dashed var(--color-border); min-height: 0; }
+  /* minmax(0,fr)：讓 grid 欄位能縮到內容 min-content 以下，否則使用端塞入圖表後會撐爆欄位、吃掉左欄 */
+  .bbody { flex: 1; display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.6fr); min-height: 0; }
+  .leftcol { display: flex; flex-direction: column; border-right: 1px dashed var(--color-border); min-height: 0; min-width: 0; }
   .seg { padding: 4px var(--space-sm); min-height: 0; }
   .seg-h { font-size: var(--text-xs); font-weight: 700; color: var(--color-primary); margin-bottom: 3px; }
   .seg-h small { color: var(--color-text-secondary); font-weight: 400; }
@@ -405,9 +406,9 @@
   .srow .vv.inuse { color: var(--color-accent); }
 
   /* 使用端：固定尺寸卡片 + 自適應換行 */
-  .usecol { display: flex; flex-direction: column; padding: 4px var(--space-sm); min-height: 0; }
+  .usecol { display: flex; flex-direction: column; padding: 4px var(--space-sm); min-height: 0; min-width: 0; }
   /* 使用端下半：削峰填谷即時圖（現況分項卡在上、圖在下，各佔一半可用高度） */
-  .usechart { flex: 1.15; min-height: 0; display: flex; border-top: 1px dashed var(--color-border); margin-top: 4px; padding-top: 4px; }
+  .usechart { flex: 1.15; min-height: 0; min-width: 0; display: flex; border-top: 1px dashed var(--color-border); margin-top: 4px; padding-top: 4px; }
   .usechart > :global(.ps-embed) { flex: 1; min-width: 0; }
   .seg-h .roll { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); margin-left: 8px; }
   /* overflow:hidden → 放不下的卡片由 use:carousel 自動換頁輪播 */
@@ -475,5 +476,25 @@
   .carbon th, .carbon td { border: 1px solid var(--color-border); padding: 1px 5px; text-align: right; }
   .carbon thead th { background: var(--color-surface); color: var(--color-text-secondary); }
   .carbon tbody th { text-align: left; font-weight: 400; color: var(--color-text-secondary); }
-  /* 注意：不加會改變骨架的 @media——五區塊 % 佈局在任何寬高都維持(kiosk 等比縮放)。 */
+  /* 大螢幕：五區塊 % 佈局在任何寬高都維持(kiosk 等比縮放)、單屏不捲動。
+     手機直式(≤700px)：一屏塞不下且橫向欄位過細會疊字 → 改為直向堆疊＋整頁可捲動。大螢幕不受影響。 */
+  @media (max-width: 700px) {
+    .v2 { height: auto; min-height: 100dvh; overflow: visible; }
+    .grid { min-height: 0; }
+    .r { flex-direction: column; }
+    /* 供/儲(左) 與 使用端(右) 改上下堆疊 */
+    .bbody { grid-template-columns: 1fr; }
+    .leftcol { border-right: none; border-bottom: 1px dashed var(--color-border); }
+    /* 解除單屏裁切：各段落改為「內容高度」(flex:none)、不再用 flex-grow 分配已塌陷的高度
+       （否則 cards 與圖會互相重疊）；不再 overflow 隱藏/捲動 */
+    .supply, .store, .cards { flex: none; overflow: visible; }
+    .tanks { flex-wrap: wrap; }
+    .tank { min-height: 150px; }
+    .tank.wide { flex: 1 1 100%; }
+    /* 儲電櫃磁磚：窄螢幕改單欄數值格，解掉雙欄疊字 */
+    .tank.wide .tgrid { grid-template-columns: 1fr; }
+    .tank.wide .tside { flex: 0 0 72px; }
+    /* 使用端下半的削峰填谷圖：內容高度＋給足高度才看得清 */
+    .usechart { flex: none; min-height: 300px; }
+  }
 </style>
