@@ -394,7 +394,7 @@
   .v2 a, .v2 button { min-width: 0; min-height: 0; }
 
   /* 頂列 */
-  .top { display: flex; align-items: center; gap: var(--space-md); border-bottom: 2px solid var(--color-border); padding-bottom: var(--space-xs); flex-shrink: 0; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md); border-bottom: 2px solid var(--color-border); padding-bottom: var(--space-xs); flex-shrink: 0; }
   .ttl { font-size: var(--text-xl); font-weight: 700; margin: 0; }
   .scn { margin-left: auto; font-size: var(--text-base); font-weight: 700; padding: 0.4rem 1.1rem; border-radius: var(--radius-md); border: 2px solid var(--color-text-secondary); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; white-space: nowrap; }
   .scn.war { border-color: var(--color-alert); background: var(--color-alert); color: var(--color-paper); }
@@ -571,8 +571,9 @@
   .carbon thead th { background: var(--color-surface); color: var(--color-text-secondary); }
   .carbon tbody th { text-align: left; font-weight: 400; color: var(--color-text-secondary); }
   /* 大螢幕：五區塊 % 佈局在任何寬高都維持(kiosk 等比縮放)、單屏不捲動。
-     手機直式(≤700px)：一屏塞不下且橫向欄位過細會疊字 → 改為直向堆疊＋整頁可捲動。大螢幕不受影響。 */
-  @media (max-width: 700px) {
+     窄螢幕(≤1200px：手機/平板/多格排版下的窄電力格)：一屏塞不下且欄位過細會壓扁疊字
+     → 改為直向堆疊＋整頁可捲動、各區塊拿全寬。>1200 的寬桌面維持多格 % 佈局。 */
+  @media (max-width: 1200px) {
     .v2 { height: auto; min-height: 100dvh; overflow: visible; }
     .grid { min-height: 0; }
     .r { flex-direction: column; }
@@ -585,9 +586,12 @@
     .tanks { flex-wrap: wrap; }
     .tank { min-height: 150px; }
     .tank.wide { flex: 1 1 100%; }
-    /* 儲電櫃磁磚：窄螢幕改單欄數值格，解掉雙欄疊字 */
+    /* 儲電櫃磁磚：窄時改單欄數值格，解雙欄疊字 */
     .tank.wide .tgrid { grid-template-columns: 1fr; }
     .tank.wide .tside { flex: 0 0 72px; }
+    /* 頂列（標題/切換/版本/匯出）窄螢幕允許換行，不擠爆 */
+    .top { flex-wrap: wrap; gap: 6px var(--space-sm); }
+    .ttl { width: 100%; }
     /* 使用端下半的削峰填谷圖：內容高度＋給足高度才看得清 */
     .usechart { flex: none; min-height: 300px; }
   }
