@@ -361,7 +361,11 @@
   .srow .nm .auto { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0 4px; margin-left: 5px; }
   .srow .vv { font-weight: 700; white-space: nowrap; }
   .srow .vv small { color: var(--color-text-secondary); font-weight: 400; }
-  .srow.sum { background: none; border-left-color: transparent; border-top: 2px solid var(--color-border); margin-top: 2px; font-weight: 700; color: var(--color-primary); }
+  .srow.sum { background: none; border-left-color: transparent; border-top: 2px solid var(--color-border); margin-top: 2px; font-weight: 700; color: var(--color-primary); align-items: baseline; }
+  /* 合計：字級縮一號＋允許換行，長字串（含變電所架構等）永遠塞得下、不被截尾 */
+  .srow.sum { font-size: var(--text-xs); }
+  .srow.sum .nm { flex: 0 0 auto; }
+  .srow.sum .vv { flex: 1; white-space: normal; text-align: left; }
 
   .tanks { flex: 1; display: flex; gap: var(--space-sm); align-items: stretch; min-height: 0; padding: 2px 0; }
   .tank { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
