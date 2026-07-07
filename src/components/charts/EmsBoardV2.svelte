@@ -201,6 +201,10 @@
             </div>
           </div>
         {/if}
+        <!-- 使用端下半：削峰填谷 · 需量控制（平時經濟調度；戰時不顯示）。屬使用端＝管用電需求 -->
+        {#if hospital.peakShave && r.id === 'power' && !war}
+          <div class="usechart"><PeakShaveChart /></div>
+        {/if}
       </div>
     </div>
   </section>
@@ -290,13 +294,6 @@
       </div>
     {/if}
   </div>
-
-  <!-- 削峰填谷 · 需量控制（選用）：接在滿版看板下方，頁面可捲動，不壓縮既有區塊 -->
-  {#if hospital.peakShave}
-    <div class="psrow">
-      <PeakShaveChart />
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -310,9 +307,6 @@
     --text-xl: clamp(13px, 2.2vw, 26px);
     height: 100dvh; display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); background: var(--color-paper); overflow: hidden;
   }
-  /* 有削峰填谷區塊時：整頁改為可捲動；第一屏（top＋grid）維持滿版看板，削峰填谷接於其下 */
-  .v2:has(.psrow) { height: auto; min-height: 100dvh; overflow: visible; }
-  .v2:has(.psrow) .grid { flex: none; height: calc(100dvh - 3.4rem); }
 
   /* 盤面控制項(看詳情/情境切換)：解除全站 44px 觸控下限，依盤面字級緊湊呈現
      (kiosk 以大螢幕展示為主、非觸控優先；全站其他頁面仍維持 44px 無障礙)。 */
@@ -336,9 +330,6 @@
   .r1 > .block:first-child { flex: 1.6; }
   .r1 > .env { flex: 1; }
   .r2 > .block { flex: 1; }
-  /* 削峰填谷：接在滿版看板下方；此頁改為可捲動，第一屏維持原本的滿版電力看板不被壓縮 */
-  .psrow { display: flex; min-height: 62dvh; padding-top: var(--space-sm); }
-  .psrow > :global(.ps) { flex: 1; min-width: 0; }
 
   /* 區塊 */
   .block { display: flex; flex-direction: column; border: 3px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); overflow: hidden; min-height: 0; }
@@ -415,6 +406,9 @@
 
   /* 使用端：固定尺寸卡片 + 自適應換行 */
   .usecol { display: flex; flex-direction: column; padding: 4px var(--space-sm); min-height: 0; }
+  /* 使用端下半：削峰填谷即時圖（現況分項卡在上、圖在下，各佔一半可用高度） */
+  .usechart { flex: 1.15; min-height: 0; display: flex; border-top: 1px dashed var(--color-border); margin-top: 4px; padding-top: 4px; }
+  .usechart > :global(.ps-embed) { flex: 1; min-width: 0; }
   .seg-h .roll { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); margin-left: 8px; }
   /* overflow:hidden → 放不下的卡片由 use:carousel 自動換頁輪播 */
   .cards { flex: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-content: flex-start; overflow: hidden; min-height: 0; scroll-behavior: smooth; }
