@@ -316,6 +316,9 @@
         {@const blds = (war ? env.war : env.peace).buildings}
         {@const first = blds[0]}
         {@const rest = blds.slice(1)}
+        {@const hasFloors = (b: EnvBuilding) => b.floors.some((f) => f.floor !== '樓層待盤點')}
+        {@const restTbl = rest.filter(hasFloors)}
+        {@const restLite = rest.filter((b) => !hasFloors(b))}
         {#snippet bldTable(bld: EnvBuilding)}
           <div class="bld">
             <div class="bld-h">{bld.name}</div>
@@ -358,8 +361,11 @@
                 </div>
               {/if}
               <div class="right-blds">
-                {#each rest as bld}{@render bldTable(bld)}{/each}
+                {#each restTbl as bld}{@render bldTable(bld)}{/each}
               </div>
+              {#if restLite.length}
+                <div class="bld-lite"><b>其他院區大樓</b>（樓層待盤點）：{restLite.map((b) => b.name).join('・')}</div>
+              {/if}
             </div>
           </div>
         </section>
@@ -551,7 +557,7 @@
   /* 環境參數：最高樓(急重症)靠左；右邊上方碳盤查、下方醫療+綜合。全部底部對齊→B1 同基準線、樓層橫向一致。全樓層不捲動。 */
   .env-body { flex: 1; display: flex; gap: var(--space-sm); align-items: flex-end; padding: var(--space-xs) var(--space-sm); min-height: 0; overflow: hidden; }
   .rightcol { flex: 1; align-self: stretch; display: flex; flex-direction: column; min-width: 0; }
-  .right-blds { margin-top: auto; display: flex; gap: var(--space-sm); align-items: flex-end; }
+  .right-blds { margin-top: auto; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: flex-end; }
   .right-blds .bld { flex: 1; }
   .env-body > .bld { flex: 0 1 auto; }
   .bld { min-width: 0; }
@@ -565,6 +571,8 @@
   .floors td.sev-crit { background: var(--color-alert); color: var(--color-paper); font-weight: 700; }
   .floors tr.keyfl th { color: var(--color-primary); }
   .floors tr.keyfl th::after { content: ' ★'; color: var(--color-primary); }
+  .bld-lite { margin-top: var(--space-xs); font-size: var(--text-xs); line-height: 1.5; color: var(--color-text-secondary); }
+  .bld-lite b { color: var(--color-text); font-weight: 700; }
   .carbon-wrap { min-width: 0; flex-shrink: 0; margin-bottom: var(--space-xs); }
   .carbon-h { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: 2px; }
   .carbon { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
