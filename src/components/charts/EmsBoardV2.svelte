@@ -412,7 +412,7 @@
   /* 骨架：上下兩列，比例(%)分配 */
   .grid { flex: 1; display: flex; flex-direction: column; gap: var(--space-sm); min-height: 0; }
   .r { display: flex; gap: var(--space-sm); min-height: 0; }
-  .r1 { flex: 1.05; }
+  .r1 { flex: 1.5; }
   .r2 { flex: 1; }
   .r1 > .block:first-child { flex: 1.6; }
   .r1 > .env { flex: 1; }
