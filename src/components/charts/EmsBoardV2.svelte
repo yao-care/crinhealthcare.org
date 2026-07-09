@@ -314,11 +314,6 @@
       {#if hospital.env && visible('env')}
         {@const env = hospital.env}
         {@const blds = (war ? env.war : env.peace).buildings}
-        {@const first = blds[0]}
-        {@const rest = blds.slice(1)}
-        {@const hasFloors = (b: EnvBuilding) => b.floors.some((f) => f.floor !== '樓層待盤點')}
-        {@const restTbl = rest.filter(hasFloors)}
-        {@const restLite = rest.filter((b) => !hasFloors(b))}
         {#snippet bldTable(bld: EnvBuilding)}
           <div class="bld">
             <div class="bld-h">{bld.name}</div>
@@ -343,29 +338,23 @@
             <span class="bname">🇹🇼 環境參數</span>
             <span class="bperf">{war ? '關鍵區域(ICU/手術室)環境維持' : '室內溫濕·CO₂ 空品'} ・ ★ICU/手術室 濕度標準 50–80%</span>
           </header>
-          <!-- 排法：最高樓(急重症)靠左；右邊上方碳盤查、下方醫療+綜合。全部【底部對齊】(B1 同基準線)使樓層橫向一致；全樓層不捲動。 -->
+          <!-- 排法：碳盤查置左（窄，4 欄），各大樓樓層表在右側網格自動換列、底部對齊（B1 同基準線）；大樓為主角、不捲動。 -->
           <div class="env-body">
-            {#if first}{@render bldTable(first)}{/if}
-            <div class="rightcol">
-              {#if env.carbon}
-                <div class="carbon-wrap">
-                  <div class="carbon-h">📈 {env.carbon.title}</div>
-                  <table class="carbon">
-                    <thead><tr>{#each env.carbon.cols as c}<th>{c}</th>{/each}</tr></thead>
-                    <tbody>
-                      {#each env.carbon.rows as row}
-                        <tr><th scope="row">{row.label}</th>{#each row.cells as cell}<td>{cell || '—'}</td>{/each}</tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                </div>
-              {/if}
-              <div class="right-blds">
-                {#each restTbl as bld}{@render bldTable(bld)}{/each}
+            {#if env.carbon}
+              <div class="carbon-wrap">
+                <div class="carbon-h">📈 {env.carbon.title}</div>
+                <table class="carbon">
+                  <thead><tr>{#each env.carbon.cols as c}<th>{c}</th>{/each}</tr></thead>
+                  <tbody>
+                    {#each env.carbon.rows as row}
+                      <tr><th scope="row">{row.label}</th>{#each row.cells as cell}<td>{cell || '—'}</td>{/each}</tr>
+                    {/each}
+                  </tbody>
+                </table>
               </div>
-              {#if restLite.length}
-                <div class="bld-lite"><b>其他院區大樓</b>（樓層待盤點）：{restLite.map((b) => b.name).join('・')}</div>
-              {/if}
+            {/if}
+            <div class="all-blds">
+              {#each blds as bld}{@render bldTable(bld)}{/each}
             </div>
           </div>
         </section>
@@ -554,16 +543,13 @@
   .cchart .ref { fill: none; stroke: var(--color-text-secondary); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
   .nodata { font-size: var(--text-xs); color: var(--color-text-secondary); font-style: italic; }
 
-  /* 環境參數：最高樓(急重症)靠左；右邊上方碳盤查、下方醫療+綜合。全部底部對齊→B1 同基準線、樓層橫向一致。全樓層不捲動。 */
-  .env-body { flex: 1; display: flex; gap: var(--space-sm); align-items: flex-end; padding: var(--space-xs) var(--space-sm); min-height: 0; overflow: hidden; }
-  .rightcol { flex: 1; align-self: stretch; display: flex; flex-direction: column; min-width: 0; }
-  .right-blds { margin-top: auto; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: flex-end; }
-  .right-blds .bld { flex: 1; }
-  .env-body > .bld { flex: 0 1 auto; }
+  /* 環境參數：碳盤查置左（窄，4 欄），各大樓樓層表在右側網格自動換列、每列底部對齊（B1 同基準線）。大樓為主角、不捲動。 */
+  .env-body { flex: 1; display: flex; gap: var(--space-md); align-items: flex-start; padding: var(--space-xs) var(--space-sm); min-height: 0; overflow: hidden; }
+  .all-blds { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: var(--space-sm) var(--space-md); align-items: end; align-content: start; min-width: 0; }
   .bld { min-width: 0; }
-  .bld-h { font-size: var(--text-sm); font-weight: 700; text-align: center; margin-bottom: 2px; }
+  .bld-h { font-size: var(--text-sm); font-weight: 700; text-align: center; margin-bottom: 2px; white-space: nowrap; }
   .floors { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
-  .floors th, .floors td { border: 1px solid var(--color-border); padding: 1px 4px; text-align: center; line-height: 1.25; }
+  .floors th, .floors td { border: 1px solid var(--color-border); padding: 1px 4px; text-align: center; line-height: 1.25; white-space: nowrap; }
   .floors thead th { background: var(--color-surface); color: var(--color-text-secondary); }
   .floors tbody th { background: var(--color-surface); font-weight: 700; }
   /* 環境分級底色（@utils/ems envSeverity）：warn 琥珀、crit 紅 */
@@ -571,8 +557,6 @@
   .floors td.sev-crit { background: var(--color-alert); color: var(--color-paper); font-weight: 700; }
   .floors tr.keyfl th { color: var(--color-primary); }
   .floors tr.keyfl th::after { content: ' ★'; color: var(--color-primary); }
-  .bld-lite { margin-top: var(--space-xs); font-size: var(--text-xs); line-height: 1.5; color: var(--color-text-secondary); }
-  .bld-lite b { color: var(--color-text); font-weight: 700; }
   .carbon-wrap { min-width: 0; flex-shrink: 0; margin-bottom: var(--space-xs); }
   .carbon-h { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: 2px; }
   .carbon { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
