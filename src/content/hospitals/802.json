@@ -1562,10 +1562,92 @@
   ],
   "env": {
     "peace": {
-      "buildings": []
+      "buildings": [
+        {
+          "name": "醫療大樓",
+          "floors": [
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "樓層待盤點",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        },
+        {
+          "name": "軍陣醫療大樓",
+          "floors": [
+            {
+              "floor": "RF",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "樓層待盤點",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        }
+      ]
     },
     "war": {
-      "buildings": []
+      "buildings": [
+        {
+          "name": "醫療大樓",
+          "floors": [
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "樓層待盤點",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        },
+        {
+          "name": "軍陣醫療大樓",
+          "floors": [
+            {
+              "floor": "RF",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "1F",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            },
+            {
+              "floor": "樓層待盤點",
+              "temp": "",
+              "rh": "",
+              "co2": ""
+            }
+          ]
+        }
+      ]
     },
     "criticalFloors": [],
     "carbon": {
