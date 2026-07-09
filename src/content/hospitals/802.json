@@ -23,7 +23,7 @@
       "peace": {
         "perf": {
           "act": [],
-          "text": "用電 6,302,756 度 · 電力碳排 2,988 t · SEU 能源審查 1,673 台"
+          "text": "用電 — 度 · 電力碳排 — t · SEU 5 個 · 全院年耗能 55.29 TJ（電/天然氣/柴油/汽油）"
         },
         "endur": {
           "days": "",
@@ -253,13 +253,13 @@
         ],
         "use": {
           "headline": "",
-          "sub": "SEU 電力 10 系統（天然氣鍋爐／污水另列）",
+          "sub": "重大能源使用 SEU 5 個（依 EnMS 稽核範圍）",
           "blocks": [
             {
-              "name": "空調",
-              "pctOfTotal": "53%",
+              "name": "空調（含冷氣空調）",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "3,739,418",
+              "current": "",
               "unit": "kWh",
               "daily": [],
               "lastYearDaily": [],
@@ -267,21 +267,10 @@
               "color": "primary"
             },
             {
-              "name": "資訊設備",
-              "pctOfTotal": "16%",
+              "name": "冰水主機（委外維護）",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "1,101,591",
-              "unit": "kWh",
-              "daily": [],
-              "lastYearDaily": [],
-              "critical": false,
-              "color": "chart-4"
-            },
-            {
-              "name": "醫療設備",
-              "pctOfTotal": "12%",
-              "lastYear": "",
-              "current": "887,419",
+              "current": "",
               "unit": "kWh",
               "daily": [],
               "lastYearDaily": [],
@@ -289,21 +278,10 @@
               "color": "chart-5"
             },
             {
-              "name": "熱泵",
-              "pctOfTotal": "6%",
-              "lastYear": "",
-              "current": "451,572",
-              "unit": "kWh",
-              "daily": [],
-              "lastYearDaily": [],
-              "critical": false,
-              "color": "energy"
-            },
-            {
               "name": "照明",
-              "pctOfTotal": "5%",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "346,572",
+              "current": "",
               "unit": "kWh",
               "daily": [],
               "lastYearDaily": [],
@@ -311,10 +289,10 @@
               "color": "accent"
             },
             {
-              "name": "其餘雜項",
-              "pctOfTotal": "2%",
+              "name": "SEU④（稽核文件未列名·待盤點）",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "140,641",
+              "current": "",
               "unit": "kWh",
               "daily": [],
               "lastYearDaily": [],
@@ -322,48 +300,15 @@
               "color": "text-secondary"
             },
             {
-              "name": "電梯",
-              "pctOfTotal": "1%",
+              "name": "SEU⑤（稽核文件未列名·待盤點）",
+              "pctOfTotal": "",
               "lastYear": "",
-              "current": "77,259",
+              "current": "",
               "unit": "kWh",
               "daily": [],
               "lastYearDaily": [],
               "critical": false,
               "color": "chart-4"
-            },
-            {
-              "name": "車輛",
-              "pctOfTotal": "1%",
-              "lastYear": "",
-              "current": "39,513",
-              "unit": "kWh",
-              "daily": [],
-              "lastYearDaily": [],
-              "critical": false,
-              "color": "text-secondary"
-            },
-            {
-              "name": "抽排風",
-              "pctOfTotal": "0%",
-              "lastYear": "",
-              "current": "32,193",
-              "unit": "kWh",
-              "daily": [],
-              "lastYearDaily": [],
-              "critical": false,
-              "color": "chart-4"
-            },
-            {
-              "name": "消防",
-              "pctOfTotal": "0%",
-              "lastYear": "",
-              "current": "25,101",
-              "unit": "kWh",
-              "daily": [],
-              "lastYearDaily": [],
-              "critical": false,
-              "color": "text-secondary"
             },
             {
               "name": "現場狀況回傳：視訊1",

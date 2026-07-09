@@ -244,7 +244,7 @@
               {:else}
                 <div class="cnums">
                   <span class="cnum"><em>去年同期</em><b>{b.lastYear || '—'}</b></span>
-                  <span class="cnum now"><em>現況電表</em><b>{b.current || '—'}</b></span>
+                  <span class="cnum now"><em>現況電表</em><b>{b.current || '—'}{#if b.unit}<i> {b.unit}</i>{/if}</b></span>
                 </div>
                 {#if c}
                   <div class="cchart">
@@ -519,6 +519,7 @@
   .cnum { display: flex; flex-direction: column; line-height: 1.1; }
   .cnum em { font-size: var(--text-xs); color: var(--color-text-secondary); font-style: normal; }
   .cnum b { font-size: var(--text-base); }
+  .cnum b i { font-style: normal; font-size: var(--text-xs); font-weight: 500; color: var(--color-text-secondary); margin-left: 2px; }
   .cnum.now b { color: var(--color-primary); }
   /* 現場影像回傳卡：照片鋪滿卡寬（4:3），紅「● 回傳」暗示即時來源；未接圖時底色佔位不破版 */
   .card.feedcard { width: clamp(180px, 20vw, 260px); }
