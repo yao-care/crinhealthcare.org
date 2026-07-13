@@ -77,6 +77,8 @@
   // hospital.show：限定只顯示這些區塊（power/water/oil/gas/env）；未設則全顯示。隱藏其餘後，留下的區塊靠 flex 自動撐滿。
   const show: string[] | null = hospital.show ?? null;
   const visible = (id: string) => !show || show.includes(id);
+  // 單一區塊全螢幕（如 803 show:["power"]）：無多格擠壓問題，≤1200 不套直向堆疊、維持桌面雙欄（kiosk 低解析度也能完整呈現）。
+  const solo = !!show && show.length === 1;
   const r2list = $derived(hospital.resources.filter((r) => ['water', 'oil', 'gas'].includes(r.id) && visible(r.id)));
 
   // 使用端輪播：項目過多放不下時，每 5 秒自動換頁(垂直捲動)，輪到所有項目。放得下就不動。
@@ -282,7 +284,7 @@
   </section>
 {/snippet}
 
-<div class="v2">
+<div class="v2" class:solo={solo}>
   <header class="top">
     <h1 class="ttl">🔋 平 - 戰(災) EMS · {hospital.name}</h1>
     <button type="button" class="scn" class:war onclick={() => (scenario = other.id)}>
@@ -566,26 +568,28 @@
   /* 大螢幕：五區塊 % 佈局在任何寬高都維持(kiosk 等比縮放)、單屏不捲動。
      窄螢幕(≤1200px：手機/平板/多格排版下的窄電力格)：一屏塞不下且欄位過細會壓扁疊字
      → 改為直向堆疊＋整頁可捲動、各區塊拿全寬。>1200 的寬桌面維持多格 % 佈局。 */
+  /* 註：所有堆疊規則限 .v2:not(.solo)——單一區塊全螢幕（803）不套堆疊、維持桌面雙欄，
+     kiosk 即使 ≤1200 低解析度也能完整並排呈現供給端｜使用端。多格示意院所照舊堆疊。 */
   @media (max-width: 1200px) {
-    .v2 { height: auto; min-height: 100dvh; overflow: visible; }
-    .grid { min-height: 0; }
-    .r { flex-direction: column; }
+    .v2:not(.solo) { height: auto; min-height: 100dvh; overflow: visible; }
+    .v2:not(.solo) .grid { min-height: 0; }
+    .v2:not(.solo) .r { flex-direction: column; }
     /* 供/儲(左) 與 使用端(右) 改上下堆疊 */
-    .bbody { grid-template-columns: 1fr; }
-    .leftcol { border-right: none; border-bottom: 1px dashed var(--color-border); }
+    .v2:not(.solo) .bbody { grid-template-columns: 1fr; }
+    .v2:not(.solo) .leftcol { border-right: none; border-bottom: 1px dashed var(--color-border); }
     /* 解除單屏裁切：各段落改為「內容高度」(flex:none)、不再用 flex-grow 分配已塌陷的高度
        （否則 cards 與圖會互相重疊）；不再 overflow 隱藏/捲動 */
-    .supply, .store, .cards { flex: none; overflow: visible; }
-    .tanks { flex-wrap: wrap; }
-    .tank { min-height: 150px; }
-    .tank.wide { flex: 1 1 100%; }
+    .v2:not(.solo) .supply, .v2:not(.solo) .store, .v2:not(.solo) .cards { flex: none; overflow: visible; }
+    .v2:not(.solo) .tanks { flex-wrap: wrap; }
+    .v2:not(.solo) .tank { min-height: 150px; }
+    .v2:not(.solo) .tank.wide { flex: 1 1 100%; }
     /* 儲電櫃磁磚：窄時改單欄數值格，解雙欄疊字 */
-    .tank.wide .tgrid { grid-template-columns: 1fr; }
-    .tank.wide .tside { flex: 0 0 72px; }
+    .v2:not(.solo) .tank.wide .tgrid { grid-template-columns: 1fr; }
+    .v2:not(.solo) .tank.wide .tside { flex: 0 0 72px; }
     /* 頂列（標題/切換/版本/匯出）窄螢幕允許換行，不擠爆 */
-    .top { flex-wrap: wrap; gap: 6px var(--space-sm); }
-    .ttl { width: 100%; }
+    .v2:not(.solo) .top { flex-wrap: wrap; gap: 6px var(--space-sm); }
+    .v2:not(.solo) .ttl { width: 100%; }
     /* 使用端下半的削峰填谷圖：內容高度＋給足高度才看得清 */
-    .usechart { flex: none; min-height: 300px; }
+    .v2:not(.solo) .usechart { flex: none; min-height: 300px; }
   }
 </style>
