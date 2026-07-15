@@ -290,10 +290,12 @@
     <button type="button" class="scn" class:war onclick={() => (scenario = other.id)}>
       {war ? '☀️ ' : '🚨 '}轉{other.label}
     </button>
-    <dl class="meta">
-      <div><dt>版本</dt><dd>{hospital.version || '—'}</dd></div>
-      <div><dt>更新</dt><dd>{roc(hospital.updated)}</dd></div>
-    </dl>
+    {#if !hospital.hideMeta}
+      <dl class="meta">
+        <div><dt>版本</dt><dd>{hospital.version || '—'}</dd></div>
+        <div><dt>更新</dt><dd>{roc(hospital.updated)}</dd></div>
+      </dl>
+    {/if}
     <div class="export">
       <button type="button" class="export-btn" onclick={() => (exportOpen = !exportOpen)} aria-haspopup="menu" aria-expanded={exportOpen}>📤 匯出所需資料 ▾</button>
       {#if exportOpen}

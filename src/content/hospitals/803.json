@@ -3,6 +3,7 @@
   "location": "臺中市太平區",
   "version": "v1",
   "updated": "2026-07-02",
+  "hideMeta": true,
   "liveData": true,
   "layout": "v2",
   "peakShave": true,
@@ -368,36 +369,6 @@
               "lastYearDaily": [],
               "critical": false,
               "color": "text-secondary"
-            },
-            {
-              "name": "現場狀況回傳：視訊1",
-              "img": "/feeds/803-cctv-1.jpg",
-              "caption": "",
-              "color": "chart-4",
-              "imgs": [
-                "/feeds/803-cctv-1.jpg",
-                "/feeds/658763_0.jpg",
-                "/feeds/658764_0.jpg",
-                "/feeds/658765_0.jpg",
-                "/feeds/658766_0.jpg",
-                "/feeds/658767_0.jpg",
-                "/feeds/658768_0.jpg"
-              ]
-            },
-            {
-              "name": "現場狀況回傳：視訊2",
-              "img": "/feeds/803-cctv-2.jpg",
-              "caption": "",
-              "color": "chart-4",
-              "imgs": [
-                "/feeds/803-cctv-2.jpg",
-                "/feeds/658769_0.jpg",
-                "/feeds/658770_0.jpg",
-                "/feeds/658771_0.jpg",
-                "/feeds/658772_0.jpg",
-                "/feeds/658773_0.jpg",
-                "/feeds/658774_0.jpg"
-              ]
             }
           ]
         }
@@ -819,36 +790,6 @@
                 "配置：伸縮式照明桅杆 · 場地周邊布設",
                 "供電：行動儲電櫃／發電機",
                 "功率：每支 100 W（數量待盤點）"
-              ]
-            },
-            {
-              "name": "現場狀況回傳：視訊1",
-              "img": "/feeds/803-cctv-1.jpg",
-              "caption": "",
-              "color": "chart-4",
-              "imgs": [
-                "/feeds/803-cctv-1.jpg",
-                "/feeds/658763_0.jpg",
-                "/feeds/658764_0.jpg",
-                "/feeds/658765_0.jpg",
-                "/feeds/658766_0.jpg",
-                "/feeds/658767_0.jpg",
-                "/feeds/658768_0.jpg"
-              ]
-            },
-            {
-              "name": "現場狀況回傳：視訊2",
-              "img": "/feeds/803-cctv-2.jpg",
-              "caption": "",
-              "color": "chart-4",
-              "imgs": [
-                "/feeds/803-cctv-2.jpg",
-                "/feeds/658769_0.jpg",
-                "/feeds/658770_0.jpg",
-                "/feeds/658771_0.jpg",
-                "/feeds/658772_0.jpg",
-                "/feeds/658773_0.jpg",
-                "/feeds/658774_0.jpg"
               ]
             }
           ],

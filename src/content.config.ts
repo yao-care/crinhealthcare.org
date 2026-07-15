@@ -234,6 +234,8 @@ const hospitals = defineCollection({
     updated: z.string().default(''),
     // v2 頂列「版本」欄（圖示 v1）；updated 仍存西元，顯示時轉民國
     version: z.string().default(''),
+    // v2 頂列隱藏「版本／更新」兩格（此院不顯示，其餘院所不受影響）
+    hideMeta: z.boolean().default(false),
     liveData: z.boolean().default(false),
     // 版面：stack＝上半資源/下半面板；split＝左半資源/右半面板(50%)；v2＝五大區塊(電/環境/水/油/氣)新框架
     layout: z.enum(['stack', 'split', 'v2']).default('stack'),
