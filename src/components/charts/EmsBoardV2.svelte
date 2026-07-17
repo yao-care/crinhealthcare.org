@@ -23,7 +23,7 @@
     criticalFloors?: string[];
     carbon?: { title: string; cols: string[]; rows: { label: string; cells: string[] }[] };
   }
-  interface Hospital { name: string; location?: string; version?: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; peakShave?: boolean; report?: { esg?: ReportRow[]; benchmark?: ReportRow[] }; }
+  interface Hospital { name: string; location?: string; version?: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; peakShave?: boolean; peakShaveHide?: string[]; report?: { esg?: ReportRow[]; benchmark?: ReportRow[] }; }
 
   let { hospital }: { hospital: Hospital } = $props();
   let scenario = $state('peace');
@@ -277,7 +277,7 @@
         {/if}
         <!-- 使用端下半：削峰填谷 · 需量控制（平時經濟調度；戰時不顯示）。屬使用端＝管用電需求 -->
         {#if hospital.peakShave && r.id === 'power' && !war}
-          <div class="usechart"><PeakShaveChart /></div>
+          <div class="usechart"><PeakShaveChart hide={hospital.peakShaveHide ?? []} /></div>
         {/if}
       </div>
     </div>

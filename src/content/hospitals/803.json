@@ -4,6 +4,10 @@
   "version": "v1",
   "updated": "2026-07-02",
   "hideMeta": true,
+  "peakShaveHide": [
+    "今日綠電",
+    "今日省電費"
+  ],
   "liveData": true,
   "layout": "v2",
   "peakShave": true,
@@ -51,16 +55,6 @@
             "online": true,
             "esg": "grey",
             "pct": "11.4KV 單饋線 → 醫療·綜合大樓",
-            "react": "",
-            "autonomous": false,
-            "warn": false
-          },
-          {
-            "name": "太陽能 PV",
-            "value": "規劃中",
-            "online": false,
-            "esg": "green",
-            "pct": "",
             "react": "",
             "autonomous": false,
             "warn": false
@@ -403,16 +397,6 @@
             "react": "11.4KV 單饋線 → 醫療·綜合大樓",
             "autonomous": false,
             "warn": true
-          },
-          {
-            "name": "太陽能 PV",
-            "value": "規劃中",
-            "online": false,
-            "esg": "green",
-            "pct": "",
-            "react": "",
-            "autonomous": false,
-            "warn": false
           },
           {
             "name": "柴油機 G1 600KW",

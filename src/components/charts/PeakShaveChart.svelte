@@ -5,6 +5,9 @@
   import { area, line, curveMonotoneX } from 'd3-shape';
   import { buildPeakShave, TARIFF, PEAK_SHAVE_DEMO, type PeakShaveData, type HourPoint } from '@utils/peakShaveDemo';
 
+  // hide＝要隱藏的「今日累計」chip 標籤（此院專屬，如 803 隱藏「今日綠電」「今日省電費」）
+  let { hide = [] }: { hide?: string[] } = $props();
+
   // client 時鐘：nowHour 走真實時間；phase 每 5s 微幅推進做「即時」呼吸感（界限夾制在資料層）
   let nowH = $state(PEAK_SHAVE_DEMO.nowHour);
   let phase = $state(0);
@@ -58,7 +61,7 @@
     { k: '離峰充電', v: fmt(data.kpi.chargeKwh), u: 'kWh', tone: 'chart-4' },
     { k: '尖峰放電', v: fmt(data.kpi.dischargeKwh), u: 'kWh', tone: 'alert' },
     { k: '今日省電費', v: '$' + fmt(data.kpi.saveNtd), u: '', tone: 'primary' },
-  ]);
+  ].filter((t) => !hide.includes(t.k)));
 </script>
 
 <div class="ps-embed">

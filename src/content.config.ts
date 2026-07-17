@@ -243,6 +243,8 @@ const hospitals = defineCollection({
     show: z.array(z.enum(['power', 'water', 'oil', 'gas', 'env'])).optional(),
     // v2 主看板底部加「削峰填谷 · 需量控制」即時圖區塊（PeakShaveChart，展示資料）
     peakShave: z.boolean().default(false),
+    // 削峰填谷「今日累計」chips 中要隱藏的標籤（此院不顯示，其餘院所照舊全顯示）
+    peakShaveHide: z.array(z.string()).default([]),
     // v2 環境參數（特例：不分供/儲/使、無看詳情）
     env: emsEnv.optional(),
     scenarios: z.array(z.object({ id: z.string(), label: z.string() }))
