@@ -13,7 +13,12 @@
 - D3 只能匯入子模組（d3-scale, d3-geo 等），禁止 `import * as d3` 或 `import d3`
 - Svelte islands 用 `client:visible` 或 `client:idle`，不用 `client:load`
 - 所有圖片必須有 alt text
-- CSS 色彩用 OKLCH token，不寫死 hex（favicon 除外）
+- CSS 設計規範 v2（`pnpm build` 前 `scripts/check-design.mjs` 自動守門，違規直接 fail）：
+  1. font-size 禁用 px，一律 var(--text-*) 階梯（遞延例外：PeakShaveChart.svelte 的 SVG 座標系字級，見腳本 PX_FONT_EXEMPT TODO）
+  2. 顏色（hex/rgb/hsl）只准出現在 `src/styles/variables.css`（OKLCH 為準；favicon 除外）
+  3. 禁 important 覆寫
+  4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
+  5. 統一 css 檔：src/ 下的 .css 只准 `src/styles/{variables,global}.css`，元件樣式寫 Astro/Svelte scoped `<style>`
 - 中文內容用繁體中文，不用簡體或中國用語
 - 每頁只有一個 h1，標題層級不跳級
 

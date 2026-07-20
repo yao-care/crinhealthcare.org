@@ -5,9 +5,10 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node scripts/check-design.mjs && astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "check:design": "node scripts/check-design.mjs",
     "seed:team": "tsx scripts/seed-team.ts",
     "seed:events": "tsx scripts/seed-events.ts",
     "seed:services": "tsx scripts/seed-services.ts",

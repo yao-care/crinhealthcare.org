@@ -1,0 +1,69 @@
+/* crinhealthcare.org 設計 token（全站唯一來源；2026-07-20 由 tokens.css 改名）。
+ * 規範（團隊網站共用 v2）：
+ * 1. font-size 禁用 px（一律 var(--text-*) 階梯）
+ * 2. 顏色（hex / rgb() / hsl()）只准出現在本檔（本站以 oklch 為準）
+ * 3. 禁 important 覆寫
+ * 4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
+ * 5. 統一 css 檔案：src/ 下的 .css 只准 src/styles/{variables,global}.css，
+ *    元件樣式寫 Astro/Svelte scoped <style>
+ * 守門：scripts/check-design.mjs（pnpm build 自動先跑，違規直接 fail）。 */
+
+:root {
+  /* Primary: teal medical trust — L=0.45 for WCAG AA 4.5:1 on white */
+  --color-primary: oklch(0.45 0.15 195);
+  --color-primary-light: oklch(0.75 0.10 195);
+  --color-primary-pale: oklch(0.95 0.03 195);
+
+  /* Accent: sustainability green */
+  --color-accent: oklch(0.60 0.18 155);
+  --color-accent-light: oklch(0.85 0.08 155);
+
+  /* Energy / Alert */
+  --color-energy: oklch(0.70 0.15 85);
+  --color-alert: oklch(0.65 0.20 25);
+
+  /* Neutrals */
+  --color-text: oklch(0.25 0.02 250);
+  --color-text-secondary: oklch(0.50 0.01 250);
+  --color-border: oklch(0.88 0.01 250);
+  --color-surface: oklch(0.98 0.005 250);
+  --color-paper: oklch(1.00 0 0);
+
+  /* D3 chart palette */
+  --color-chart-1: oklch(0.45 0.15 195);
+  --color-chart-2: oklch(0.60 0.18 155);
+  --color-chart-3: oklch(0.70 0.15 85);
+  --color-chart-4: oklch(0.65 0.12 250);
+  --color-chart-5: oklch(0.60 0.15 320);
+
+  /* Layout */
+  --container-max: 1200px;
+  --container-pad: clamp(1rem, 3vw, 2rem);
+
+  /* Radius & Shadow */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.08);
+  --shadow-md: 0 4px 12px oklch(0 0 0 / 0.12);
+
+  /* Transitions */
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 200ms ease-out;
+
+  /* ── 2026-07-20 守門遷移：自元件抽出的硬編色（hex 精確轉 oklch，視覺不變） ── */
+  --color-badge-blue-bg: oklch(0.953 0.021 262);    /* was #e8f0fe */
+  --color-badge-blue-text: oklch(0.505 0.212 263);  /* was #1a56db */
+  --color-badge-amber-bg: oklch(0.962 0.058 96);    /* was #fef3c7 */
+  --color-badge-amber-text: oklch(0.473 0.125 46);  /* was #92400e */
+  --color-form-required: oklch(0.577 0.215 27);     /* was #dc2626 */
+  --color-notice-bg: oklch(0.987 0.021 95);         /* was #fffbeb */
+  --color-notice-border: oklch(0.924 0.115 96);     /* was #fde68a */
+  --color-notice-accent: oklch(0.666 0.157 58);     /* was #d97706 */
+  --color-notice-text: oklch(0.414 0.105 46);       /* was #78350f */
+  --color-type-news-bg: oklch(0.951 0.025 237);     /* was #e0f2fe */
+  --color-type-news-text: oklch(0.500 0.119 243);   /* was #0369a1 */
+  --color-type-insights-bg: oklch(0.982 0.018 156); /* was #f0fdf4 */
+  --color-type-insights-text: oklch(0.527 0.137 150); /* was #15803d */
+  --color-illus-trunk: oklch(0.571 0.053 73);       /* was #8b7355（404 插圖樹幹） */
+}

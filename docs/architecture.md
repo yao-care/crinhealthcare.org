@@ -11,7 +11,7 @@ crinhealthcare.org 的技術架構與已實作功能總覽。
 | Framework | Astro 5 (SSG) | Static Site Generation, `output: 'static'` |
 | Interactive | Svelte 5 | Islands architecture via `@astrojs/svelte` |
 | Charts | D3 submodules | d3-scale, d3-geo, d3-shape, d3-selection 等 |
-| Colors | OKLCH CSS tokens | 定義在 `src/styles/tokens.css` |
+| Colors | OKLCH CSS tokens | 定義在 `src/styles/variables.css`（2026-07-20 由 tokens.css 改名） |
 | Content | Astro Content Collections | 6 collections with Zod validation |
 | Search | Pagefind | Build-time indexing, `npx pagefind --site dist` |
 | OG Images | Satori + Sharp | Build-time SVG-to-PNG (`src/pages/og/[...slug].png.ts`) |

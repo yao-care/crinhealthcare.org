@@ -172,7 +172,7 @@
                 dominant-baseline="central"
                 font-size="16"
                 fill="var(--color-paper)"
-              >&#10003;</text>
+              >✓</text>
             {/if}
           {/each}
         {/each}

@@ -12,7 +12,7 @@
 | Framework | Astro 5 (SSG) |
 | Interactive Islands | Svelte 5 |
 | Charts | D3 submodules (d3-scale, d3-geo, d3-shape 等) |
-| CSS | OKLCH tokens (`src/styles/tokens.css`) |
+| CSS | OKLCH tokens (`src/styles/variables.css`)，CI 設計守門 `scripts/check-design.mjs` |
 | Content | Astro Content Collections + Zod validation |
 | Search | Pagefind (build-time) |
 | OG Images | Satori + Sharp (build-time PNG) |
@@ -213,9 +213,8 @@ crinhealthcare.org/
     │   └── og/
     │       └── [...slug].png.ts  # OG image auto-generation
     ├── styles/
-    │   ├── tokens.css            # OKLCH colour + layout tokens
-    │   ├── typography.css
-    │   └── global.css
+    │   ├── variables.css         # 設計 token 唯一來源（OKLCH 色彩+layout；守門規則見檔頭）
+    │   └── global.css            # reset + typography tokens + 全站基礎樣式
     └── utils/
         ├── metrics.ts            # Build-time metrics aggregation
         ├── og-template.ts        # OG image SVG template

@@ -58,10 +58,13 @@ UNSPLASH_ACCESS_KEY=...
 - 使用 `client:visible` 或 `client:idle`
 - **禁止** `client:load`（影響首屏效能）
 
-### CSS
+### CSS（設計規範 v2，`pnpm build` 前 `scripts/check-design.mjs` 自動守門）
 
-- 色彩使用 OKLCH token（定義在 `src/styles/tokens.css`）
-- 禁止寫死 hex/rgb 值（favicon 除外）
+1. font-size 禁用 px（一律 var(--text-*) 階梯；例外清單見 check-design.mjs 的 PX_FONT_EXEMPT）
+2. 顏色（hex/rgb/hsl）只准出現在 `src/styles/variables.css`（本站以 OKLCH 為準；favicon 除外）
+3. 禁 important 覆寫
+4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
+5. 統一 css 檔：src/ 下的 .css 只准 `src/styles/{variables,global}.css`，元件樣式寫 scoped `<style>`
 
 ### Content Schema
 

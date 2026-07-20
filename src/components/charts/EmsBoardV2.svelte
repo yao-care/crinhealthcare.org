@@ -174,7 +174,7 @@
         <div class="seg supply">
           <div class="seg-h">🔌 供給端 <small>{war ? '誰還在供·能否自主' : '誰在供'}</small></div>
           {#each d.supply as s}
-            <div class="srow" class:off={!s.online} class:abn={isSupplyAbnormal(s)} style="border-left-color:{tone(ESG[s.esg] ?? 'border')}">
+            <div class="srow" class:off={!s.online} class:abn={isSupplyAbnormal(s)} style="border-left-color:{isSupplyAbnormal(s) ? 'var(--color-alert)' : tone(ESG[s.esg] ?? 'border')}">
               <span class="nm">{s.name}{#if war && s.autonomous}<span class="auto">自主</span>{/if}</span>
               <span class="vv" class:inuse={supplyInUse(s)} class:vlive={s.live === 'ess' && ess?.status === 'live'} class:vdemo={s.live === 'ess' && ess?.status === 'demo'}><span class="fit" use:fitText>{supplyText(s)}{#if war && s.react}<small> {s.react}</small>{:else if !war && s.pct}<small> {s.pct}</small>{/if}</span></span>
             </div>
@@ -440,8 +440,10 @@
 
   .srow { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); padding: 2px 6px; border-left: 5px solid var(--color-border); margin-bottom: 2px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: color-mix(in oklch, var(--color-accent) 10%, transparent); }
   .srow.off { background: var(--color-surface); color: var(--color-text-secondary); }
-  /* 供給端異常 → 紅底（@utils/ems isSupplyAbnormal） */
-  .srow.abn { background: color-mix(in oklch, var(--color-alert) 22%, var(--color-paper)); border-left-color: var(--color-alert) !important; color: var(--color-text); }
+  /* 供給端異常 → 紅底（@utils/ems isSupplyAbnormal）。
+     border-left-color 由模板 inline style 條件給值（abn 時 var(--color-alert)），
+     取代原 important 覆寫（守門規則 3 禁 important，行為等價）。 */
+  .srow.abn { background: color-mix(in oklch, var(--color-alert) 22%, var(--color-paper)); color: var(--color-text); }
   .srow.abn .vv { color: var(--color-alert); }
   .srow .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .srow .nm .auto { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0 4px; margin-left: 5px; }
