@@ -19,6 +19,7 @@
   3. 禁 important 覆寫
   4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
   5. 統一 css 檔：src/ 下的 .css 只准 `src/styles/{variables,global}.css`，元件樣式寫 Astro/Svelte scoped `<style>`
+- 內容守門（去 AI 味，`pnpm build` 前 `scripts/check-content.mjs` 自動守門，設計守門之後、`astro build` 之前）：掃 `src/**/*.md(x)`，強 AI 指紋單一命中即擋、軟訊號跨 ≥3 層升級擋；**預設只掃相對 `origin/main` 變動檔（grandfather 存量）**，抓不到 git base 時掃 0 檔 exit 0。自檢：`pnpm check:content`／`pnpm check:content:all`（全站盤點不擋）／`node scripts/check-content.mjs <file>`。改法見「文案去 AI 味」檢查表。
 - 中文內容用繁體中文，不用簡體或中國用語
 - 每頁只有一個 h1，標題層級不跳級
 

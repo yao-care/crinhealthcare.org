@@ -13,7 +13,7 @@
 | Interactive Islands | Svelte 5 |
 | Charts | D3 submodules (d3-scale, d3-geo, d3-shape 等) |
 | CSS | OKLCH tokens (`src/styles/variables.css`)，CI 設計守門 `scripts/check-design.mjs` |
-| Content | Astro Content Collections + Zod validation |
+| Content | Astro Content Collections + Zod validation，CI 內容守門（去 AI 味）`scripts/check-content.mjs` |
 | Search | Pagefind (build-time) |
 | OG Images | Satori + Sharp (build-time PNG) |
 | Deploy | GitHub Pages via GitHub Actions |
@@ -72,9 +72,16 @@ pnpm tsx scripts/fetch-images.ts --collection news --new-only  # 僅新增的新
 ```bash
 pnpm install
 pnpm dev           # localhost:4321
-pnpm build         # build to dist/
+pnpm build         # 設計守門 → 內容守門（去 AI 味）→ build to dist/
 pnpm preview       # preview build
+pnpm check:content       # 內容守門：只掃相對 origin/main 變動的 .md/.mdx（grandfather 存量）
+pnpm check:content:all   # 內容守門：全站盤點（永遠 exit 0，供人工普查）
 ```
+
+### 內容守門（去 AI 味）
+
+`scripts/check-content.mjs` 於 `pnpm build` 中（設計守門之後、`astro build` 之前）自動掃 `src/**/*.md(x)`：
+強 AI 指紋單一命中即擋、軟訊號跨 ≥3 層升級擋。**預設只掃相對 `origin/main` 的變動檔（grandfather 存量，不追殺舊內容）**；抓不到 git base（CI 淺 checkout）時掃 0 檔並 `exit 0`，永不誤擋。改法見團隊「文案去 AI 味」檢查表。
 
 ## Project Structure
 

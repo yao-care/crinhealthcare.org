@@ -66,6 +66,13 @@ UNSPLASH_ACCESS_KEY=...
 4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
 5. 統一 css 檔：src/ 下的 .css 只准 `src/styles/{variables,global}.css`，元件樣式寫 scoped `<style>`
 
+### 內容守門（去 AI 味，`pnpm build` 前 `scripts/check-content.mjs` 自動守門）
+
+- 掃 `src/**/*.md(x)`：強 AI 指紋（如「不是X而是Y」「值得注意的是」「隨著…的發展」「至關重要」「研究顯示」等）單一命中即擋 build；軟訊號（賦能/破折號下定義/首先其次最後/拔高收尾…）分四層累積，同一檔跨 ≥3 層升級為擋。
+- **預設只掃相對 `origin/main` 的變動檔（grandfather 存量，不追殺既有內容）**；抓不到 git base 時掃 0 檔並 `exit 0`，永不誤擋。
+- 產文後自檢：`pnpm check:content`（變動檔）／`pnpm check:content:all`（全站盤點，永不 exit 1）／`node scripts/check-content.mjs <file>`（單檔）。
+- 改法見團隊「文案去 AI 味」檢查表：AI 出初稿、人味靠最後 20% 手動微調。
+
 ### Content Schema
 
 - Schema 定義在 `src/content.config.ts`
