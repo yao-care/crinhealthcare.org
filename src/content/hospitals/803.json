@@ -44,7 +44,7 @@
             "value": "供電中",
             "online": true,
             "esg": "grey",
-            "pct": "22.8KV 雙迴路 → 急重症大樓",
+            "pct": "22.8KV → 急重症大樓",
             "react": "",
             "autonomous": false,
             "warn": false
@@ -54,7 +54,7 @@
             "value": "供電中",
             "online": true,
             "esg": "grey",
-            "pct": "11.4KV 單饋線 → 醫療·綜合大樓",
+            "pct": "11.4KV → 醫療·綜合大樓",
             "react": "",
             "autonomous": false,
             "warn": false
@@ -332,17 +332,6 @@
               "color": "chart-4"
             },
             {
-              "name": "車輛",
-              "pctOfTotal": "1%",
-              "lastYear": "",
-              "current": "39,513",
-              "unit": "kWh",
-              "daily": [],
-              "lastYearDaily": [],
-              "critical": false,
-              "color": "text-secondary"
-            },
-            {
               "name": "抽排風",
               "pctOfTotal": "0%",
               "lastYear": "",
@@ -384,7 +373,7 @@
             "online": false,
             "esg": "grey",
             "pct": "",
-            "react": "22.8KV 雙迴路 → 急重症大樓",
+            "react": "22.8KV → 急重症大樓",
             "autonomous": false,
             "warn": true
           },
@@ -394,7 +383,7 @@
             "online": false,
             "esg": "grey",
             "pct": "",
-            "react": "11.4KV 單饋線 → 醫療·綜合大樓",
+            "react": "11.4KV → 醫療·綜合大樓",
             "autonomous": false,
             "warn": true
           },
