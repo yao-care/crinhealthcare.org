@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>EMS 看板維護</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- 登入 -->
+  <section id="login" class="card login hidden">
+    <h1>🔋 EMS 看板維護</h1>
+    <p class="muted">請以院所帳號登入。登入後只能編輯貴院看板。</p>
+    <form id="loginForm">
+      <label>帳號<input name="username" autocomplete="username" required /></label>
+      <label>密碼<input name="password" type="password" autocomplete="current-password" required /></label>
+      <button type="submit">登入</button>
+      <p id="loginErr" class="err"></p>
+    </form>
+  </section>
+
+  <!-- 編輯器 -->
+  <section id="editor" class="editor hidden">
+    <header class="topbar">
+      <div><strong id="hName"></strong> <span class="muted" id="hId"></span></div>
+      <div class="actions">
+        <button id="reloadBtn" type="button" class="ghost">重新載入</button>
+        <button id="saveBtn" type="button" class="primary">送出並上線</button>
+        <button id="logoutBtn" type="button" class="ghost">登出</button>
+      </div>
+    </header>
+    <p id="saveMsg" class="savemsg"></p>
+    <div class="hint">改好欄位後按「送出並上線」。送出會寫入並自動部署，畫面約 1–2 分鐘後更新。結構固定、只改內容，不必懂 JSON。</div>
+    <form id="formRoot" class="formroot"></form>
+  </section>
+
+  <div id="boot" class="card"><p class="muted">載入中…</p></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

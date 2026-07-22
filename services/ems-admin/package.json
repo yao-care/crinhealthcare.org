@@ -1,0 +1,15 @@
+{
+  "name": "ems-admin",
+  "version": "1.0.0",
+  "description": "EMS 看板維護表單服務（登入 → 載入 hospital JSON → 結構化編輯 → 送出即 git push 上線）",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js",
+    "hash": "node scripts/hash-password.mjs",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}
