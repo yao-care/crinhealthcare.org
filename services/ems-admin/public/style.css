@@ -23,10 +23,22 @@ button.ghost:hover { background: var(--bg); }
 .editor { max-width: 1000px; margin: 0 auto; padding: 0 16px 80px; }
 .topbar { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; background: var(--bg); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .topbar .actions { display: flex; gap: 8px; }
-.savemsg { min-height: 1.4em; font-weight: 600; }
-.savemsg.ok { color: var(--ok); }
-.savemsg.err { color: var(--err); }
 .hint { background: #eef6f2; border: 1px solid #cfe6db; border-radius: 6px; padding: 8px 12px; color: #2c4a3e; font-size: 13px; margin: 10px 0 16px; }
+
+/* 固定 toast：不管捲到哪都看得到送出/部署狀態 */
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); max-width: min(560px, 92vw); z-index: 50;
+  background: #223; color: #fff; padding: 12px 18px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.25);
+  font-weight: 600; white-space: pre-line; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; text-align: center; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.toast.busy { background: #1f3a5f; }
+.toast.busy::before { content: "⏳ "; }
+.toast.ok { background: var(--primary-d); }
+.toast.err { background: #7a1f1f; }
+.toast.warn { background: #7a5a12; }
+.toast a { color: #fff; text-decoration: underline; font-weight: 800; margin-left: 6px; white-space: nowrap; }
+.spin { display: inline-block; animation: sp 1s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+button:disabled { opacity: .55; cursor: progress; }
 
 /* 遞迴表單 */
 fieldset { border: 1px solid var(--border); border-radius: var(--radius); margin: 0 0 14px; padding: 10px 14px 14px; background: var(--paper); }

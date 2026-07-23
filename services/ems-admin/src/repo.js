@@ -50,7 +50,7 @@ export async function saveHospital(hid, dataObj, meta) {
     await writeFile(path, json, 'utf8');
 
     const status = await git(['status', '--porcelain', '--', `${HOSP_DIR}/${hid}.json`]);
-    if (!status) return { commit: null, pushed: false, unchanged: true };
+    if (!status) return { commit: null, sha: null, pushed: false, unchanged: true };
 
     const who = meta?.who || 'ems-admin';
     const msg = `chore(ems): ${hid} 維護表單更新（${who}）`;
@@ -58,9 +58,9 @@ export async function saveHospital(hid, dataObj, meta) {
       'add', '--', `${HOSP_DIR}/${hid}.json`]);
     await git(['-c', `user.name=${config.gitAuthorName}`, '-c', `user.email=${config.gitAuthorEmail}`,
       'commit', '-m', msg]);
-    const commit = await git(['rev-parse', '--short', 'HEAD']);
+    const sha = await git(['rev-parse', 'HEAD']);          // 完整 40 碼：GitHub API head_sha 過濾需要完整 SHA
     await git(['push', 'origin', config.gitBranch]);
-    return { commit, pushed: true, unchanged: false };
+    return { commit: sha.slice(0, 7), sha, pushed: true, unchanged: false };
   });
 }
 

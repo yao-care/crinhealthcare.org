@@ -30,10 +30,11 @@
         <button id="logoutBtn" type="button" class="ghost">登出</button>
       </div>
     </header>
-    <p id="saveMsg" class="savemsg"></p>
-    <div class="hint">改好欄位後按「送出並上線」。送出會寫入並自動部署，畫面約 1–2 分鐘後更新。結構固定、只改內容，不必懂 JSON。</div>
+    <div class="hint">改好欄位後按「送出並上線」。送出後按鈕會鎖住並自動等待部署完成（約 1–2 分鐘），確認看板更新後才顯示「已完成」。結構固定、只改內容，不必懂 JSON。</div>
     <form id="formRoot" class="formroot"></form>
   </section>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <div id="boot" class="card"><p class="muted">載入中…</p></div>
 

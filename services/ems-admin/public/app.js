@@ -150,8 +150,18 @@ function renderForm(data) {
   root.append(renderObjectFields(data, 0));
 }
 
+// ── 固定 toast（送出/部署狀態，不管捲到哪都看得到）──
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function toast(msg, kind) { const t = $('toast'); t.className = 'toast show ' + (kind || ''); t.textContent = msg; }
+function toastLink(msg, url) {
+  const t = $('toast'); t.className = 'toast show ok'; t.textContent = msg + ' ';
+  t.append(el('a', { href: url, target: '_blank', rel: 'noopener', text: '開啟看板 ↗' }));
+}
+function toastHide() { $('toast').className = 'toast'; }
+
 // ── 流程 ──
 let DATA = null;
+let busy = false;   // 送出+部署進行中：鎖住按鈕、忽略重複點擊
 
 function showLogin(msg) { $('boot').classList.add('hidden'); $('editor').classList.add('hidden'); $('login').classList.remove('hidden'); if (msg) $('loginErr').textContent = msg; }
 function showEditor(me) {
@@ -159,25 +169,47 @@ function showEditor(me) {
   $('hName').textContent = me.name || ''; $('hId').textContent = `（${me.hid}）`;
 }
 
-async function loadHospital() {
-  $('saveMsg').textContent = '';
+async function loadHospital(opts = {}) {
   const { status, body } = await api('/api/hospital');
   if (status === 401) return showLogin('登入逾時，請重新登入');
-  if (!body?.ok) { $('saveMsg').textContent = `載入失敗：${body?.error || status}`; $('saveMsg').className = 'savemsg err'; return; }
-  DATA = body.data;
-  renderForm(DATA);
+  if (!body?.ok) { toast('載入失敗：' + (body?.error || status), 'err'); return false; }
+  DATA = body.data; renderForm(DATA);
+  if (opts.notify) toast('已載入最新內容 ✓', 'ok');
+  return true;
 }
 
+function endSave() { busy = false; $('saveBtn').disabled = false; $('reloadBtn').disabled = false; }
+
 async function save() {
-  const btn = $('saveBtn'); btn.disabled = true;
-  const msg = $('saveMsg'); msg.className = 'savemsg'; msg.textContent = '送出中…';
-  const { status, body } = await api('/api/hospital', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ems-admin' }, body: JSON.stringify({ data: DATA }) });
-  btn.disabled = false;
-  if (status === 401) return showLogin('登入逾時，請重新登入');
-  if (status === 422) { msg.className = 'savemsg err'; msg.textContent = '驗證未過：\n' + (body.details || []).join('\n'); return; }
-  if (!body?.ok) { msg.className = 'savemsg err'; msg.textContent = `送出失敗：${body?.message || body?.error || status}`; return; }
-  msg.className = 'savemsg ok';
-  msg.textContent = body.unchanged ? '沒有變更（內容與線上相同）' : `已送出並上線（commit ${body.commit}）。畫面約 1–2 分鐘後更新。`;
+  if (busy) return;                       // 部署進行中，忽略重複點擊
+  busy = true; $('saveBtn').disabled = true; $('reloadBtn').disabled = true;
+  toast('送出中…', 'busy');
+  let res;
+  try {
+    res = await api('/api/hospital', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ems-admin' }, body: JSON.stringify({ data: DATA }) });
+  } catch { toast('送出失敗（網路問題），請再試一次', 'err'); return endSave(); }
+  const { status, body } = res;
+  if (status === 401) { endSave(); return showLogin('登入逾時，請重新登入'); }
+  if (status === 422) { toast('驗證未過，未送出：\n' + (body.details || []).join('\n'), 'err'); return endSave(); }
+  if (!body?.ok) { toast('送出失敗：' + (body?.message || body?.error || status), 'err'); return endSave(); }
+  if (body.unchanged) { toast('內容與線上相同，未變更', 'ok'); return endSave(); }
+  await waitDeploy(body.commit, body.sha);
+  endSave();
+}
+
+async function waitDeploy(commit, sha) {
+  const t0 = Date.now(), MAX = 6 * 60 * 1000;
+  toast(`已送出（${commit}）。部署中… 請勿關閉視窗`, 'busy');
+  while (Date.now() - t0 < MAX) {
+    await sleep(9000);
+    let st; try { const r = await api('/api/deploy?commit=' + encodeURIComponent(sha)); st = r.body; } catch { continue; }
+    const secs = Math.round((Date.now() - t0) / 1000);
+    if (st?.phase === 'failed') { toast(`⚠️ 部署失敗（${commit}）：資料已存，但看板未更新，請聯絡維護人員`, 'err'); return; }
+    if (st?.phase === 'done') { toastLink('✅ 已完成！看板已更新上線。', st.url); return; }
+    const label = st?.phase === 'propagating' ? '部署完成，等待生效' : st?.phase === 'pending' ? '排入部署佇列' : '部署中';
+    toast(`${label}… 已 ${secs} 秒（約需 1–2 分鐘），請勿關閉視窗`, 'busy');
+  }
+  toast('部署較久尚未確認，資料已送出，請 1–2 分鐘後直接查看看板頁。', 'warn');
 }
 
 async function boot() {
@@ -195,8 +227,8 @@ $('loginForm').addEventListener('submit', async (e) => {
   else if (status === 401 && body?.error === 'locked') $('loginErr').textContent = '嘗試次數過多，請稍後再試';
   else $('loginErr').textContent = '帳號或密碼錯誤';
 });
-$('reloadBtn').addEventListener('click', loadHospital);
+$('reloadBtn').addEventListener('click', () => { if (!busy) { toastHide(); loadHospital({ notify: true }); } });
 $('saveBtn').addEventListener('click', save);
-$('logoutBtn').addEventListener('click', async () => { await api('/api/logout', { method: 'POST', headers: { 'X-Requested-With': 'ems-admin' } }); location.reload(); });
+$('logoutBtn').addEventListener('click', async () => { if (busy) return; await api('/api/logout', { method: 'POST', headers: { 'X-Requested-With': 'ems-admin' } }); location.reload(); });
 
 boot();

@@ -8,6 +8,7 @@ import { login } from './accounts.js';
 import { signToken, setSessionCookie, clearSessionCookie, readSession } from './auth.js';
 import { validateHospital } from './schema.js';
 import { readHospital, saveHospital, hospitalExists } from './repo.js';
+import { deployStatus } from './deploy.js';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -76,6 +77,13 @@ const server = createServer(async (req, res) => {
 
       if (req.method === 'GET' && pathname === '/api/me') {
         return json(res, 200, { ok: true, username: sess.sub, hid: sess.hid, name: sess.name });
+      }
+
+      // 部署狀態：輪詢某 commit 的 GitHub Pages 部署是否完成、看板頁是否活著
+      if (req.method === 'GET' && pathname === '/api/deploy') {
+        const sha = new URL(req.url, 'http://x').searchParams.get('commit') || '';
+        try { const st = await deployStatus(sha, sess.hid); return json(res, 200, { ok: true, ...st }); }
+        catch (e) { return json(res, 200, { ok: true, phase: 'unknown', detail: String(e.message || e) }); }
       }
 
       // 讀取自家院所現況
