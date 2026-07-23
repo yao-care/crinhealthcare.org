@@ -35,7 +35,8 @@ async function serveStatic(req, res) {
   if (!full.startsWith(PUB)) { res.writeHead(403); return res.end('forbidden'); }
   try {
     const buf = await readFile(full);
-    res.writeHead(200, { 'Content-Type': MIME[extname(full)] || 'application/octet-stream' });
+    // 內部工具、檔案小且常更新：一律不快取，確保使用者永遠拿到最新表單程式
+    res.writeHead(200, { 'Content-Type': MIME[extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
     res.end(buf);
   } catch { res.writeHead(404); res.end('not found'); }
 }
