@@ -8,6 +8,7 @@
     "build": "node scripts/check-design.mjs && node scripts/check-content.mjs && astro build",
     "preview": "astro preview",
     "check": "astro check",
+    "build:offline": "node scripts/build-offline.mjs",
     "check:design": "node scripts/check-design.mjs",
     "check:content": "node scripts/check-content.mjs",
     "check:content:all": "node scripts/check-content.mjs --all",

@@ -32,5 +32,6 @@
 | v2 五區塊看板套用到各醫院的 SOP（供/儲/使、看詳情、鐵律：只放真實資料） | [`docs/ems-v2_sop.md`](docs/ems-v2_sop.md) |
 | **削峰填谷 · 需量控制**即時圖：流程、圖表判讀、電價/時段、可調旋鈕、接真值(三態)、RWD 與已知坑 | [`docs/ems-peak-shave.md`](docs/ems-peak-shave.md) |
 | 儲能櫃 Modbus 即時三態（loading/live/demo）formatter 與 scenario 覆蓋 | `src/utils/essLive.svelte.ts` |
+| **離線單檔看板**（給客戶一個 HTML、雙擊即看、零網路）：`pnpm build:offline <醫院>` | [`docs/offline-bundle.md`](docs/offline-bundle.md) |
 
 改動後一律：`pnpm build`＋大螢幕/手機截圖驗證＋開 console 確認零 pageerror＋情境切換正常 → commit＋push main → **確認 GitHub Pages deploy success**（`gh run watch`）。
