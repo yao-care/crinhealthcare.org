@@ -17,6 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -159,7 +160,12 @@ const dataUri = (file) => {
 const fontStat = { kept: 0, dropped: 0, before: 0, after: 0 };
 
 // 用 fontTools 把單一子集檔再裁到「實際用到的字」；失敗就退回原檔（只是比較大，不影響正確性）
-const CACHE = path.join(OUT_DIR, '.fontcache');
+// 快取以「用到的字」的雜湊當目錄名 —— 醫院資料改了字集就變，不能沿用舊快取（會缺字）
+const charsHash = createHash('sha1')
+  .update([...usedChars].sort((a, b) => a - b).join(','))
+  .digest('hex')
+  .slice(0, 12);
+const CACHE = path.join(OUT_DIR, `.fontcache-${charsHash}`);
 const charsFile = path.join(OUT_DIR, '.chars.txt');
 let charsWritten = false;
 function subsetFont(file) {
