@@ -28,13 +28,18 @@
   const hours = $derived(sum?.hours ?? 0);
 
   const kw1 = (w: number) => (w / 1000).toFixed(2);
-  const qtySum = (l: Load) => l.parts.reduce((s, p) => s + p.qty, 0);
-  // 各區用電：同一份 parts 依 zone 加總，與圖上的徽章同源（不會對不起來）
-  const zoneRows = $derived(
-    [...zoneW.entries()]
+  // 原廠以整場定額計的項目（flat）不逐台，數量欄顯示「—」
+  const qtyText = (l: Load) => (l.parts.every((p) => p.flat) ? '—' : String(l.parts.reduce((s, p) => s + p.qty, 0)));
+  // 各區用電：同一份 parts 依 zone 加總，與圖上的徽章同源（不會對不起來）；
+  // 未歸區的整場定額另立一列，四捨五入前就先對齊總負載，不會有「加起來少一截」
+  const zoneRows = $derived.by(() => {
+    const rows = [...zoneW.entries()]
       .map(([id, w]) => ({ label: plan.zones.find((z) => z.id === id)?.label ?? id, w }))
-      .sort((a, b) => b.w - a.w),
-  );
+      .sort((a, b) => b.w - a.w);
+    const rest = (sum?.totalKw ?? 0) * 1000 - rows.reduce((s, r) => s + r.w, 0);
+    if (rest > 0.5) rows.push({ label: '全場共用（抽吸·備用·裕度）', w: rest });
+    return rows;
+  });
 </script>
 
 <div class="warplan">
@@ -106,13 +111,13 @@
                 {l.name}
                 <small>{l.parts.map((p) => `${p.n} ×${p.qty}（${p.w} W）`).join(' · ')}</small>
               </th>
-              <td class="q">{qtySum(l)}</td>
+              <td class="q">{qtyText(l)}</td>
               <td class="k">{kw1(loadW(l))} kW</td>
             </tr>
           {/each}
           <tr class="tot">
-            <th scope="row">總負載</th>
-            <td class="q">{loads.reduce((s, l) => s + qtySum(l), 0)}</td>
+            <th scope="row">平均總負載</th>
+            <td class="q"></td>
             <td class="k">{totalKw.toFixed(2)} kW</td>
           </tr>
         </tbody>
@@ -128,7 +133,9 @@
       {/if}
 
       <div class="margin">
-        <div class="mh">設備裕度</div>
+        <!-- 「設備裕度」一詞在原廠負載表裡是保留負載（算在總負載內），這裡講的是儲電櫃還剩多少出力，
+             兩者不同 → 這塊叫「供電餘裕」，避免同名不同義 -->
+        <div class="mh">供電餘裕</div>
         <div class="bar"><i style="width:{Math.min(100, loadPct)}%"></i></div>
         <div class="mrow"><span>負載率</span><b>{loadPct.toFixed(1)}%</b></div>
         <div class="mrow big"><span>可再承接</span><b>{marginKw.toFixed(1)} kW</b></div>

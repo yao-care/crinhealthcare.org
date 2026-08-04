@@ -85,7 +85,7 @@ export function envSeverity(
 // 唯一計算源：JSON 只存「儲電櫃規格」與「各設備台數×每台瓦數」，
 // 總負載／各區用電／負載率／裕度／續航一律由這裡算，看板與配置圖共用同一份結果
 // （分開各算會出現「配置圖 69 小時、五區塊撐 —」這種自打嘴巴）。
-export interface WarPowerPart { zone?: string; n?: string; qty: number; w: number }
+export interface WarPowerPart { zone?: string; n?: string; qty: number; w: number; flat?: boolean }
 export interface WarPowerLoad { name: string; parts: WarPowerPart[] }
 export interface WarPowerCabinet { name: string; kwh: number; kw: number; out?: string; loc?: string; state?: string }
 export interface WarPower { title?: string; note?: string; usablePct?: number; cabinets: WarPowerCabinet[]; loads: WarPowerLoad[] }

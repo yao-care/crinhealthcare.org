@@ -229,6 +229,7 @@ const emsScenario = z.object({
         zone: z.string().default(''),       // 對應 plan.zones[].id
         n: z.string().default(''),
         qty: z.number(), w: z.number(),     // 台數 × 每台瓦數
+        flat: z.boolean().default(false),   // 原廠以整場定額計（不逐台）→ 數量欄顯示「—」
       })).default([]),
     })).default([]),
   }).optional(),
