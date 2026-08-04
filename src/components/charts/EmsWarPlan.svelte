@@ -40,6 +40,17 @@
   const sharedW = $derived(
     (sum?.totalKw ?? 0) * 1000 - [...zoneW.values()].reduce((s, w) => s + w, 0),
   );
+  // 各區的機動電源（儲電行李箱／氫能拉桿箱…）：圖上該區掛 🔋 標記，一眼看出誰有專屬電源
+  const zoneMobile = $derived.by(() => {
+    const m = new Map<string, string[]>();
+    for (const x of power?.mobile ?? []) {
+      if (!x.zone) continue;
+      const list = m.get(x.zone) ?? [];
+      list.push(`${x.name} ×${x.qty ?? 1}`);
+      m.set(x.zone, list);
+    }
+    return m;
+  });
   // 續航時間軸刻度：至少 5 天，續航更久就把軸拉長（不讓長條頂滿看不出還有多少）
   const tlMax = $derived(Math.max(5, Math.ceil(hours / 24) + 1));
   const tlTicks = $derived(Array.from({ length: tlMax + 1 }, (_, i) => i));
@@ -68,6 +79,7 @@
           >
             <span class="zl">{z.label}{#if z.star}<i class="star">★</i>{/if}</span>
             {#if z.sub}<span class="zs">{z.sub}</span>{/if}
+            {#if zoneMobile.get(z.id)}<span class="zmob" title={zoneMobile.get(z.id)?.join(' · ')}>🔋 {zoneMobile.get(z.id)?.length === 1 ? zoneMobile.get(z.id)?.[0] : zoneMobile.get(z.id)?.join(' · ')}</span>{/if}
             {#if w > 0}<span class="zkw">⚡ {kw1(w)} kW</span>{/if}
           </div>
         {/each}
@@ -102,6 +114,7 @@
             <div class="cr">可放電 {usablePct}% ／ 額定 {c.kwh} kWh</div>
             <div class="chip">輸出 {c.kw} kW</div>
             <div class="cs">{c.state}</div>
+            {#if c.loc}<div class="cr cloc">📍 {c.loc}</div>{/if}
           </div>
         {/each}
       </div>
@@ -110,7 +123,7 @@
         <div class="mob">
           <span class="mobh">現場機動電源</span>
           {#each power.mobile as m}
-            <span class="mobi">{m.name} <b>×{m.qty ?? 1}</b>{#if m.spec}<em>{m.spec}</em>{:else}<em class="todo">規格待補</em>{/if}</span>
+            <span class="mobi">{m.name} <b>×{m.qty ?? 1}</b>{#if m.use}<em>→ {m.use}</em>{/if}{#if m.spec}<em>{m.spec}</em>{:else}<em class="todo">規格待補</em>{/if}</span>
           {/each}
         </div>
       {/if}
@@ -118,7 +131,6 @@
         <span><i class="sw-use"></i>可放電 <b>{usableKwh} kWh</b></span>
         <span><i class="sw-rsv"></i>保留 <b>{capKwh - usableKwh} kWh</b></span>
         <span>合計額定 <b>{capKwh} kWh</b> · 輸出 <b>{capKw} kW</b></span>
-        <span class="cloc">📍 {cabs[0]?.loc ?? ''}</span>
       </div>
 
       <!-- 逐項負載：長條依用電比例（前三高走站上金/銀/銅配色），數字仍在右側 -->
@@ -194,12 +206,13 @@
   /* 畫布：固定長寬比，等比塞進可用空間（kiosk 大螢幕與筆電都不裁切） */
   .canvas { position: relative; aspect-ratio: 1000 / 660; width: 100%; max-height: 100%; max-width: 100%; margin: 0 auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); container-type: size; }
 
-  .zone { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-align: center; border: 2px solid var(--color-border); border-radius: var(--radius-sm); padding: 2px 4px; overflow: hidden; }
+  .zone { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; text-align: center; border: 2px solid var(--color-border); border-radius: var(--radius-sm); padding: 1px 3px; overflow: hidden; }
   /* 區塊字級跟著「畫布」縮（cqw），不是跟著視窗（vw）——兩者脫鉤時，
      筆電視窗下畫布變小、字沒跟著小，區塊就會爆字（1440 實測過）。 */
   .zl { font-size: clamp(8px, 1.25cqw, 18px); font-weight: 700; line-height: 1.15; }
-  .zs { font-size: clamp(7px, 1cqw, 15px); line-height: 1.2; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+  .zs { font-size: clamp(7px, 1cqw, 15px); line-height: 1.15; color: var(--color-text-secondary); overflow-wrap: anywhere; }
   /* 用電徽章脫離文字流（貼右下角），小區塊才不會被它擠爆 */
+  .zmob { margin-top: 1px; font-size: clamp(7px, 0.95cqw, 14px); font-weight: 700; color: var(--color-text); background: color-mix(in oklab, var(--color-chart-4) 22%, var(--color-paper)); border: 1px solid var(--color-chart-4); border-radius: var(--radius-sm); padding: 0 4px; line-height: 1.2; max-width: 96%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .zkw { position: absolute; right: 2px; bottom: 1px; font-size: clamp(7px, 1cqw, 15px); font-weight: 700; color: var(--color-text); background: var(--color-paper); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0 4px; line-height: 1.3; }
   .zone:has(.zkw) { padding-bottom: clamp(9px, 1.5cqw, 20px); }
   /* 斜帶（中傷/輕傷）：徽章跟著文字排，貼角會飄到帶子外面看起來像別區的 */
@@ -298,6 +311,9 @@
   .tlticks { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--color-text-secondary); }
 
   /* 側欄放不下時的收合順序：先收各項組成明細，再收時間軸刻度（數字與圖形一律留著） */
+  /* 側欄放不下時的收合順序：規格待補標籤 → 櫃體重複的文字規格 → 各項組成明細 → 時間軸刻度。
+     被收的都是「畫面別處或環圈已經有」的資訊，數字與圖形一律留著。 */
+  @container (max-height: 900px) { .mobi em.todo { display: none; } .cab .cr { display: none; } }
   @container (max-height: 860px) { .ldet { display: none; } }
   @container (max-height: 720px) { .tlticks { display: none; } .pwr-h small { display: none; } }
 

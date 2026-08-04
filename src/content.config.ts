@@ -228,6 +228,8 @@ const emsScenario = z.object({
     mobile: z.array(z.object({
       name: z.string(),
       qty: z.number().default(1),
+      zone: z.string().default(''),   // 對應 plan.zones[].id；有填就在圖上該區顯示 🔋 標記
+      use: z.string().default(''),    // 供什麼用（重傷區／指揮看板／手術燈…）
       spec: z.string().default(''),
       state: z.string().default(''),
     })).default([]),
