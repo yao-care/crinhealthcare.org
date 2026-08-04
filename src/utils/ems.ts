@@ -24,11 +24,13 @@ export function isSupplyAbnormal(s: { warn?: boolean }): boolean {
  * ② 使用端每日 bar chart：依高度將「前三高」標不同色（金/銀/銅 名次），其餘用基準色。
  * 註：警示紅已是「異常」語意，前三高不用紅，避免撞色。回傳與輸入等長的 fill 陣列(token)。
  */
-const BAR_BASE = 'color-mix(in oklch, var(--color-primary) 26%, var(--color-paper))'; // 基準：淡藍綠
+// 混色一律 in oklab：--color-paper 是 oklch(1 0 0)（白，但色相寫成 0＝紅），
+// 在 oklch 極座標混色會把色相往紅拉 —— 這條「淡藍綠」基準色原本會渲染成淡紫。
+const BAR_BASE = 'color-mix(in oklab, var(--color-primary) 26%, var(--color-paper))'; // 基準：淡藍綠
 const BAR_TOP3 = [
   'var(--color-energy)', // 第1高：金
-  'color-mix(in oklch, var(--color-text-secondary) 48%, var(--color-paper))', // 第2高：銀
-  'color-mix(in oklch, var(--color-energy) 72%, var(--color-alert) 28%)', // 第3高：銅（金偏橘棕，非異常紅）
+  'color-mix(in oklab, var(--color-text-secondary) 48%, var(--color-paper))', // 第2高：銀
+  'color-mix(in oklab, var(--color-energy) 72%, var(--color-alert) 28%)', // 第3高：銅（金偏橘棕，非異常紅）
 ];
 export function barFills(daily: number[]): string[] {
   const n = daily?.length ?? 0;

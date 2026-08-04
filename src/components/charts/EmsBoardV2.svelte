@@ -5,6 +5,7 @@
   import { isSupplyAbnormal, barFills, envSeverity, warPowerSummary, endurText } from '@utils/ems';
   import { createEssPoller, applyEssToScenario } from '@utils/essLive.svelte';
   import { url } from '@utils/url';
+  import { carousel } from '@utils/carousel';
   import PeakShaveChart from './PeakShaveChart.svelte';
   import EmsWarPlan from './EmsWarPlan.svelte';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
@@ -94,17 +95,7 @@
   const solo = !!show && show.length === 1;
   const r2list = $derived(hospital.resources.filter((r) => ['water', 'oil', 'gas'].includes(r.id) && visible(r.id)));
 
-  // 使用端輪播：項目過多放不下時，每 5 秒自動換頁(垂直捲動)，輪到所有項目。放得下就不動。
-  function carousel(node: HTMLElement) {
-    const id = setInterval(() => {
-      const max = node.scrollHeight - node.clientHeight;
-      if (max <= 4) return; // 放得下，不輪播
-      // 已到底→回頂；否則前進約一頁，但夾在底部內（內容僅略微溢出時，一頁步距會超過總溢出量，不夾住會誤判成「該歸零」而永遠停在頂端）
-      const next = node.scrollTop >= max - 2 ? 0 : Math.min(node.scrollTop + node.clientHeight * 0.92, max);
-      node.scrollTo({ top: next, behavior: 'smooth' });
-    }, 5000);
-    return { destroy() { clearInterval(id); } };
-  }
+  // 使用端輪播：項目過多放不下時每 5 秒換頁；實作在 @utils/carousel（與戰時供電清單共用）
 
   // 合計行「塞不下才縮」：不動基準字級（守等比原則）。量測內容寬 vs 容器寬，
   // 只有溢出時以 transform:scale 動態縮到剛好塞滿；塞得下＝維持 scale(1) 滿尺寸。隨容器寬變動重量測。
