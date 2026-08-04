@@ -86,29 +86,30 @@
     <aside class="pwr">
       <div class="pwr-h">{power.title}{#if power.note}<small>{power.note}</small>{/if}</div>
 
-      <!-- 可放電比例（DoD）：這是「規格比例」不是即時電量，所以用百分比環圈，不用水位柱
-           （水位柱會被讀成 SOC；而且每台 DoD 都一樣，畫三支柱只是同一個數字重複三次）。 -->
+      <!-- 儲電櫃：實體有幾台就畫幾台，每台一個可放電比例（DoD）環圈。
+           DoD 是「規格比例」不是即時電量 → 用百分比環圈，不用水位柱（水位柱會被讀成 SOC）。 -->
       <div class="cabs">
-        <div class="dodwrap">
-          <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="可放電 {usablePct}%（{usableKwh} kWh），保留 {capKwh - usableKwh} kWh 不可放電">
-            <circle class="dtrack" cx="60" cy="60" r="46" />
-            <circle class="dval" cx="60" cy="60" r="46" stroke-dasharray="{(usablePct / 100) * 289} 289" transform="rotate(-90 60 60)" />
-            <text class="dnum" x="60" y="56" text-anchor="middle" font-size="26">{usablePct}%</text>
-            <text class="dcap" x="60" y="78" text-anchor="middle" font-size="15">可放電</text>
-          </svg>
-          <div class="dodleg">
-            <span class="lgi"><i class="sw-use"></i>可放電 {usableKwh} kWh</span>
-            <span class="lgi"><i class="sw-rsv"></i>保留 {capKwh - usableKwh} kWh</span>
+        {#each cabs as c}
+          {@const usable = (c.kwh * usablePct) / 100}
+          <div class="cab">
+            <div class="cn">{c.name.replace('行動儲電櫃 ', '')}</div>
+            <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="{c.name}：額定 {c.kwh} kWh，可放電 {usable} kWh（{usablePct}%），保留 {c.kwh - usable} kWh">
+              <circle class="dtrack" cx="60" cy="60" r="46" />
+              <circle class="dval" cx="60" cy="60" r="46" stroke-dasharray="{(usablePct / 100) * 289} 289" transform="rotate(-90 60 60)" />
+              <text class="dnum" x="60" y="58" text-anchor="middle" font-size="26">{usable}</text>
+              <text class="dcap" x="60" y="80" text-anchor="middle" font-size="15">kWh 可放</text>
+            </svg>
+            <div class="cr">可放電 {usablePct}% ／ 額定 {c.kwh} kWh</div>
+            <div class="chip">輸出 {c.kw} kW</div>
+            <div class="cs">{c.state}</div>
           </div>
-        </div>
-        <div class="cabinfo">
-          <div class="crow head"><span>額定容量</span><b>{capKwh} kWh</b></div>
-          <div class="crow head"><span>額定輸出</span><b>{capKw} kW</b></div>
-          {#each cabs as c}
-            <div class="crow"><span>{c.name.replace('行動儲電櫃 ', '')}</span><em>{c.kwh} kWh · {c.kw} kW</em><b class="st">{c.state}</b></div>
-          {/each}
-          <div class="cloc">📍 {cabs[0]?.loc ?? ''}</div>
-        </div>
+        {/each}
+      </div>
+      <div class="cabsum">
+        <span><i class="sw-use"></i>可放電 <b>{usableKwh} kWh</b></span>
+        <span><i class="sw-rsv"></i>保留 <b>{capKwh - usableKwh} kWh</b></span>
+        <span>合計額定 <b>{capKwh} kWh</b> · 輸出 <b>{capKw} kW</b></span>
+        <span class="cloc">📍 {cabs[0]?.loc ?? ''}</span>
       </div>
 
       <!-- 逐項負載：長條依用電比例（前三高走站上金/銀/銅配色），數字仍在右側 -->
@@ -222,22 +223,20 @@
   .pwr-h { font-size: var(--text-base); font-weight: 700; color: var(--color-primary); }
   .pwr-h small { display: block; font-size: var(--text-xs); font-weight: 400; color: var(--color-text-secondary); }
 
-  /* 儲電櫃：DoD 用百分比環圈（規格比例，非即時電量）＋ 右側規格/狀態列 */
-  .cabs { display: flex; align-items: center; gap: var(--space-sm); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 4px 8px; background: color-mix(in oklab, var(--color-accent) 8%, var(--color-paper)); }
-  .dodwrap { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: none; }
-  .dodleg { display: flex; flex-direction: column; gap: 1px; }
-  .lgi { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--color-text-secondary); white-space: nowrap; }
+  /* 儲電櫃：幾台就幾張卡，每張一個可放電比例（DoD）環圈；合計與圖例收在下面一行 */
+  .cabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; }
+  .cab { display: flex; flex-direction: column; align-items: center; gap: 2px; border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 3px 5px; background: color-mix(in oklab, var(--color-accent) 8%, var(--color-paper)); text-align: center; }
+  .cn { font-size: var(--text-sm); font-weight: 700; line-height: 1.2; }
+  .cab .donut { width: clamp(60px, 7.5vw, 116px); height: auto; }
+  .cr { font-size: var(--text-xs); color: var(--color-text-secondary); line-height: 1.25; }
+  .chip { font-size: var(--text-xs); font-weight: 700; border: 1px solid var(--color-border); border-radius: 99px; padding: 0 7px; background: var(--color-paper); white-space: nowrap; }
+  .cs { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); }
+  .cabsum { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-sm); font-size: var(--text-xs); color: var(--color-text-secondary); }
+  .cabsum b { color: var(--color-text); font-weight: 700; }
+  .cabsum span { display: inline-flex; align-items: center; gap: 4px; }
   .sw-use, .sw-rsv { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
   .sw-use { background: var(--color-accent); }
   .sw-rsv { background: var(--color-surface); border: 1px solid var(--color-border); }
-  .cabinfo { flex: 1; min-width: 0; }
-  .crow { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-sm); line-height: 1.45; }
-  .crow span { color: var(--color-text-secondary); }
-  .crow em { font-style: normal; font-size: var(--text-xs); color: var(--color-text-secondary); }
-  .crow b { margin-left: auto; font-weight: 700; white-space: nowrap; }
-  .crow.head b { font-size: var(--text-base); }
-  .crow .st { color: var(--color-accent); font-size: var(--text-xs); }
-  .cloc { font-size: var(--text-xs); color: var(--color-text-secondary); }
 
   /* 逐項負載：名稱/數量/kW 一列，下面接依比例的長條（前三高金銀銅），再一行組成明細 */
   .loads { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
