@@ -94,6 +94,7 @@
     return rows;
   });
   const siteKwh = $derived(sources.reduce((s, r) => s + r.kwh, 0));
+  const maxSrcKwh = $derived(Math.max(...sources.map((s) => s.kwh), 1));
   // 續航時間軸刻度：至少 5 天，續航更久就把軸拉長（不讓長條頂滿看不出還有多少）
   const tlMax = $derived(Math.max(5, Math.ceil(hours / 24) + 1));
   const tlTicks = $derived(Array.from({ length: tlMax + 1 }, (_, i) => i));
@@ -141,31 +142,20 @@
     <aside class="pwr">
       <div class="pwr-h">⚡ 戰時供電 · 現場電源盤點<small class="ttlsub">{power.title.replace("⚡ 戰時供電 · ", "")}</small>{#if power.note}<small>{power.note}</small>{/if}</div>
 
-      <!-- 現場電源盤點：每一台（機動電源同型併一張）一張卡，環圈＝占現場可用電量比例。
-           下方捲動區只放用電設備，不再把同一份清單再列一次。 -->
-      <div class="cabs">
+      <!-- 現場電源盤點（橫式）：一列一個電源，長條＝可用電量、共用同一把尺。
+           不畫「占總量百分比」——設備都是滿電，用比例環圈會被讀成「只剩一點點電」。 -->
+      <div class="srcs">
+        <div class="srch">現場可用電量 <b>{siteKwh.toFixed(1)} kWh</b><small>以滿電計 · 儲電櫃 {usableKwh} ＋ 機動 {mobTotalKwh.toFixed(1)}</small></div>
         {#each sources as s, i}
-          <div class="cab" class:main={s.main}>
-            <div class="cn">{s.name}{#if s.main}<b class="tag">主力</b>{/if}</div>
-            <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="{s.name}：可用 {s.kwh} kWh，占現場可用電量 {siteKwh ? ((s.kwh / siteKwh) * 100).toFixed(0) : 0}%">
-              <circle class="dtrack" cx="60" cy="60" r="46" />
-              <circle class="dval s{i % 4}" cx="60" cy="60" r="46" stroke-dasharray="{siteKwh ? (s.kwh / siteKwh) * 289 : 0} 289" transform="rotate(-90 60 60)" />
-              <text class="dnum" x="60" y="58" text-anchor="middle" font-size="24">{s.kwh.toFixed(1)}</text>
-              <text class="dcap" x="60" y="80" text-anchor="middle" font-size="15">kWh 可用</text>
-            </svg>
-            <div class="cr">{s.spec}</div>
-            {#if s.use}<div class="cr cloc">📍 {s.use}</div>{/if}
-            {#if s.state}<div class="cs">{s.state}</div>{/if}
+          <div class="src" class:main={s.main}>
+            <div class="srow1">
+              <span class="sname">{s.name}{#if s.main}<b class="tag">主力</b>{/if}</span>
+              <span class="skwh">{s.kwh.toFixed(1)}<small>kWh</small></span>
+            </div>
+            <div class="sbar"><i class="seg s{i % 4}" style="width:{(s.kwh / maxSrcKwh) * 100}%"></i></div>
+            <div class="smeta">{s.spec}{#if s.use} · 📍{s.use}{/if}{#if s.state} · <b>{s.state}</b>{/if}</div>
           </div>
         {/each}
-      </div>
-      <div class="mixwrap">
-        <div class="mixh">現場可用電量 <b>{siteKwh.toFixed(1)} kWh</b><small>＝ 儲電櫃可放電 {usableKwh} + 機動電源 {mobTotalKwh.toFixed(1)}</small></div>
-        <div class="mix">
-          {#each sources as s, i}
-            {#if s.kwh > 0}<i class="seg s{i % 4}" style="width:{(s.kwh / siteKwh) * 100}%" title="{s.name} {s.kwh} kWh"></i>{/if}
-          {/each}
-        </div>
       </div>
 
       <!-- 捲動區＝用電設備；放不下才自動輪播（放得下完全不動） -->
@@ -281,43 +271,28 @@
   .pwr-h { font-size: var(--text-base); font-weight: 700; color: var(--color-primary); }
   .pwr-h small { display: block; font-size: var(--text-xs); font-weight: 400; color: var(--color-text-secondary); }
 
-  /* 儲電櫃：幾台就幾張卡，每張一個可放電比例（DoD）環圈；合計與圖例收在下面一行 */
-  .cabs { flex: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 4px; }
-  .cab { display: flex; flex-direction: column; align-items: center; gap: 1px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 3px 5px; background: color-mix(in oklab, var(--color-accent) 8%, var(--color-paper)); text-align: center; }
-  .cn { font-size: var(--text-xs); font-weight: 700; line-height: 1.15; }
-  .cab .donut { width: clamp(44px, 4.2vw, 78px); height: auto; }
-  .cr { font-size: var(--text-xs); color: var(--color-text-secondary); line-height: 1.2; }
-  .chip { font-size: var(--text-xs); font-weight: 700; border: 1px solid var(--color-border); border-radius: 99px; padding: 0 7px; background: var(--color-paper); white-space: nowrap; }
-  .cs { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); }
-  /* 現場電量組成：一條堆疊長條看各電源占比（色序與盤點表的長條同一組 s0–s3） */
-  .mixwrap { border-top: 1px dashed var(--color-border); padding-top: 3px; }
-  .mixh { font-size: var(--text-sm); font-weight: 700; color: var(--color-primary); }
-  .mixh b { color: var(--color-text); }
-  .mixh small { font-weight: 400; color: var(--color-text-secondary); margin-left: 6px; font-size: var(--text-xs); }
-  .mix { display: flex; height: 14px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--color-border); background: var(--color-surface); }
+  /* 現場電源盤點（橫式）：一列一個電源，長條共用同一把尺（最大者滿格）。
+     不用比例環圈——設備都是滿電，畫成「占總量 12%」會被讀成只剩一點點電。 */
+  .srcs { flex: none; display: flex; flex-direction: column; gap: 2px; }
+  .srch { font-size: var(--text-sm); font-weight: 700; color: var(--color-primary); }
+  .srch b { color: var(--color-text); }
+  .srch small { font-weight: 400; color: var(--color-text-secondary); margin-left: 6px; font-size: var(--text-xs); }
+  .src { border-bottom: 1px solid var(--color-border); padding-bottom: 2px; }
+  .src.main .sname { color: var(--color-text); }
+  .srow1 { display: flex; align-items: baseline; gap: 6px; }
+  .sname { flex: 1; font-size: var(--text-sm); font-weight: 700; min-width: 0; }
+  .skwh { font-size: var(--text-base); font-weight: 700; white-space: nowrap; }
+  .skwh small { font-size: var(--text-xs); font-weight: 400; color: var(--color-text-secondary); margin-left: 2px; }
+  .sbar { height: 10px; background: var(--color-surface); border-radius: var(--radius-sm); overflow: hidden; margin: 1px 0; }
+  .sbar i { display: block; height: 100%; border-radius: var(--radius-sm); }
   .seg { display: block; height: 100%; }
   .seg.s0 { background: var(--color-accent); }
   .seg.s1 { background: var(--color-chart-4); }
   .seg.s2 { background: var(--color-chart-5); }
   .seg.s3 { background: var(--color-energy); }
-  .lrow.src .ln { color: var(--color-text); }
+  .smeta { font-size: var(--text-xs); color: var(--color-text-secondary); line-height: 1.25; }
+  .smeta b { color: var(--color-accent); font-weight: 700; }
   .tag { font-size: var(--text-xs); font-weight: 700; color: var(--color-paper); background: var(--color-accent); border-radius: var(--radius-sm); padding: 0 5px; margin-left: 5px; }
-  .lh.mt { margin-top: 4px; }
-  .ldet.pend { color: var(--color-energy); font-weight: 700; }
-  .mob { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-sm); font-size: var(--text-xs); color: var(--color-text-secondary); }
-  .mobh { font-weight: 700; color: var(--color-primary); }
-  .mobi b { color: var(--color-text); font-weight: 700; }
-  .mobi em { font-style: normal; margin-left: 3px; }
-  .mobi em.todo { color: var(--color-energy); font-weight: 700; }
-  .mobi em.sp { color: var(--color-text); }
-  .mobsum { color: var(--color-text-secondary); }
-  .mobsum b { color: var(--color-text); }
-  .cabsum { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-sm); font-size: var(--text-xs); color: var(--color-text-secondary); }
-  .cabsum b { color: var(--color-text); font-weight: 700; }
-  .cabsum span { display: inline-flex; align-items: center; gap: 4px; }
-  .sw-use, .sw-rsv { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
-  .sw-use { background: var(--color-accent); }
-  .sw-rsv { background: var(--color-surface); border: 1px solid var(--color-border); }
 
   /* 逐項負載：名稱/數量/kW 一列，下面接依比例的長條（前三高金銀銅），再一行組成明細 */
   .loads { flex: 1 1 auto; min-height: 5.5em; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
@@ -371,10 +346,10 @@
   /* 側欄放不下時的收合順序：先收各項組成明細，再收時間軸刻度（數字與圖形一律留著） */
   /* 側欄放不下時的收合順序：規格待補標籤 → 櫃體重複的文字規格 → 各項組成明細 → 時間軸刻度。
      被收的都是「畫面別處或環圈已經有」的資訊，數字與圖形一律留著。 */
-  @container (max-height: 900px) { .cab .cloc { display: none; } }
-  @container (max-height: 900px) { .cab .cr { display: none; } .mixh small { display: none; } .cab .donut { width: clamp(38px, 3.4vw, 62px); } }
+  @container (max-height: 900px) { .smeta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+  @container (max-height: 860px) { .srch small { display: none; } .loads { min-height: 4em; } .sbar { height: 7px; margin: 0; } .srcs { gap: 0; } .src { padding-bottom: 1px; } .skwh { font-size: var(--text-sm); } }
   @container (max-height: 860px) { .ldet { display: none; } }
-  @container (max-height: 760px) { .loads { min-height: 4.5em; } .cab .donut { width: clamp(34px, 3vw, 54px); } }
+  @container (max-height: 760px) { .loads { min-height: 4.5em; } .smeta { display: none; } }
   @container (max-height: 720px) { .tlticks { display: none; } .pwr-h small { display: none; } }
 
   @media (max-width: 900px) {
