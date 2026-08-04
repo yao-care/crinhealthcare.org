@@ -80,3 +80,56 @@ export function envSeverity(
   if (v < b.ok[0] || v > b.ok[1]) return 'warn';
   return 'ok';
 }
+
+// ── 戰時供電（行動儲電櫃）彙總 ────────────────────────────────────────────
+// 唯一計算源：JSON 只存「儲電櫃規格」與「各設備台數×每台瓦數」，
+// 總負載／各區用電／負載率／裕度／續航一律由這裡算，看板與配置圖共用同一份結果
+// （分開各算會出現「配置圖 69 小時、五區塊撐 —」這種自打嘴巴）。
+export interface WarPowerPart { zone?: string; n?: string; qty: number; w: number }
+export interface WarPowerLoad { name: string; parts: WarPowerPart[] }
+export interface WarPowerCabinet { name: string; kwh: number; kw: number; out?: string; loc?: string; state?: string }
+export interface WarPower { title?: string; note?: string; usablePct?: number; cabinets: WarPowerCabinet[]; loads: WarPowerLoad[] }
+
+export interface WarPowerSummary {
+  totalKw: number;      // 目前總負載
+  capKw: number;        // 儲電櫃額定輸出合計
+  capKwh: number;       // 儲電櫃額定容量合計
+  usableKwh: number;    // 扣 SOC 下限後的可用電量
+  marginKw: number;     // 設備裕度（還能再接多少）
+  loadPct: number;      // 負載率
+  hours: number;        // 依現況負載可用多久
+  byZone: Map<string, number>;  // 各區用電（W）
+}
+
+export function warPowerSummary(p?: WarPower | null): WarPowerSummary | null {
+  if (!p?.loads?.length || !p?.cabinets?.length) return null;
+  const byZone = new Map<string, number>();
+  let totalW = 0;
+  for (const l of p.loads) {
+    for (const part of l.parts) {
+      const w = part.qty * part.w;
+      totalW += w;
+      if (part.zone) byZone.set(part.zone, (byZone.get(part.zone) ?? 0) + w);
+    }
+  }
+  const capKw = p.cabinets.reduce((s, c) => s + c.kw, 0);
+  const capKwh = p.cabinets.reduce((s, c) => s + c.kwh, 0);
+  const usableKwh = (capKwh * (p.usablePct ?? 100)) / 100;
+  const totalKw = totalW / 1000;
+  return {
+    totalKw, capKw, capKwh, usableKwh,
+    marginKw: capKw - totalKw,
+    loadPct: capKw ? (totalKw / capKw) * 100 : 0,
+    hours: totalKw ? usableKwh / totalKw : 0,
+    byZone,
+  };
+}
+
+// 續航顯示：≥48h 以「X 天 Y 小時」讀，較短就直接給小時（戰情室要一眼看懂還能撐多久）
+export function endurText(hours: number): string {
+  if (!hours || !isFinite(hours)) return '—';
+  if (hours < 48) return `${hours.toFixed(hours < 10 ? 1 : 0)} 小時`;
+  const d = Math.floor(hours / 24);
+  const h = Math.round(hours - d * 24);
+  return h ? `${d} 天 ${h} 小時` : `${d} 天`;
+}

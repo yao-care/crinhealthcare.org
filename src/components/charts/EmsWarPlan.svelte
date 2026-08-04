@@ -5,31 +5,27 @@
   interface Zone { id: string; label: string; kind: string; x: number; y: number; w: number; h: number; rot?: number; sub?: string; star?: boolean; }
   interface Legend { label: string; kind: string; }
   interface Plan { title?: string; sub?: string; zones: Zone[]; legend?: Legend[]; }
-  interface Part { zone?: string; n?: string; qty: number; w: number; }
-  interface Load { name: string; parts: Part[] }
-  interface Cabinet { name: string; kwh: number; kw: number; out?: string; loc?: string; state?: string; }
-  interface Power { title?: string; note?: string; usablePct?: number; cabinets: Cabinet[]; loads: Load[]; }
+  import { warPowerSummary, endurText, type WarPower, type WarPowerLoad, type WarPowerPart } from '@utils/ems';
+  type Part = WarPowerPart;
+  type Load = WarPowerLoad;
 
-  let { plan, power, onBoard }: { plan: Plan; power?: Power; onBoard: () => void } = $props();
+  let { plan, power, onBoard }: { plan: Plan; power?: WarPower; onBoard: () => void } = $props();
 
   const loads = $derived(power?.loads ?? []);
   const cabs = $derived(power?.cabinets ?? []);
   const partW = (p: Part) => p.qty * p.w;
   const loadW = (l: Load) => l.parts.reduce((s, p) => s + partW(p), 0);
 
-  const totalW = $derived(loads.reduce((s, l) => s + loadW(l), 0));
-  const zoneW = $derived.by(() => {
-    const m = new Map<string, number>();
-    for (const l of loads) for (const p of l.parts) if (p.zone) m.set(p.zone, (m.get(p.zone) ?? 0) + partW(p));
-    return m;
-  });
-  const capKw = $derived(cabs.reduce((s, c) => s + c.kw, 0));
-  const capKwh = $derived(cabs.reduce((s, c) => s + c.kwh, 0));
-  const usableKwh = $derived((capKwh * (power?.usablePct ?? 100)) / 100);
-  const totalKw = $derived(totalW / 1000);
-  const marginKw = $derived(capKw - totalKw);
-  const loadPct = $derived(capKw ? (totalKw / capKw) * 100 : 0);
-  const hours = $derived(totalKw ? usableKwh / totalKw : 0);
+  // 彙總全部走 @utils/ems 的 warPowerSummary（與五區塊盤面同一份，數字不會兩套）
+  const sum = $derived(warPowerSummary(power));
+  const zoneW = $derived(sum?.byZone ?? new Map<string, number>());
+  const capKw = $derived(sum?.capKw ?? 0);
+  const capKwh = $derived(sum?.capKwh ?? 0);
+  const usableKwh = $derived(sum?.usableKwh ?? 0);
+  const totalKw = $derived(sum?.totalKw ?? 0);
+  const marginKw = $derived(sum?.marginKw ?? 0);
+  const loadPct = $derived(sum?.loadPct ?? 0);
+  const hours = $derived(sum?.hours ?? 0);
 
   const kw1 = (w: number) => (w / 1000).toFixed(2);
   const qtySum = (l: Load) => l.parts.reduce((s, p) => s + p.qty, 0);
@@ -47,6 +43,10 @@
     <div class="ph">
       <span class="pt">{plan.title}</span>
       {#if plan.sub}<span class="ps">{plan.sub}</span>{/if}
+      {#if sum}
+        <!-- 依現況負載可用多久：戰情室最先要看的一個數，放標題列右側 -->
+        <span class="endur">⏳ 現況可用 <b>{endurText(hours)}</b><small>負載 {totalKw.toFixed(2)} kW · 可用電量 {usableKwh} kWh</small></span>
+      {/if}
       <button type="button" class="toboard" onclick={onBoard}>📊 水·油·氣·環境</button>
     </div>
     <div class="canvasbox">
@@ -132,7 +132,7 @@
         <div class="bar"><i style="width:{Math.min(100, loadPct)}%"></i></div>
         <div class="mrow"><span>負載率</span><b>{loadPct.toFixed(1)}%</b></div>
         <div class="mrow big"><span>可再承接</span><b>{marginKw.toFixed(1)} kW</b></div>
-        <div class="mrow big"><span>續航</span><b>{hours.toFixed(0)} 小時</b></div>
+        <div class="mrow endur-row"><span>依現況可用</span><b>{endurText(hours)}</b></div>
       </div>
     </aside>
   {/if}
@@ -146,7 +146,11 @@
   .ph { display: flex; align-items: baseline; gap: var(--space-sm); flex-wrap: wrap; }
   .pt { font-size: var(--text-base); font-weight: 700; color: var(--color-primary); }
   .ps { font-size: var(--text-xs); color: var(--color-text-secondary); }
-  .toboard { margin-left: auto; font-size: var(--text-xs); font-weight: 700; padding: 2px 10px; border-radius: var(--radius-sm); border: 1px solid var(--color-primary); background: var(--color-paper); color: var(--color-primary); cursor: pointer; }
+  /* 現況可用多久：標題列的主角，字要大、要一眼看到 */
+  .endur { margin-left: auto; display: flex; align-items: baseline; gap: 6px; font-size: var(--text-sm); font-weight: 700; color: var(--color-text); background: color-mix(in oklab, var(--color-energy) 26%, var(--color-paper)); border: 2px solid var(--color-energy); border-radius: var(--radius-md); padding: 2px 12px; }
+  .endur b { font-size: var(--text-xl); font-weight: 700; }
+  .endur small { font-size: var(--text-xs); font-weight: 400; color: var(--color-text-secondary); }
+  .toboard { font-size: var(--text-xs); font-weight: 700; padding: 2px 10px; border-radius: var(--radius-sm); border: 1px solid var(--color-primary); background: var(--color-paper); color: var(--color-primary); cursor: pointer; }
   .canvasbox { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 4px 0; }
   /* 畫布：固定長寬比，等比塞進可用空間（kiosk 大螢幕與筆電都不裁切） */
   .canvas { position: relative; aspect-ratio: 1000 / 660; width: 100%; max-height: 100%; max-width: 100%; margin: 0 auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); container-type: size; }
@@ -225,6 +229,9 @@
   .mrow span { color: var(--color-text-secondary); }
   .mrow b { font-weight: 700; }
   .mrow.big b { font-size: var(--text-lg); }
+  .endur-row { border-top: 1px solid var(--color-border); margin-top: 2px; padding-top: 2px; }
+  .endur-row span { color: var(--color-text); font-weight: 700; }
+  .endur-row b { font-size: var(--text-xl); color: var(--color-alert); }
 
   @media (max-width: 900px) {
     .warplan { flex-direction: column; }

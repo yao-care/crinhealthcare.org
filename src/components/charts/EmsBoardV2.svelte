@@ -2,7 +2,7 @@
   // v2 五大區塊 Dashboard（電/環境參數/水/油/氣）。骨架用比例(%)、卡片固定尺寸+自適應換行。
   // 平時主軸＝效率/成本/ESG；戰時主軸＝續航/餘裕/維生（標題列推出 ⏳續航 徽章）。
   // 「資料→呈現」規則集中在 @utils/ems（供給紅底/bar 前三高配色/環境分級底色）。
-  import { isSupplyAbnormal, barFills, envSeverity } from '@utils/ems';
+  import { isSupplyAbnormal, barFills, envSeverity, warPowerSummary, endurText } from '@utils/ems';
   import { createEssPoller, applyEssToScenario } from '@utils/essLive.svelte';
   import { url } from '@utils/url';
   import PeakShaveChart from './PeakShaveChart.svelte';
@@ -38,6 +38,9 @@
   const warPlan = $derived(war ? hospital.resources.find((r) => r.id === 'power')?.war?.plan : undefined);
   let planView = $state(true);
   const showPlan = $derived(!!warPlan?.zones?.length && planView);
+  // 戰時電力續航：JSON 沒填 endur.days 時，用配置圖那份供電規劃算（同一個 warPowerSummary，
+  // 不會出現「配置圖 7 天 12 小時、五區塊撐 —」這種自打嘴巴）
+  const warPowerSum = $derived(war ? warPowerSummary(hospital.resources.find((r) => r.id === 'power')?.war?.power) : null);
   let exportOpen = $state(false);
 
   // 匯出呈報資料為 CSV：從板上「手邊有的」實際數據組出（ESG 碳盤／節能標竿獎各取相關段落）。
@@ -174,7 +177,8 @@
       <span class="bname">{r.icon} {r.name}</span>
       <a class="detail" href={`detail/${r.id}`}>🔎 看詳情</a>
       {#if war}
-        <span class="endur" class:low={parseFloat(d.endur.pct) < 30} class:vlive={d.endur.live === 'ess' && ess?.status === 'live'} class:vdemo={d.endur.live === 'ess' && ess?.status === 'demo'}>⏳ 撐 {d.endur.days || '—'} · 餘 {d.endur.pct || '—'}</span>
+        {@const days = d.endur.days || (r.id === 'power' && warPowerSum ? endurText(warPowerSum.hours) : '')}
+        <span class="endur" class:low={parseFloat(d.endur.pct) < 30} class:vlive={d.endur.live === 'ess' && ess?.status === 'live'} class:vdemo={d.endur.live === 'ess' && ess?.status === 'demo'}>⏳ 撐 {days || '—'} · 餘 {d.endur.pct || '—'}</span>
       {:else if d.perf?.text}
         <span class="bperf">{d.perf.text}</span>
       {/if}
