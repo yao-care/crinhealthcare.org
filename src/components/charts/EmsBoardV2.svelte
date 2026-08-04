@@ -6,12 +6,17 @@
   import { createEssPoller, applyEssToScenario } from '@utils/essLive.svelte';
   import { url } from '@utils/url';
   import PeakShaveChart from './PeakShaveChart.svelte';
+  import EmsWarPlan from './EmsWarPlan.svelte';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
   interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: { k: string; v: string }[]; flags?: { label: string; tone: string }[]; live?: string; }
   interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; img?: string; imgs?: string[]; caption?: string; }
   interface MapBox { label: string; kind?: string; star?: boolean; }
   interface UseMap { title?: string; legend?: string; boxes: MapBox[]; }
-  interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[]; map?: UseMap }; }
+  // 戰時平面配置圖（全螢幕一頁）＋供電規劃；幾何與設備台數都在 JSON，元件只畫與算
+  interface PlanZone { id: string; label: string; kind: string; x: number; y: number; w: number; h: number; rot?: number; sub?: string; star?: boolean; }
+  interface Plan { title?: string; sub?: string; zones: PlanZone[]; legend?: { label: string; kind: string }[]; }
+  interface PowerPlan { title?: string; note?: string; usablePct?: number; cabinets: { name: string; kwh: number; kw: number; out?: string; loc?: string; state?: string }[]; loads: { name: string; parts: { zone?: string; n?: string; qty: number; w: number }[] }[]; }
+  interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[]; map?: UseMap }; plan?: Plan; power?: PowerPlan; }
   interface Device { name: string; system?: string; loc?: string; reading?: string; status?: string; }
   interface Resource { id: string; icon: string; name: string; peace: Scenario; war: Scenario; devices?: Device[]; }
   interface ReportRow { item: string; value: string; unit: string; }
@@ -28,6 +33,11 @@
   let { hospital }: { hospital: Hospital } = $props();
   let scenario = $state('peace');
   const war = $derived(scenario !== 'peace');
+  // 戰時且該院有平面配置圖 → 預設整頁就是配置圖；按「水·油·氣·環境」才切到五區塊盤面。
+  // 每次轉戰時都回到配置圖（kiosk 無人操作時的預設面貌）。
+  const warPlan = $derived(war ? hospital.resources.find((r) => r.id === 'power')?.war?.plan : undefined);
+  let planView = $state(true);
+  const showPlan = $derived(!!warPlan?.zones?.length && planView);
   let exportOpen = $state(false);
 
   // 匯出呈報資料為 CSV：從板上「手邊有的」實際數據組出（ESG 碳盤／節能標竿獎各取相關段落）。
@@ -287,9 +297,12 @@
 <div class="v2" class:solo={solo}>
   <header class="top">
     <h1 class="ttl">🔋 平 - 戰(災) EMS · {hospital.name}</h1>
-    <button type="button" class="scn" class:war onclick={() => (scenario = other.id)}>
+    <button type="button" class="scn" class:war onclick={() => { scenario = other.id; planView = true; }}>
       {war ? '☀️ ' : '🚨 '}轉{other.label}
     </button>
+    {#if warPlan?.zones?.length && !planView}
+      <button type="button" class="toplan" onclick={() => (planView = true)}>🗺 回配置圖</button>
+    {/if}
     {#if !hospital.hideMeta}
       <dl class="meta">
         <div><dt>版本</dt><dd>{hospital.version || '—'}</dd></div>
@@ -307,6 +320,10 @@
     </div>
   </header>
 
+  {#if showPlan && warPlan}
+    <!-- 戰時主畫面：B1 開設配置圖 + 行動儲電櫃供電（水/油/氣/環境改由按鈕切換） -->
+    <EmsWarPlan plan={warPlan} power={hospital.resources.find((r) => r.id === 'power')?.war?.power} onBoard={() => (planView = false)} />
+  {:else}
   <div class="grid">
     <!-- 上半：電力（寬）+ 環境參數（窄） -->
     <div class="r r1">
@@ -374,6 +391,7 @@
       </div>
     {/if}
   </div>
+  {/if}
 </div>
 
 <style>
@@ -397,6 +415,8 @@
   .ttl { font-size: var(--text-xl); font-weight: 700; margin: 0; }
   .scn { margin-left: auto; font-size: var(--text-base); font-weight: 700; padding: 0.4rem 1.1rem; border-radius: var(--radius-md); border: 2px solid var(--color-text-secondary); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; white-space: nowrap; }
   .scn.war { border-color: var(--color-alert); background: var(--color-alert); color: var(--color-paper); }
+  /* 從五區塊盤面回戰時配置圖（僅該院有 plan 且已切走時出現） */
+  .toplan { font-size: var(--text-base); font-weight: 700; padding: 0.4rem 1.1rem; border-radius: var(--radius-md); border: 2px solid var(--color-primary); background: var(--color-paper); color: var(--color-primary); cursor: pointer; white-space: nowrap; }
   .meta { display: flex; gap: var(--space-sm); margin: 0; }
   .meta div { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; }
   .meta dt { background: var(--color-surface); color: var(--color-text-secondary); font-size: var(--text-xs); padding: 2px 8px; margin: 0; }

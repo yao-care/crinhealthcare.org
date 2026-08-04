@@ -196,6 +196,42 @@ const emsScenario = z.object({
       })).default([]),
     }).optional(),
   }),
+  // v2 戰時平面配置圖（選用）：依演練規劃圖的相對位置佈區（座標為 0–100 的畫布百分比，
+  // 斜帶用 rot 旋轉）。zone.id 供供電規劃 parts 對應，畫面上每區的用電由 parts 加總而來。
+  plan: z.object({
+    title: z.string().default(''),
+    sub: z.string().default(''),
+    zones: z.array(z.object({
+      id: z.string().default(''),
+      label: z.string(),
+      kind: z.string().default('zone'),     // triage/severe/moderate/light/support/logistics/care/road/context
+      x: z.number(), y: z.number(), w: z.number(), h: z.number(),   // 左上角與尺寸（%）
+      rot: z.number().default(0),           // 旋轉角（度，繞中心）
+      sub: z.string().default(''),
+      star: z.boolean().default(false),     // ★ 固定電源點
+    })).default([]),
+    legend: z.array(z.object({ label: z.string(), kind: z.string() })).default([]),
+  }).optional(),
+  // v2 戰時供電規劃（選用）：儲電櫃 + 逐項負載。
+  // 單一計算源＝loads[].parts：總負載/各區用電/裕度/負載率/續航全部由它推導，JSON 不存任何彙總值。
+  power: z.object({
+    title: z.string().default(''),
+    note: z.string().default(''),
+    usablePct: z.number().default(100),     // 可用電量占額定容量的比例（扣 SOC 下限）
+    cabinets: z.array(z.object({
+      name: z.string(),
+      kwh: z.number(), kw: z.number(),
+      out: z.string().default(''), loc: z.string().default(''), state: z.string().default(''),
+    })).default([]),
+    loads: z.array(z.object({
+      name: z.string(),
+      parts: z.array(z.object({
+        zone: z.string().default(''),       // 對應 plan.zones[].id
+        n: z.string().default(''),
+        qty: z.number(), w: z.number(),     // 台數 × 每台瓦數
+      })).default([]),
+    })).default([]),
+  }).optional(),
 });
 
 // v2 環境參數：多棟大樓 × 樓層的 溫/濕/CO₂ 矩陣（依情境）＋ 異常門檻 ＋ 碳盤查表（與情境無關）

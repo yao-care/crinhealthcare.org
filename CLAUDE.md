@@ -33,5 +33,6 @@
 | **削峰填谷 · 需量控制**即時圖：流程、圖表判讀、電價/時段、可調旋鈕、接真值(三態)、RWD 與已知坑 | [`docs/ems-peak-shave.md`](docs/ems-peak-shave.md) |
 | 儲能櫃 Modbus 即時三態（loading/live/demo）formatter 與 scenario 覆蓋 | `src/utils/essLive.svelte.ts` |
 | **離線單檔看板**（給客戶一個 HTML、雙擊即看、零網路）：`pnpm build:offline <醫院>` | [`docs/offline-bundle.md`](docs/offline-bundle.md) |
+| **804 戰時＝B1 平面配置圖＋行動儲電櫃供電**（整頁取代五區塊）：分區幾何、配色語彙、oklab/cqw 兩個坑、供電數字的推算依據 | [`docs/ems-804-war-plan.md`](docs/ems-804-war-plan.md) |
 
 改動後一律：`pnpm build`＋大螢幕/手機截圖驗證＋開 console 確認零 pageerror＋情境切換正常 → commit＋push main → **確認 GitHub Pages deploy success**（`gh run watch`）。
