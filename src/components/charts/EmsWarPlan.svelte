@@ -41,16 +41,49 @@
     (sum?.totalKw ?? 0) * 1000 - [...zoneW.values()].reduce((s, w) => s + w, 0),
   );
   // 各區的機動電源（儲電行李箱／氫能拉桿箱…）：圖上該區掛 🔋 標記，一眼看出誰有專屬電源
+  const mobiles = $derived(power?.mobile ?? []);
+  const mobKwh = (m: { kwh?: number; qty?: number }) => (m.kwh ?? 0) * (m.qty ?? 1);
   const zoneMobile = $derived.by(() => {
     const m = new Map<string, string[]>();
-    for (const x of power?.mobile ?? []) {
+    for (const x of mobiles) {
       if (!x.zone) continue;
       const list = m.get(x.zone) ?? [];
-      list.push(`${x.name} ×${x.qty ?? 1}`);
+      list.push(`${x.name} ×${x.qty ?? 1}${x.kwh ? ` · ${mobKwh(x)} kWh` : ''}`);
       m.set(x.zone, list);
     }
     return m;
   });
+  // 機動電源已知容量合計（各自獨立供電，不併入儲電櫃續航——併起來算會失真）
+  const mobTotalKwh = $derived(mobiles.reduce((s, m) => s + mobKwh(m), 0));
+  const mobPending = $derived(mobiles.filter((m) => !m.kwh).length);
+
+  // 現場電源盤點：儲電櫃 + 機動電源（同型併列、用途併陳），盤點表與電量組成長條共用同一份
+  const sources = $derived.by(() => {
+    const rows: { name: string; qty: number; kwh: number; kw: string; use: string; main: boolean }[] = [];
+    if (cabs.length) {
+      rows.push({
+        name: cabs[0].name.replace(/ #\d+/, '').replace('行動儲電櫃 ', '行動儲電櫃 ') + (cabs.length > 1 ? '' : ''),
+        qty: cabs.length,
+        kwh: usableKwh,
+        kw: `${capKw} kW`,
+        use: cabs.map((c) => c.loc).filter(Boolean).join(' · '),
+        main: true,
+      });
+    }
+    const byName = new Map<string, { qty: number; kwh: number; kw: number; uses: string[] }>();
+    for (const m of mobiles) {
+      const g = byName.get(m.name) ?? { qty: 0, kwh: 0, kw: m.kw ?? 0, uses: [] };
+      g.qty += m.qty ?? 1;
+      g.kwh += mobKwh(m);
+      if (m.use) g.uses.push(`${m.use}×${m.qty ?? 1}`);
+      byName.set(m.name, g);
+    }
+    for (const [name, g] of byName) {
+      rows.push({ name, qty: g.qty, kwh: g.kwh, kw: g.kw ? `${g.kw} kW/台` : '—', use: g.uses.join(' · '), main: false });
+    }
+    return rows;
+  });
+  const siteKwh = $derived(sources.reduce((s, r) => s + r.kwh, 0));
   // 續航時間軸刻度：至少 5 天，續航更久就把軸拉長（不讓長條頂滿看不出還有多少）
   const tlMax = $derived(Math.max(5, Math.ceil(hours / 24) + 1));
   const tlTicks = $derived(Array.from({ length: tlMax + 1 }, (_, i) => i));
@@ -96,7 +129,7 @@
   <!-- 右：戰時供電（儲電櫃 ×2 → 逐項負載 → 裕度/續航） -->
   {#if power}
     <aside class="pwr">
-      <div class="pwr-h">{power.title}{#if power.note}<small>{power.note}</small>{/if}</div>
+      <div class="pwr-h">⚡ 戰時供電 · 現場電源盤點<small class="ttlsub">{power.title.replace("⚡ 戰時供電 · ", "")}</small>{#if power.note}<small>{power.note}</small>{/if}</div>
 
       <!-- 儲電櫃：實體有幾台就畫幾台，每台一個可放電比例（DoD）環圈。
            DoD 是「規格比例」不是即時電量 → 用百分比環圈，不用水位柱（水位柱會被讀成 SOC）。 -->
@@ -118,24 +151,29 @@
           </div>
         {/each}
       </div>
-      {#if power.mobile?.length}
-        <!-- 現場其他機動電源：規格未提供前只列不算（不併入容量/續航，畫面明講「規格待補」） -->
-        <div class="mob">
-          <span class="mobh">現場機動電源</span>
-          {#each power.mobile as m}
-            <span class="mobi">{m.name} <b>×{m.qty ?? 1}</b>{#if m.use}<em>→ {m.use}</em>{/if}{#if m.spec}<em>{m.spec}</em>{:else}<em class="todo">規格待補</em>{/if}</span>
+      <!-- 現場電量組成：各電源依可用電量占比（同一份 sources，與下方盤點表對得起來） -->
+      <div class="mixwrap">
+        <div class="mixh">現場可用電量 <b>{siteKwh.toFixed(1)} kWh</b></div>
+        <div class="mix">
+          {#each sources as s, i}
+            {#if s.kwh > 0}<i class="seg s{i % 4}" style="width:{(s.kwh / siteKwh) * 100}%" title="{s.name} {s.kwh} kWh"></i>{/if}
           {/each}
         </div>
-      {/if}
-      <div class="cabsum">
-        <span><i class="sw-use"></i>可放電 <b>{usableKwh} kWh</b></span>
-        <span><i class="sw-rsv"></i>保留 <b>{capKwh - usableKwh} kWh</b></span>
-        <span>合計額定 <b>{capKwh} kWh</b> · 輸出 <b>{capKw} kW</b></span>
       </div>
 
-      <!-- 逐項負載：長條依用電比例（前三高走站上金/銀/銅配色），數字仍在右側 -->
+      <!-- 捲動區＝電源盤點 + 用電設備；放不下才自動輪播（放得下完全不動） -->
       <div class="loads" use:carousel>
-        <div class="lh"><span>用電設備</span><span class="lhq">數量</span><span class="lhk">用電</span></div>
+        <div class="lh"><span>供電來源</span><span class="lhq">數量</span><span class="lhk">可用電量</span></div>
+        {#each sources as s, i}
+          <div class="lrow src">
+            <div class="ltop"><span class="ln">{s.name}{#if s.main}<b class="tag">主力</b>{/if}</span><span class="lq">×{s.qty}</span><span class="lk">{s.kwh ? s.kwh.toFixed(1) + ' kWh' : '—'}</span></div>
+            <div class="lbar"><i class="seg s{i % 4}" style="width:{siteKwh ? (s.kwh / siteKwh) * 100 : 0}%"></i></div>
+            <div class="ldet">{s.kw}{#if s.use} · {s.use}{/if}</div>
+          </div>
+        {/each}
+        {#if mobPending}<div class="ldet pend">＊{mobPending} 項規格待補，未計入現場可用電量</div>{/if}
+
+        <div class="lh mt"><span>用電設備</span><span class="lhq">數量</span><span class="lhk">用電</span></div>
         {#each loads as l, i}
           {@const w = loadW(l)}
           <div class="lrow">
@@ -177,7 +215,7 @@
         </div>
         <!-- 續航時間軸：刻度到 5 天，標出原廠單台 2–3 天備援續航供對照 -->
         <div class="tl">
-          <div class="tlrow"><span class="tlcap">依現況可用</span><b class="tlbig">{endurText(hours)}</b></div>
+          <div class="tlrow"><span class="tlcap">依現況可用<em>儲電櫃 {usableKwh} kWh</em></span><b class="tlbig">{endurText(hours)}</b></div>
           <div class="tlbar">
             <span class="ref" style="left:{(2 / tlMax) * 100}%; width:{(1 / tlMax) * 100}%"></span>
             <i style="width:{Math.min(100, (hours / 24 / tlMax) * 100)}%"></i>
@@ -254,11 +292,28 @@
   .cr { font-size: var(--text-xs); color: var(--color-text-secondary); line-height: 1.25; }
   .chip { font-size: var(--text-xs); font-weight: 700; border: 1px solid var(--color-border); border-radius: 99px; padding: 0 7px; background: var(--color-paper); white-space: nowrap; }
   .cs { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); }
+  /* 現場電量組成：一條堆疊長條看各電源占比（色序與盤點表的長條同一組 s0–s3） */
+  .mixwrap { border-top: 1px dashed var(--color-border); padding-top: 3px; }
+  .mixh { font-size: var(--text-sm); font-weight: 700; color: var(--color-primary); }
+  .mixh b { color: var(--color-text); }
+  .mix { display: flex; height: 14px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--color-border); background: var(--color-surface); }
+  .seg { display: block; height: 100%; }
+  .seg.s0 { background: var(--color-accent); }
+  .seg.s1 { background: var(--color-chart-4); }
+  .seg.s2 { background: var(--color-chart-5); }
+  .seg.s3 { background: var(--color-energy); }
+  .lrow.src .ln { color: var(--color-text); }
+  .tag { font-size: var(--text-xs); font-weight: 700; color: var(--color-paper); background: var(--color-accent); border-radius: var(--radius-sm); padding: 0 5px; margin-left: 5px; }
+  .lh.mt { margin-top: 4px; }
+  .ldet.pend { color: var(--color-energy); font-weight: 700; }
   .mob { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-sm); font-size: var(--text-xs); color: var(--color-text-secondary); }
   .mobh { font-weight: 700; color: var(--color-primary); }
   .mobi b { color: var(--color-text); font-weight: 700; }
   .mobi em { font-style: normal; margin-left: 3px; }
   .mobi em.todo { color: var(--color-energy); font-weight: 700; }
+  .mobi em.sp { color: var(--color-text); }
+  .mobsum { color: var(--color-text-secondary); }
+  .mobsum b { color: var(--color-text); }
   .cabsum { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-sm); font-size: var(--text-xs); color: var(--color-text-secondary); }
   .cabsum b { color: var(--color-text); font-weight: 700; }
   .cabsum span { display: inline-flex; align-items: center; gap: 4px; }
@@ -304,6 +359,7 @@
   .tl { margin-top: 3px; }
   .tlrow { display: flex; justify-content: space-between; align-items: baseline; }
   .tlcap { font-size: var(--text-sm); font-weight: 700; }
+  .tlcap em { font-style: normal; font-weight: 400; font-size: var(--text-xs); color: var(--color-text-secondary); margin-left: 5px; }
   .tlbig { font-size: var(--text-xl); font-weight: 700; color: var(--color-alert); }
   .tlbar { position: relative; height: 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; }
   .tlbar .ref { position: absolute; top: 0; bottom: 0; background: color-mix(in oklab, var(--color-text-secondary) 22%, var(--color-paper)); }

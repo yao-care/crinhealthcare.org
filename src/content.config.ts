@@ -230,7 +230,11 @@ const emsScenario = z.object({
       qty: z.number().default(1),
       zone: z.string().default(''),   // 對應 plan.zones[].id；有填就在圖上該區顯示 🔋 標記
       use: z.string().default(''),    // 供什麼用（重傷區／指揮看板／手術燈…）
-      spec: z.string().default(''),
+      kwh: z.number().default(0),     // 單台儲能容量；0＝規格待補
+      kw: z.number().default(0),      // 單台輸出
+      out: z.string().default(''),    // 輸出型式（110VAC／固態合金儲氫…）
+      weight: z.string().default(''),
+      spec: z.string().default(''),   // 自由文字（上面欄位不夠用時）
       state: z.string().default(''),
     })).default([]),
     loads: z.array(z.object({

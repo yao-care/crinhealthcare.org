@@ -139,7 +139,7 @@
             "online": false,
             "esg": "green",
             "pct": "",
-            "react": "",
+            "react": "300 W · 30 秒啟動 · 固態合金儲氫",
             "autonomous": false,
             "warn": false
           }
@@ -157,9 +157,9 @@
           },
           {
             "name": "行動氫氣發電機",
-            "cap": "氣瓶 1 L",
+            "cap": "500 L 氣瓶 · 300 W",
             "pct": 0,
-            "days": "",
+            "days": "≈ 2 小時",
             "state": "待命",
             "warn": false,
             "critical": false
@@ -478,7 +478,7 @@
             "online": false,
             "esg": "green",
             "pct": "",
-            "react": "",
+            "react": "300 W · 30 秒啟動 · 固態合金儲氫",
             "autonomous": true,
             "warn": false
           }
@@ -496,9 +496,9 @@
           },
           {
             "name": "行動氫氣發電機",
-            "cap": "氣瓶 1 L",
+            "cap": "500 L 氣瓶 · 300 W",
             "pct": 0,
-            "days": "",
+            "days": "≈ 2 小時",
             "state": "待命",
             "warn": false,
             "critical": false
@@ -1176,7 +1176,11 @@
               "zone": "severe",
               "use": "重傷區",
               "spec": "",
-              "state": ""
+              "state": "",
+              "kwh": 2.5,
+              "kw": 1.5,
+              "out": "110VAC",
+              "weight": "25 kg"
             },
             {
               "name": "儲電行李箱",
@@ -1184,7 +1188,11 @@
               "zone": "",
               "use": "指揮看板",
               "spec": "",
-              "state": ""
+              "state": "",
+              "kwh": 2.5,
+              "kw": 1.5,
+              "out": "110VAC",
+              "weight": "25 kg"
             },
             {
               "name": "儲電行李箱",
@@ -1192,7 +1200,11 @@
               "zone": "",
               "use": "手術燈",
               "spec": "",
-              "state": ""
+              "state": "",
+              "kwh": 2.5,
+              "kw": 1.5,
+              "out": "110VAC",
+              "weight": "25 kg"
             },
             {
               "name": "氫能拉桿箱",
@@ -1200,7 +1212,11 @@
               "zone": "moderate",
               "use": "中傷區",
               "spec": "",
-              "state": ""
+              "state": "",
+              "kwh": 0.6,
+              "kw": 0.3,
+              "out": "固態合金儲氫",
+              "weight": "500 L 氣瓶 ≈ 2 hr"
             },
             {
               "name": "桌上型儲電設備",
@@ -1208,7 +1224,11 @@
               "zone": "entry",
               "use": "入口",
               "spec": "",
-              "state": ""
+              "state": "",
+              "kwh": 1.0,
+              "kw": 0.2,
+              "out": "110VAC",
+              "weight": "8 kg"
             }
           ]
         }
@@ -1458,7 +1478,7 @@
           "system": "供電",
           "loc": "",
           "status": "戰時開設配置",
-          "reading": "氣瓶 1 L",
+          "reading": "300 W · 500 L 氣瓶 ≈ 2 小時 · 30 秒啟動",
           "manager": "",
           "contact": "",
           "vendor": ""
