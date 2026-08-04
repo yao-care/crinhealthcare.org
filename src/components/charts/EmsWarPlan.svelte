@@ -40,6 +40,9 @@
   const sharedW = $derived(
     (sum?.totalKw ?? 0) * 1000 - [...zoneW.values()].reduce((s, w) => s + w, 0),
   );
+  // 續航時間軸刻度：至少 5 天，續航更久就把軸拉長（不讓長條頂滿看不出還有多少）
+  const tlMax = $derived(Math.max(5, Math.ceil(hours / 24) + 1));
+  const tlTicks = $derived(Array.from({ length: tlMax + 1 }, (_, i) => i));
 </script>
 
 <div class="warplan">
@@ -155,10 +158,10 @@
         <div class="tl">
           <div class="tlrow"><span class="tlcap">依現況可用</span><b class="tlbig">{endurText(hours)}</b></div>
           <div class="tlbar">
-            <span class="ref" style="left:{(2 / 5) * 100}%; width:{(1 / 5) * 100}%"></span>
-            <i style="width:{Math.min(100, (hours / 24 / 5) * 100)}%"></i>
+            <span class="ref" style="left:{(2 / tlMax) * 100}%; width:{(1 / tlMax) * 100}%"></span>
+            <i style="width:{Math.min(100, (hours / 24 / tlMax) * 100)}%"></i>
           </div>
-          <div class="tlticks">{#each [0, 1, 2, 3, 4, 5] as t}<span>{t}天</span>{/each}</div>
+          <div class="tlticks">{#each tlTicks as t}<span>{t}天</span>{/each}</div>
         </div>
       </div>
     </aside>
