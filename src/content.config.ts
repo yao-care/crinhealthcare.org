@@ -223,6 +223,14 @@ const emsScenario = z.object({
       kwh: z.number(), kw: z.number(),
       out: z.string().default(''), loc: z.string().default(''), state: z.string().default(''),
     })).default([]),
+    // 現場其他機動電源（儲電行李箱/氫能拉桿箱/桌上型儲電…）：規格未提供前只列不算，
+    // 不併入容量與續航（避免用未知規格灌水）
+    mobile: z.array(z.object({
+      name: z.string(),
+      qty: z.number().default(1),
+      spec: z.string().default(''),
+      state: z.string().default(''),
+    })).default([]),
     loads: z.array(z.object({
       name: z.string(),
       parts: z.array(z.object({

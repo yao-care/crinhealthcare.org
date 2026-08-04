@@ -105,6 +105,15 @@
           </div>
         {/each}
       </div>
+      {#if power.mobile?.length}
+        <!-- 現場其他機動電源：規格未提供前只列不算（不併入容量/續航，畫面明講「規格待補」） -->
+        <div class="mob">
+          <span class="mobh">現場機動電源</span>
+          {#each power.mobile as m}
+            <span class="mobi">{m.name} <b>×{m.qty ?? 1}</b>{#if m.spec}<em>{m.spec}</em>{:else}<em class="todo">規格待補</em>{/if}</span>
+          {/each}
+        </div>
+      {/if}
       <div class="cabsum">
         <span><i class="sw-use"></i>可放電 <b>{usableKwh} kWh</b></span>
         <span><i class="sw-rsv"></i>保留 <b>{capKwh - usableKwh} kWh</b></span>
@@ -114,7 +123,7 @@
 
       <!-- 逐項負載：長條依用電比例（前三高走站上金/銀/銅配色），數字仍在右側 -->
       <div class="loads" use:carousel>
-        <div class="lh"><span>供電設備</span><span class="lhq">數量</span><span class="lhk">用電</span></div>
+        <div class="lh"><span>用電設備</span><span class="lhq">數量</span><span class="lhk">用電</span></div>
         {#each loads as l, i}
           {@const w = loadW(l)}
           <div class="lrow">
@@ -123,8 +132,9 @@
             <div class="ldet">{l.parts.map((p) => (p.flat ? `${p.n}（${p.w} W）` : `${p.n} ×${p.qty}（${p.w} W）`)).join(' · ')}</div>
           </div>
         {/each}
-        <div class="lrow tot"><div class="ltop"><span class="ln">平均總負載</span><span class="lq"></span><span class="lk">{totalKw.toFixed(2)} kW</span></div></div>
       </div>
+      <!-- 平均總負載釘在清單外：項目多到要輪播時，這個數字仍要一直看得到 -->
+      <div class="lrow tot"><div class="ltop"><span class="ln">平均總負載</span><span class="lq"></span><span class="lk">{totalKw.toFixed(2)} kW</span></div></div>
 
       <!-- 各區用電不另列清單：圖上每區的 ⚡ 徽章就是（同一份 parts），這裡只補未歸區的整場定額 -->
       {#if sharedW > 0}
@@ -231,6 +241,11 @@
   .cr { font-size: var(--text-xs); color: var(--color-text-secondary); line-height: 1.25; }
   .chip { font-size: var(--text-xs); font-weight: 700; border: 1px solid var(--color-border); border-radius: 99px; padding: 0 7px; background: var(--color-paper); white-space: nowrap; }
   .cs { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); }
+  .mob { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--space-sm); font-size: var(--text-xs); color: var(--color-text-secondary); }
+  .mobh { font-weight: 700; color: var(--color-primary); }
+  .mobi b { color: var(--color-text); font-weight: 700; }
+  .mobi em { font-style: normal; margin-left: 3px; }
+  .mobi em.todo { color: var(--color-energy); font-weight: 700; }
   .cabsum { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-sm); font-size: var(--text-xs); color: var(--color-text-secondary); }
   .cabsum b { color: var(--color-text); font-weight: 700; }
   .cabsum span { display: inline-flex; align-items: center; gap: 4px; }

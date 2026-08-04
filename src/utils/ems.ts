@@ -90,7 +90,8 @@ export function envSeverity(
 export interface WarPowerPart { zone?: string; n?: string; qty: number; w: number; flat?: boolean }
 export interface WarPowerLoad { name: string; parts: WarPowerPart[] }
 export interface WarPowerCabinet { name: string; kwh: number; kw: number; out?: string; loc?: string; state?: string }
-export interface WarPower { title?: string; note?: string; usablePct?: number; cabinets: WarPowerCabinet[]; loads: WarPowerLoad[] }
+export interface WarPowerMobile { name: string; qty?: number; spec?: string; state?: string }
+export interface WarPower { title?: string; note?: string; usablePct?: number; cabinets: WarPowerCabinet[]; mobile?: WarPowerMobile[]; loads: WarPowerLoad[] }
 
 export interface WarPowerSummary {
   totalKw: number;      // 目前總負載
