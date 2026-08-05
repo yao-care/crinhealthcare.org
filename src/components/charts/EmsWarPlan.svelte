@@ -101,7 +101,9 @@
   // 大字卡看「基本維生」（不含場地照明）；側欄的時間軸看全載，兩個都標清楚基準
   const essHours = $derived(sum?.essentialHours ?? 0);
   const essKw = $derived(sum?.essentialKw ?? 0);
-  const endurDays = $derived(Math.floor(essHours / 24));   // 無條件捨去：不承諾超過實際有的
+  // 無條件捨去到小數點第 2 位（不承諾超過實際有的）
+  const trunc2 = (n: number) => Math.floor(n * 100) / 100;
+  const endurDays = $derived(trunc2(essHours / 24));
   // 現場影片輪播：閃 3 下 → zoom 到中央 → 播完淡出 → 間隔 GAP 再換下一支
   const FLASH_MS = 900, ZOOM_MS = 600, FADE_MS = 500, GAP_MS = 4500, PH_PLAY_MS = 5000;
   // 佇列顯示：原始清單依 rot 旋轉（rot 只在狀態機裡遞增）。
@@ -197,9 +199,9 @@
           <div class="endcard">
             <div class="ecap">基本維生<br />供電可維持</div>
             {#if endurDays >= 1}
-              <div class="enum">{endurDays}</div><div class="eunit">天</div>
+              <div class="enum">{endurDays.toFixed(2)}</div><div class="eunit">天</div>
             {:else}
-              <div class="enum">{Math.floor(essHours)}</div><div class="eunit">小時</div>
+              <div class="enum">{trunc2(essHours).toFixed(2)}</div><div class="eunit">小時</div>
             {/if}
           </div>
         {/if}
@@ -384,7 +386,7 @@
   /* 續航大字卡（畫布左上）：戰情室第一眼要看到的數 */
   .endcard { position: absolute; left: 1.2%; top: 1.5%; z-index: 3; display: flex; flex-direction: column; align-items: center; padding: 4px 10px 6px; border: 2px solid var(--color-energy); border-radius: var(--radius-md); background: color-mix(in oklab, var(--color-energy) 22%, var(--color-paper)); }
   .ecap { font-size: clamp(9px, 1.35cqw, 19px); font-weight: 700; line-height: 1.15; text-align: center; }
-  .enum { font-size: clamp(26px, 5.6cqw, 84px); font-weight: 800; line-height: 1; }
+  .enum { font-size: clamp(22px, 4.4cqw, 66px); font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
   .eunit { font-size: clamp(10px, 1.5cqw, 21px); font-weight: 700; line-height: 1.1; }
 
   /* 影片佇列（畫布右下）：縮圖定格在指定秒數、畫面靠右對齊 */
