@@ -216,7 +216,8 @@ const emsScenario = z.object({
       id: z.string(),
       label: z.string().default(''),
       src: z.string().default(''),   // /videos/xxx.mp4（放 public/videos/）
-      at: z.number().default(0),     // 佇列縮圖取第幾秒
+      at: z.number().default(0),     // 佇列縮圖取第幾秒（poster 由 ffmpeg 事先抽好）
+      poster: z.string().default(''), // 佇列縮圖路徑；用 <img> 不用 <video>（見下方註解）
       sec: z.number().default(0),    // 只播前幾秒；0＝整支播完
     })).default([]),
   }).optional(),

@@ -242,7 +242,7 @@ for (const p of parsed) {
 const videoStat = { kept: 0, dropped: 0, bytes: 0 };
 const videoMap = {};
 {
-  const re = /\/videos\/[^"'&<>\\]+?\.(?:mp4|webm)/g;
+  const re = /\/videos\/[^"'&<>\\]+?\.(?:mp4|webm|jpg|jpeg|png|webp)/g;   // 影片與佇列縮圖
   const seen = new Set();
   for (const p of parsed) for (const m of p.body.matchAll(re)) seen.add(m[0]);
   for (const url of seen) {
@@ -262,14 +262,35 @@ const videoShim = Object.keys(videoMap).length
 <script>
 (function () {
   var M = JSON.parse(document.getElementById('off-videos').textContent);
+  // 先攔 setAttribute/src：元素一被建立就換成 data URI，否則會先對 /videos/... 發一次
+  // 注定失敗的請求（file:// 下是 ERR_FILE_NOT_FOUND，console 一片紅）。
+  var key = function (s) { var i = String(s || '').indexOf('#'); return i < 0 ? s : s.slice(0, i); };
+  var setAttr = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (n, v) {
+    if (n === 'src' && M[key(v)]) {
+      setAttr.call(this, 'data-off-src', v);   // 留下原路徑，稍後才換得到 blob
+      v = M[key(v)] + (String(v).indexOf('#') < 0 ? '' : String(v).slice(String(v).indexOf('#')));
+    }
+    return setAttr.call(this, n, v);
+  };
+  ['HTMLImageElement', 'HTMLVideoElement', 'HTMLMediaElement'].forEach(function (k) {
+    var C = window[k];
+    if (!C) return;
+    var d = Object.getOwnPropertyDescriptor(C.prototype, 'src');
+    if (!d || !d.set) return;
+    Object.defineProperty(C.prototype, 'src', {
+      configurable: true, enumerable: d.enumerable, get: d.get,
+      set: function (v) { d.set.call(this, M[key(v)] ? M[key(v)] : v); },
+    });
+  });
   var B = {};   // 路徑 → blob URL（data URI 直接餵給 <video> 很吃記憶體，轉 blob 播起來才順）
   function fix(el) {
-    var s = el.getAttribute('src') || '';
+    var s = el.getAttribute('data-off-src') || el.getAttribute('src') || '';
     if (s.indexOf('/videos/') !== 0) return;
     var i = s.indexOf('#'), p = i < 0 ? s : s.slice(0, i), h = i < 0 ? '' : s.slice(i);
-    if (B[p]) { el.src = B[p] + h; el.load && el.load(); }
+    if (B[p]) { setAttr.call(el, 'src', B[p] + h); if (el.tagName === 'VIDEO') el.load(); }
   }
-  function fixAll() { document.querySelectorAll('video').forEach(fix); }
+  function fixAll() { document.querySelectorAll('video,img').forEach(fix); }
   Object.keys(M).forEach(function (p) {
     fetch(M[p]).then(function (r) { return r.blob(); }).then(function (b) {
       B[p] = URL.createObjectURL(b);
@@ -280,8 +301,8 @@ const videoShim = Object.keys(videoMap).length
     ms.forEach(function (m) {
       m.addedNodes.forEach(function (n) {
         if (n.nodeType !== 1) return;
-        if (n.tagName === 'VIDEO') fix(n);
-        if (n.querySelectorAll) n.querySelectorAll('video').forEach(fix);
+        if (n.tagName === 'VIDEO' || n.tagName === 'IMG') fix(n);
+        if (n.querySelectorAll) n.querySelectorAll('video,img').forEach(fix);
       });
     });
   }).observe(document.documentElement, { childList: true, subtree: true });
@@ -419,7 +440,7 @@ console.log(`  頁面：${routes.join(' / ')}`);
 console.log(`  元件：${[...components.keys()].join(', ')}`);
 console.log(
   EMBED_VIDEO
-    ? `  影片：內嵌 ${videoStat.kept} 支（原始 ${mb(videoStat.bytes)}）`
+    ? `  影片與縮圖：內嵌 ${videoStat.kept} 個檔（原始 ${mb(videoStat.bytes)}）`
     : `  影片：未內嵌（--no-video），${videoStat.dropped} 支只剩標題卡`,
 );
 console.log(

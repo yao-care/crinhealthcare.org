@@ -4,7 +4,7 @@
   // 單一計算源：總負載／各區用電／負載率／裕度／續航 一律由 power.loads[].parts 推導，JSON 不存彙總值。
   interface Zone { id: string; label: string; kind: string; x: number; y: number; w: number; h: number; rot?: number; sub?: string; star?: boolean; }
   interface Legend { label: string; kind: string; }
-  interface Vid { id: string; label?: string; src?: string; at?: number; sec?: number; }
+  interface Vid { id: string; label?: string; src?: string; at?: number; sec?: number; poster?: string; }
   interface Plan { title?: string; sub?: string; zones: Zone[]; legend?: Legend[]; videos?: Vid[]; }
   import { flip } from 'svelte/animate';
   import { carousel } from '@utils/carousel';
@@ -218,8 +218,10 @@
           <div class="vq" bind:this={qEl}>
             {#each queue as v (v.id)}
               <div class="vit" class:flash={phase === 'flash' && v.id === cur?.id} animate:flip={{ duration: 400 }}>
-                {#if v.src}
-                  <video src="{v.src}#t={v.at ?? 0}" muted playsinline preload="metadata"></video>
+                {#if v.poster}
+                  <!-- 佇列用事先抽好的靜態縮圖：用 <video preload=metadata> 會把整支影片載下來，
+                       三支同時載會把播放台的載入排在後面（實測播放台卡在 readyState 0） -->
+                  <img src={v.poster} alt="{v.label} 縮圖" />
                 {/if}
                 <span class="vcap">{v.label}</span>
               </div>
@@ -386,7 +388,7 @@
   /* 影片佇列（畫布右下）：縮圖定格在指定秒數、畫面靠右對齊 */
   .vq { position: absolute; right: 1.2%; bottom: 1.5%; z-index: 3; width: 17%; display: flex; flex-direction: column; gap: 5px; }
   .vit { position: relative; aspect-ratio: 16 / 10; border: 2px solid var(--color-energy); border-radius: var(--radius-sm); background: color-mix(in oklab, var(--color-energy) 18%, var(--color-paper)); overflow: hidden; display: flex; align-items: center; justify-content: center; }
-  .vit video { width: 100%; height: 100%; object-fit: cover; object-position: right center; }
+  .vit img { width: 100%; height: 100%; object-fit: cover; object-position: right center; }
   /* 輪到它要播：外框閃 3 下（0.3s×3＝0.9s，與 FLASH_MS 對齊） */
   .vit.flash { animation: vflash 0.3s steps(1) 3; }
   @keyframes vflash {
