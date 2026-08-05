@@ -1051,6 +1051,22 @@
               "label": "動線·集結",
               "kind": "road"
             }
+          ],
+          "videos": [
+            {
+              "id": "v1",
+              "label": "針刺防爆實驗",
+              "src": "/videos/針刺防爆實驗.mp4",
+              "at": 3,
+              "sec": 0
+            },
+            {
+              "id": "v2",
+              "label": "胸腔引流衛教",
+              "src": "/videos/胸腔引流衛教.mp4",
+              "at": 5,
+              "sec": 60
+            }
           ]
         },
         "power": {

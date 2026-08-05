@@ -211,6 +211,14 @@ const emsScenario = z.object({
       star: z.boolean().default(false),     // ★ 固定電源點
     })).default([]),
     legend: z.array(z.object({ label: z.string(), kind: z.string() })).default([]),
+    // 現場影片輪播（右下佇列 → 閃爍 → zoom 到中央播放 → 淡出）。src 空＝佔位方塊，動畫照跑
+    videos: z.array(z.object({
+      id: z.string(),
+      label: z.string().default(''),
+      src: z.string().default(''),   // /videos/xxx.mp4（放 public/videos/）
+      at: z.number().default(0),     // 佇列縮圖取第幾秒
+      sec: z.number().default(0),    // 只播前幾秒；0＝整支播完
+    })).default([]),
   }).optional(),
   // v2 戰時供電規劃（選用）：儲電櫃 + 逐項負載。
   // 單一計算源＝loads[].parts：總負載/各區用電/裕度/負載率/續航全部由它推導，JSON 不存任何彙總值。

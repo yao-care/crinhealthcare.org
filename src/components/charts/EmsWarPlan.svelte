@@ -4,7 +4,9 @@
   // 單一計算源：總負載／各區用電／負載率／裕度／續航 一律由 power.loads[].parts 推導，JSON 不存彙總值。
   interface Zone { id: string; label: string; kind: string; x: number; y: number; w: number; h: number; rot?: number; sub?: string; star?: boolean; }
   interface Legend { label: string; kind: string; }
-  interface Plan { title?: string; sub?: string; zones: Zone[]; legend?: Legend[]; }
+  interface Vid { id: string; label?: string; src?: string; at?: number; sec?: number; }
+  interface Plan { title?: string; sub?: string; zones: Zone[]; legend?: Legend[]; videos?: Vid[]; }
+  import { flip } from 'svelte/animate';
   import { carousel } from '@utils/carousel';
   import { warPowerSummary, endurText, barFills, type WarPower, type WarPowerLoad, type WarPowerPart } from '@utils/ems';
   type Part = WarPowerPart;
@@ -95,6 +97,81 @@
   });
   const siteKwh = $derived(sources.reduce((s, r) => s + r.kwh, 0));
   const maxSrcKwh = $derived(Math.max(...sources.map((s) => s.kwh), 1));
+  // 大字卡：天數為主、餘下小時為輔（不足一天就以小時當主角）
+  const endurDays = $derived(Math.floor(hours / 24));
+  const endurRestH = $derived(Math.round(hours - endurDays * 24));
+  // 現場影片輪播：閃 3 下 → zoom 到中央 → 播完淡出 → 間隔 GAP 再換下一支
+  const FLASH_MS = 900, ZOOM_MS = 600, FADE_MS = 500, GAP_MS = 4500, PH_PLAY_MS = 5000;
+  // 佇列顯示：原始清單依 rot 旋轉（rot 只在狀態機裡遞增）。
+  // ⚠️ 狀態機不可依賴 queue —— 在效果內改 queue 會讓效果自我重啟，播放台永遠活不到 zoom。
+  const vids = $derived(plan.videos ?? []);
+  let rot = $state(0);
+  const queue = $derived.by(() => {
+    const n = vids.length;
+    if (!n) return [] as Vid[];
+    const k = rot % n;
+    return [...vids.slice(k), ...vids.slice(0, k)];
+  });
+  const cur = $derived(queue[0]);
+  let playing = $state<Vid | null>(null);
+  let phase = $state<'idle' | 'flash' | 'zoom' | 'play' | 'fade'>('idle');
+  let stage = $state<{ x: number; y: number; w: number; h: number } | null>(null);
+  let stageOn = $state(false);
+  let qEl: HTMLDivElement | null = $state(null);
+  let canvasEl: HTMLDivElement | null = $state(null);
+  let vidEl: HTMLVideoElement | null = $state(null);
+
+  // 一支影片的完整週期：閃 3 下 → zoom 到中央（同時下方影片往上推）→ 播 → 淡出 → 間隔 4.5 秒
+  $effect(() => {
+    const list = plan.videos ?? [];   // 唯一依賴：資料本身
+    if (!list.length) return;
+    let alive = true;
+    let i = 0;
+    const t: number[] = [];
+    const wait = (ms: number) => new Promise<void>((r) => t.push(window.setTimeout(r, ms)));
+    (async () => {
+      while (alive) {
+        phase = 'flash';
+        await wait(FLASH_MS);
+        if (!alive) return;
+        // zoom 起點＝佇列第一格當下的位置，終點是畫布中央（避開左上大字卡與右下佇列）
+        const item = qEl?.querySelector('.vit') as HTMLElement | null;
+        const box = canvasEl?.getBoundingClientRect();
+        const r = item?.getBoundingClientRect();
+        if (r && box) stage = { x: r.left - box.left, y: r.top - box.top, w: r.width, h: r.height };
+        playing = list[i % list.length];
+        rot = i + 1;                       // 下方影片往上推（flip 動畫）
+        phase = 'zoom';
+        stageOn = false;
+        await wait(30);
+        if (!alive) return;
+        stageOn = true;                    // 觸發 transition
+        await wait(ZOOM_MS);
+        if (!alive) return;
+        phase = 'play';                    // 效果完成後才開始播
+        await new Promise<void>((res) => {
+          const el = vidEl;
+          if (!playing?.src || !el) return void t.push(window.setTimeout(res, PH_PLAY_MS));
+          const cap = (playing.sec ?? 0) * 1000;
+          el.currentTime = 0;
+          el.play().catch(() => {});
+          el.addEventListener('ended', () => res(), { once: true });
+          if (cap) t.push(window.setTimeout(res, cap));
+        });
+        if (!alive) return;
+        phase = 'fade';
+        await wait(FADE_MS);
+        if (!alive) return;
+        phase = 'idle';
+        stage = null;
+        playing = null;
+        i += 1;
+        await wait(GAP_MS);                // 淡出完成後才起算的間隔
+      }
+    })();
+    return () => { alive = false; t.forEach(clearTimeout); };
+  });
+
   // 續航時間軸刻度：至少 5 天，續航更久就把軸拉長（不讓長條頂滿看不出還有多少）
   const tlMax = $derived(Math.max(5, Math.ceil(hours / 24) + 1));
   const tlTicks = $derived(Array.from({ length: tlMax + 1 }, (_, i) => i));
@@ -106,14 +183,23 @@
     <div class="ph">
       <span class="pt">{plan.title}</span>
       {#if plan.sub}<span class="ps">{plan.sub}</span>{/if}
-      {#if sum}
-        <!-- 依現況負載可用多久：戰情室最先要看的一個數，放標題列右側 -->
-        <span class="endur">⏳ 現況可用 <b>{endurText(hours)}</b><small>負載 {totalKw.toFixed(2)} kW · 可用電量 {usableKwh} kWh</small></span>
-      {/if}
       <button type="button" class="toboard" onclick={onBoard}>📊 水·油·氣·環境</button>
     </div>
     <div class="canvasbox">
-      <div class="canvas">
+      <div class="canvas" bind:this={canvasEl}>
+        {#if sum}
+          <!-- 續航大字卡：戰情室第一眼要看到的數，放畫布左上角 -->
+          <div class="endcard">
+            <div class="ecap">基本維生<br />供電可維持</div>
+            {#if endurDays >= 1}
+              <div class="enum">{endurDays}</div><div class="eunit">天</div>
+              {#if endurRestH}<div class="esub">＋{endurRestH} 小時</div>{/if}
+            {:else}
+              <div class="enum">{Math.round(hours)}</div><div class="eunit">小時</div>
+            {/if}
+            <div class="esub2">負載 {totalKw.toFixed(2)} kW · 可用 {usableKwh} kWh</div>
+          </div>
+        {/if}
         {#each plan.zones as z}
           {@const w = zoneW.get(z.id) ?? 0}
           <div
@@ -127,6 +213,33 @@
             {#if w > 0}<span class="zkw">⚡ {kw1(w)} kW</span>{/if}
           </div>
         {/each}
+        {#if queue.length}
+          <!-- 影片佇列（右下）：最上面那支要播時外框閃 3 下，播完排到最後、其餘往上遞補 -->
+          <div class="vq" bind:this={qEl}>
+            {#each queue as v (v.id)}
+              <div class="vit" class:flash={phase === 'flash' && v.id === cur?.id} animate:flip={{ duration: 400 }}>
+                {#if v.src}
+                  <video src="{v.src}#t={v.at ?? 0}" muted playsinline preload="metadata"></video>
+                {/if}
+                <span class="vcap">{v.label}</span>
+              </div>
+            {/each}
+          </div>
+          <!-- 播放台：由縮圖位置 zoom 到中央，播完淡出露出配置圖 -->
+          {#if stage && phase !== 'idle' && phase !== 'flash'}
+            <div
+              class="vstage"
+              class:on={stageOn}
+              class:fade={phase === 'fade'}
+              style="--x0:{stage.x}px; --y0:{stage.y}px; --w0:{stage.w}px; --h0:{stage.h}px;"
+            >
+              {#if playing?.src}
+                <video bind:this={vidEl} src={playing.src} muted playsinline></video>
+              {/if}
+              <span class="vcap big">{playing?.label}</span>
+            </div>
+          {/if}
+        {/if}
       </div>
     </div>
     {#if plan.legend?.length}
@@ -261,6 +374,38 @@
   .k-muster { background: transparent; border-style: dashed; border-color: var(--color-alert); color: var(--color-text-secondary); }
   .k-context { background: color-mix(in oklab, var(--color-text-secondary) 10%, var(--color-paper)); border-color: var(--color-border); color: var(--color-text-secondary); }
   .k-shelter { background: transparent; border: none; color: var(--color-text-secondary); }
+
+  /* 續航大字卡（畫布左上）：戰情室第一眼要看到的數 */
+  .endcard { position: absolute; left: 1.2%; top: 1.5%; z-index: 3; display: flex; flex-direction: column; align-items: center; padding: 4px 10px 6px; border: 2px solid var(--color-energy); border-radius: var(--radius-md); background: color-mix(in oklab, var(--color-energy) 22%, var(--color-paper)); }
+  .ecap { font-size: clamp(9px, 1.35cqw, 19px); font-weight: 700; line-height: 1.15; text-align: center; }
+  .enum { font-size: clamp(26px, 5.6cqw, 84px); font-weight: 800; line-height: 1; }
+  .eunit { font-size: clamp(10px, 1.5cqw, 21px); font-weight: 700; line-height: 1.1; }
+  .esub { font-size: clamp(8px, 1.05cqw, 15px); font-weight: 700; color: var(--color-text-secondary); }
+  .esub2 { font-size: clamp(7px, 0.95cqw, 13px); color: var(--color-text-secondary); margin-top: 1px; }
+
+  /* 影片佇列（畫布右下）：縮圖定格在指定秒數、畫面靠右對齊 */
+  .vq { position: absolute; right: 1.2%; bottom: 1.5%; z-index: 3; width: 17%; display: flex; flex-direction: column; gap: 5px; }
+  .vit { position: relative; aspect-ratio: 16 / 10; border: 2px solid var(--color-energy); border-radius: var(--radius-sm); background: color-mix(in oklab, var(--color-energy) 18%, var(--color-paper)); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .vit video { width: 100%; height: 100%; object-fit: cover; object-position: right center; }
+  /* 輪到它要播：外框閃 3 下（0.3s×3＝0.9s，與 FLASH_MS 對齊） */
+  .vit.flash { animation: vflash 0.3s steps(1) 3; }
+  @keyframes vflash {
+    0%, 49% { border-color: var(--color-alert); box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-alert) 45%, transparent); }
+    50%, 100% { border-color: var(--color-energy); box-shadow: none; }
+  }
+  .vcap { position: absolute; left: 0; right: 0; bottom: 0; padding: 1px 4px; font-size: clamp(7px, 0.95cqw, 14px); font-weight: 700; line-height: 1.25; text-align: center; color: var(--color-paper); background: color-mix(in oklab, var(--color-text) 62%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vph { font-size: clamp(9px, 1.3cqw, 18px); font-weight: 700; color: var(--color-text-secondary); }
+
+  /* 播放台：由縮圖位置 zoom 到畫布中央，播完淡出露出配置圖 */
+  .vstage { position: absolute; z-index: 4; left: var(--x0); top: var(--y0); width: var(--w0); height: var(--h0); border: 2px solid var(--color-energy); border-radius: var(--radius-md); overflow: hidden; background: var(--color-text); display: flex; align-items: center; justify-content: center; transition: left 0.6s cubic-bezier(0.22, 1, 0.36, 1), top 0.6s cubic-bezier(0.22, 1, 0.36, 1), width 0.6s cubic-bezier(0.22, 1, 0.36, 1), height 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease; }
+  .vstage.on { left: 7%; top: 22%; width: 68%; height: 74%; }
+  .vstage.fade { opacity: 0; }
+  .vstage video { width: 100%; height: 100%; object-fit: contain; }
+  .vstage .vcap.big { font-size: clamp(11px, 1.8cqw, 26px); padding: 3px 8px; }
+  @media (prefers-reduced-motion: reduce) {
+    .vit.flash { animation: none; }
+    .vstage { transition: opacity 0.5s ease; }
+  }
 
   .legend { display: flex; flex-wrap: wrap; gap: 4px var(--space-sm); align-items: center; padding-top: 3px; border-top: 1px dashed var(--color-border); }
   .lg { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--color-text-secondary); }

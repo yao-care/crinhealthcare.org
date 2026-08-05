@@ -14,6 +14,7 @@
 //   4. 拿掉 CSP meta、rss/sitemap link、preload —— 那些是給線上站用的，file:// 下只會擋路
 //
 // 旗標：--no-fonts 不內嵌字型（檔案小很多，中文改用系統字型）
+//       --no-video 不內嵌影片（離線檔小很多，但影片區只剩標題卡）
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -25,6 +26,7 @@ const DIST = path.join(ROOT, 'dist');
 const args = process.argv.slice(2);
 const HOSPITAL = args.find((a) => !a.startsWith('-')) ?? '804';
 const EMBED_FONTS = !args.includes('--no-fonts');
+const EMBED_VIDEO = !args.includes('--no-video');
 const OUT_DIR = path.join(ROOT, 'dist-offline');
 const OUT = path.join(OUT_DIR, `${HOSPITAL}-offline.html`);
 
@@ -152,7 +154,7 @@ const rangeUsed = (ranges) => {
 const dataUri = (file) => {
   const ext = path.extname(file).slice(1);
   const mime =
-    { woff2: 'font/woff2', woff: 'font/woff', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', ico: 'image/x-icon' }[ext] ??
+    { woff2: 'font/woff2', woff: 'font/woff', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', ico: 'image/x-icon', mp4: 'video/mp4', webm: 'video/webm' }[ext] ??
     'application/octet-stream';
   return `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`;
 };
@@ -230,6 +232,63 @@ for (const p of parsed) {
   }
   for (const s of p.headStyles) cssOut += '\n' + processCss(s);
 }
+
+// ── 3.5 影片：整份檔案只放一份，執行時再接回 <video> ─────────────
+// 戰時配置圖是「按下轉戰時」才由 island 渲染，SSR HTML 裡沒有 <video>，
+// 影片路徑只存在 astro-island 的 props JSON 裡；而同一份 props 會出現在 5 個頁面，
+// 直接把 data URI 塞回字串＝同一支影片存 5 份（實測 127 MB）。
+// 作法：路徑原樣保留，另外輸出一份「路徑 → data URI」表，載入時轉 blob URL 再補上 src。
+// --no-video 則把路徑清空，影片區只剩標題卡。
+const videoStat = { kept: 0, dropped: 0, bytes: 0 };
+const videoMap = {};
+{
+  const re = /\/videos\/[^"'&<>\\]+?\.(?:mp4|webm)/g;
+  const seen = new Set();
+  for (const p of parsed) for (const m of p.body.matchAll(re)) seen.add(m[0]);
+  for (const url of seen) {
+    const file = assetPath(url);
+    if (!fs.existsSync(file)) continue;
+    if (!EMBED_VIDEO) { videoStat.dropped++; continue; }
+    videoStat.kept++;
+    videoStat.bytes += fs.statSync(file).size;
+    videoMap[url] = dataUri(file);
+  }
+  if (!EMBED_VIDEO) for (const p of parsed) p.body = p.body.replace(re, '');
+}
+
+const videoShim = Object.keys(videoMap).length
+  ? `
+<script id="off-videos" type="application/json">${JSON.stringify(videoMap)}</script>
+<script>
+(function () {
+  var M = JSON.parse(document.getElementById('off-videos').textContent);
+  var B = {};   // 路徑 → blob URL（data URI 直接餵給 <video> 很吃記憶體，轉 blob 播起來才順）
+  function fix(el) {
+    var s = el.getAttribute('src') || '';
+    if (s.indexOf('/videos/') !== 0) return;
+    var i = s.indexOf('#'), p = i < 0 ? s : s.slice(0, i), h = i < 0 ? '' : s.slice(i);
+    if (B[p]) { el.src = B[p] + h; el.load && el.load(); }
+  }
+  function fixAll() { document.querySelectorAll('video').forEach(fix); }
+  Object.keys(M).forEach(function (p) {
+    fetch(M[p]).then(function (r) { return r.blob(); }).then(function (b) {
+      B[p] = URL.createObjectURL(b);
+      fixAll();
+    });
+  });
+  new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      m.addedNodes.forEach(function (n) {
+        if (n.nodeType !== 1) return;
+        if (n.tagName === 'VIDEO') fix(n);
+        if (n.querySelectorAll) n.querySelectorAll('video').forEach(fix);
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('DOMContentLoaded', fixAll);
+})();
+</script>`
+  : '';
 
 // ── 4. body：頁面容器 + id 去重 ───────────────────────────────
 let bodyOut = '';
@@ -343,6 +402,7 @@ ${board.jsonLd.map((j) => `<script type="application/ld+json">${j}</script>`).jo
 </head>
 <body>
 ${bodyOut}
+${videoShim}
 <script>${bundle}</script>
 <script>${runtime}</script>
 </body>
@@ -357,6 +417,11 @@ const mb = (n) => (n / 1024 / 1024).toFixed(2) + ' MB';
 console.log(`✓ ${path.relative(ROOT, OUT)}  ${mb(Buffer.byteLength(html))}`);
 console.log(`  頁面：${routes.join(' / ')}`);
 console.log(`  元件：${[...components.keys()].join(', ')}`);
+console.log(
+  EMBED_VIDEO
+    ? `  影片：內嵌 ${videoStat.kept} 支（原始 ${mb(videoStat.bytes)}）`
+    : `  影片：未內嵌（--no-video），${videoStat.dropped} 支只剩標題卡`,
+);
 console.log(
   EMBED_FONTS
     ? `  字型：保留 ${fontStat.kept} 個子集、捨棄 ${fontStat.dropped} 個未用到的；裁切後 ${mb(fontStat.before)} → ${mb(fontStat.after)}`
