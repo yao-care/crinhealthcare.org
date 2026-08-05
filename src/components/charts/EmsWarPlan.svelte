@@ -98,8 +98,11 @@
   const siteKwh = $derived(sources.reduce((s, r) => s + r.kwh, 0));
   const maxSrcKwh = $derived(Math.max(...sources.map((s) => s.kwh), 1));
   // 大字卡：天數為主、餘下小時為輔（不足一天就以小時當主角）
-  const endurDays = $derived(Math.floor(hours / 24));
-  const endurRestH = $derived(Math.round(hours - endurDays * 24));
+  // 大字卡看「基本維生」（不含場地照明）；側欄的時間軸看全載，兩個都標清楚基準
+  const essHours = $derived(sum?.essentialHours ?? 0);
+  const essKw = $derived(sum?.essentialKw ?? 0);
+  const endurDays = $derived(Math.floor(essHours / 24));
+  const endurRestH = $derived(Math.round(essHours - endurDays * 24));
   // 現場影片輪播：閃 3 下 → zoom 到中央 → 播完淡出 → 間隔 GAP 再換下一支
   const FLASH_MS = 900, ZOOM_MS = 600, FADE_MS = 500, GAP_MS = 4500, PH_PLAY_MS = 5000;
   // 佇列顯示：原始清單依 rot 旋轉（rot 只在狀態機裡遞增）。
@@ -130,7 +133,10 @@
     const t: number[] = [];
     const wait = (ms: number) => new Promise<void>((r) => t.push(window.setTimeout(r, ms)));
     (async () => {
+      // 進戰時先靜置一個間隔再播第一支（讓人先看清配置圖）；離開戰時整個效果會被清掉，不會在背景播
+      await wait(GAP_MS);
       while (alive) {
+        if (!alive) return;
         phase = 'flash';
         await wait(FLASH_MS);
         if (!alive) return;
@@ -195,9 +201,9 @@
               <div class="enum">{endurDays}</div><div class="eunit">天</div>
               {#if endurRestH}<div class="esub">＋{endurRestH} 小時</div>{/if}
             {:else}
-              <div class="enum">{Math.round(hours)}</div><div class="eunit">小時</div>
+              <div class="enum">{Math.round(essHours)}</div><div class="eunit">小時</div>
             {/if}
-            <div class="esub2">負載 {totalKw.toFixed(2)} kW · 可用 {usableKwh} kWh</div>
+            <div class="esub2">維生負載 {essKw.toFixed(2)} kW（不含場地照明）</div>
           </div>
         {/if}
         {#each plan.zones as z}
@@ -281,7 +287,7 @@
           <div class="lrow">
             <div class="ltop"><span class="ln">{l.name}</span><span class="lq">{qtyText(l)}</span><span class="lk">{kw1(w)} kW</span></div>
             <div class="lbar"><i style="width:{maxLoadW ? (w / maxLoadW) * 100 : 0}%; background:{fills[i]}"></i></div>
-            <div class="ldet">{l.parts.map((p) => (p.flat ? `${p.n}（${p.w} W）` : `${p.n} ×${p.qty}（${p.w} W）`)).join(' · ')}</div>
+            <div class="ldet">{#if l.essential === false}<b class="noness">非維生</b>{/if}{l.parts.map((p) => (p.flat ? `${p.n}（${p.w} W）` : `${p.n} ×${p.qty}（${p.w} W）`)).join(' · ')}</div>
           </div>
         {/each}
       </div>
@@ -317,7 +323,8 @@
         </div>
         <!-- 續航時間軸：刻度到 5 天，標出原廠單台 2–3 天備援續航供對照 -->
         <div class="tl">
-          <div class="tlrow"><span class="tlcap">依現況可用<em>儲電櫃 {usableKwh} kWh</em></span><b class="tlbig">{endurText(hours)}</b></div>
+          <div class="tlrow"><span class="tlcap">依現況可用<em>全載 {totalKw.toFixed(2)} kW</em></span><b class="tlbig">{endurText(hours)}</b></div>
+          <div class="tlrow sub"><span class="tlcap">基本維生<em>{essKw.toFixed(2)} kW · 不含場地照明</em></span><b>{endurText(essHours)}</b></div>
           <div class="tlbar">
             <span class="ref" style="left:{(2 / tlMax) * 100}%; width:{(1 / tlMax) * 100}%"></span>
             <i style="width:{Math.min(100, (hours / 24 / tlMax) * 100)}%"></i>
@@ -485,6 +492,9 @@
   .tlcap { font-size: var(--text-sm); font-weight: 700; }
   .tlcap em { font-style: normal; font-weight: 400; font-size: var(--text-xs); color: var(--color-text-secondary); margin-left: 5px; }
   .tlbig { font-size: var(--text-xl); font-weight: 700; color: var(--color-alert); }
+  .tlrow.sub { font-size: var(--text-sm); }
+  .tlrow.sub b { font-weight: 700; }
+  .noness { color: var(--color-text); background: color-mix(in oklab, var(--color-energy) 40%, var(--color-paper)); border-radius: var(--radius-sm); padding: 0 4px; margin-right: 4px; font-weight: 700; }
   .tlbar { position: relative; height: 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; }
   .tlbar .ref { position: absolute; top: 0; bottom: 0; background: color-mix(in oklab, var(--color-text-secondary) 22%, var(--color-paper)); }
   .tlbar i { position: relative; display: block; height: 100%; background: var(--color-accent); }
@@ -494,7 +504,7 @@
   /* 側欄放不下時的收合順序：規格待補標籤 → 櫃體重複的文字規格 → 各項組成明細 → 時間軸刻度。
      被收的都是「畫面別處或環圈已經有」的資訊，數字與圖形一律留著。 */
   @container (max-height: 900px) { .smeta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
-  @container (max-height: 860px) { .srch small { display: none; } .loads { min-height: 4em; } .sbar { height: 7px; margin: 0; } .srcs { gap: 0; } .src { padding-bottom: 1px; } .skwh { font-size: var(--text-sm); } }
+  @container (max-height: 860px) { .srch small { display: none; } .loads { min-height: 3.2em; } .tlrow.sub { font-size: var(--text-xs); line-height: 1.2; } .tlrow.sub em { display: none; } .mh { font-size: var(--text-xs); } .sbar { height: 7px; margin: 0; } .srcs { gap: 0; } .src { padding-bottom: 1px; } .skwh { font-size: var(--text-sm); } }
   @container (max-height: 860px) { .ldet { display: none; } }
   @container (max-height: 760px) { .loads { min-height: 4.5em; } .smeta { display: none; } }
   @container (max-height: 720px) { .tlticks { display: none; } .pwr-h small { display: none; } }

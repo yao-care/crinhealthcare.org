@@ -88,13 +88,15 @@ export function envSeverity(
 // 總負載／各區用電／負載率／裕度／續航一律由這裡算，看板與配置圖共用同一份結果
 // （分開各算會出現「配置圖 69 小時、五區塊撐 —」這種自打嘴巴）。
 export interface WarPowerPart { zone?: string; n?: string; qty: number; w: number; flat?: boolean }
-export interface WarPowerLoad { name: string; parts: WarPowerPart[] }
+export interface WarPowerLoad { name: string; essential?: boolean; parts: WarPowerPart[] }
 export interface WarPowerCabinet { name: string; kwh: number; kw: number; out?: string; loc?: string; state?: string }
 export interface WarPowerMobile { name: string; qty?: number; zone?: string; use?: string; kwh?: number; kw?: number; out?: string; weight?: string; spec?: string; state?: string }
 export interface WarPower { title?: string; note?: string; usablePct?: number; cabinets: WarPowerCabinet[]; mobile?: WarPowerMobile[]; loads: WarPowerLoad[] }
 
 export interface WarPowerSummary {
-  totalKw: number;      // 目前總負載
+  totalKw: number;      // 目前總負載（全部用電設備）
+  essentialKw: number;  // 基本維生負載（不含標了 essential:false 的，如場地照明）
+  essentialHours: number; // 只供維生負載可撐多久
   capKw: number;        // 儲電櫃額定輸出合計
   capKwh: number;       // 儲電櫃額定容量合計
   usableKwh: number;    // 扣 SOC 下限後的可用電量
@@ -108,10 +110,12 @@ export function warPowerSummary(p?: WarPower | null): WarPowerSummary | null {
   if (!p?.loads?.length || !p?.cabinets?.length) return null;
   const byZone = new Map<string, number>();
   let totalW = 0;
+  let essW = 0;
   for (const l of p.loads) {
     for (const part of l.parts) {
       const w = part.qty * part.w;
       totalW += w;
+      if (l.essential !== false) essW += w;
       if (part.zone) byZone.set(part.zone, (byZone.get(part.zone) ?? 0) + w);
     }
   }
@@ -119,8 +123,11 @@ export function warPowerSummary(p?: WarPower | null): WarPowerSummary | null {
   const capKwh = p.cabinets.reduce((s, c) => s + c.kwh, 0);
   const usableKwh = (capKwh * (p.usablePct ?? 100)) / 100;
   const totalKw = totalW / 1000;
+  const essentialKw = essW / 1000;
   return {
     totalKw, capKw, capKwh, usableKwh,
+    essentialKw,
+    essentialHours: essentialKw ? usableKwh / essentialKw : 0,
     marginKw: capKw - totalKw,
     loadPct: capKw ? (totalKw / capKw) * 100 : 0,
     hours: totalKw ? usableKwh / totalKw : 0,

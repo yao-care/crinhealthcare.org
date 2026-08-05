@@ -248,6 +248,8 @@ const emsScenario = z.object({
     })).default([]),
     loads: z.array(z.object({
       name: z.string(),
+      // 是否算「基本維生」負載（場地照明這類標 false，不計入大字卡的維生續航）
+      essential: z.boolean().default(true),
       parts: z.array(z.object({
         zone: z.string().default(''),       // 對應 plan.zones[].id
         n: z.string().default(''),
