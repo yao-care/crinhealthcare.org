@@ -101,8 +101,7 @@
   // 大字卡看「基本維生」（不含場地照明）；側欄的時間軸看全載，兩個都標清楚基準
   const essHours = $derived(sum?.essentialHours ?? 0);
   const essKw = $derived(sum?.essentialKw ?? 0);
-  const endurDays = $derived(Math.floor(essHours / 24));
-  const endurRestH = $derived(Math.round(essHours - endurDays * 24));
+  const endurDays = $derived(Math.floor(essHours / 24));   // 無條件捨去：不承諾超過實際有的
   // 現場影片輪播：閃 3 下 → zoom 到中央 → 播完淡出 → 間隔 GAP 再換下一支
   const FLASH_MS = 900, ZOOM_MS = 600, FADE_MS = 500, GAP_MS = 4500, PH_PLAY_MS = 5000;
   // 佇列顯示：原始清單依 rot 旋轉（rot 只在狀態機裡遞增）。
@@ -199,11 +198,9 @@
             <div class="ecap">基本維生<br />供電可維持</div>
             {#if endurDays >= 1}
               <div class="enum">{endurDays}</div><div class="eunit">天</div>
-              {#if endurRestH}<div class="esub">＋{endurRestH} 小時</div>{/if}
             {:else}
-              <div class="enum">{Math.round(essHours)}</div><div class="eunit">小時</div>
+              <div class="enum">{Math.floor(essHours)}</div><div class="eunit">小時</div>
             {/if}
-            <div class="esub2">維生負載 {essKw.toFixed(2)} kW（不含場地照明）</div>
           </div>
         {/if}
         {#each plan.zones as z}
@@ -389,8 +386,6 @@
   .ecap { font-size: clamp(9px, 1.35cqw, 19px); font-weight: 700; line-height: 1.15; text-align: center; }
   .enum { font-size: clamp(26px, 5.6cqw, 84px); font-weight: 800; line-height: 1; }
   .eunit { font-size: clamp(10px, 1.5cqw, 21px); font-weight: 700; line-height: 1.1; }
-  .esub { font-size: clamp(8px, 1.05cqw, 15px); font-weight: 700; color: var(--color-text-secondary); }
-  .esub2 { font-size: clamp(7px, 0.95cqw, 13px); color: var(--color-text-secondary); margin-top: 1px; }
 
   /* 影片佇列（畫布右下）：縮圖定格在指定秒數、畫面靠右對齊 */
   .vq { position: absolute; right: 1.2%; bottom: 1.5%; z-index: 3; width: 17%; display: flex; flex-direction: column; gap: 5px; }
