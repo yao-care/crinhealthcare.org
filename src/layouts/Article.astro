@@ -6,11 +6,12 @@ interface Props {
   title: string;
   description?: string;
   ogImage?: string;
+  noindex?: boolean;
   publishDate?: Date;
   tags?: string[];
 }
 
-const { title, description, ogImage, publishDate, tags = [] } = Astro.props;
+const { title, description, ogImage, publishDate, tags = [] , noindex = false } = Astro.props;
 
 const formattedDate = publishDate
   ? publishDate.toLocaleDateString('zh-Hant-TW', {
@@ -23,7 +24,7 @@ const formattedDate = publishDate
 const isoDate = publishDate?.toISOString();
 ---
 
-<Page title={title} description={description} ogImage={ogImage}>
+<Page title={title} description={description} ogImage={ogImage} noindex={noindex}>
   <article class="article">
     <div class="container">
       <header class="article__header">

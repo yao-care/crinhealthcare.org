@@ -1,0 +1,141 @@
+---
+// 內部審閱用未公開頁：列出所有 draft:true 的文章。
+// 「不推到外部」＋「廠商與會長要看得到」的折衷做法：
+//   · 站上任何地方都沒有連到這裡的連結（導覽列、文章列表、RSS、sitemap 都沒有）
+//   · 頁面帶 noindex, nofollow，搜尋引擎不收錄
+//   · astro.config 的 sitemap filter 排除 /review/
+// ⚠️ 靜態站沒有伺服器端權限：拿到網址的人都看得到。它擋的是「被搜到」，不是「被看到」。
+import Page from '@layouts/Page.astro';
+import { getCollection } from 'astro:content';
+import { url } from '@utils/url';
+
+const drafts = (await getCollection('insights', ({ data }) => data.draft)).sort(
+  (a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf(),
+);
+
+const categoryLabel: Record<string, string> = {
+  policy: '政策解讀',
+  guide: '知識指南',
+  benchmark: '國際標竿',
+};
+---
+
+<Page title="內部審閱" description="尚未發布的文章草稿，供內部審閱" noindex>
+  <section class="review">
+    <div class="container">
+      <p class="notice">
+        <strong>內部審閱用，尚未發布。</strong>
+        以下文章標記為草稿，不會出現在網站的文章列表、RSS 或 sitemap，搜尋引擎也不會收錄。
+        本頁沒有密碼保護，取得網址的人都能閱讀，請勿轉發到協會以外。
+      </p>
+
+      <h1 class="title">內部審閱</h1>
+      <p class="lead">共 {drafts.length} 篇待審。看完請把意見回覆給編輯，定稿後才會正式發布。</p>
+
+      {
+        drafts.length === 0 ? (
+          <p class="empty">目前沒有待審草稿。</p>
+        ) : (
+          <ul class="list">
+            {drafts.map((entry) => (
+              <li class="item">
+                <a class="item__link" href={url(`/review/${entry.id}/`)}>
+                  <span class="item__cat">{categoryLabel[entry.data.category] ?? entry.data.category}</span>
+                  <h2 class="item__title">{entry.data.title}</h2>
+                  <p class="item__summary">{entry.data.summary}</p>
+                  <span class="item__date">
+                    {entry.data.publishDate.toLocaleDateString('zh-Hant-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+  </section>
+</Page>
+
+<style>
+  .review {
+    padding: var(--space-3xl) 0;
+  }
+
+  .notice {
+    background-color: var(--color-notice-bg);
+    border: 1px solid var(--color-notice-border);
+    border-left: 4px solid var(--color-notice-accent);
+    color: var(--color-notice-text);
+    padding: var(--space-lg);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    line-height: var(--leading-loose);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .title {
+    font-size: var(--text-3xl);
+    font-family: var(--font-heading);
+    margin-bottom: var(--space-sm);
+  }
+
+  .lead {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: var(--space-lg);
+  }
+
+  .item__link {
+    display: block;
+    padding: var(--space-xl);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color var(--transition-fast);
+  }
+
+  .item__link:hover {
+    border-color: var(--color-primary);
+  }
+
+  .item__cat {
+    display: inline-block;
+    padding: var(--space-xs) var(--space-md);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    border-radius: 9999px;
+    margin-bottom: var(--space-sm);
+  }
+
+  .item__title {
+    font-size: var(--text-xl);
+    font-family: var(--font-heading);
+    margin-bottom: var(--space-sm);
+  }
+
+  .item__summary {
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    line-height: var(--leading-loose);
+    margin-bottom: var(--space-sm);
+  }
+
+  .item__date {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .empty {
+    color: var(--color-text-secondary);
+  }
+</style>

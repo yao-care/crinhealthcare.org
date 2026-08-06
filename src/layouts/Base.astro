@@ -16,12 +16,15 @@ interface Props {
   title: string;
   description?: string;
   ogImage?: string;
+  /** 未公開頁（如 /review/ 內部審閱）：擋搜尋引擎收錄；同時要在 astro.config 的 sitemap filter 排除 */
+  noindex?: boolean;
 }
 
 const {
   title,
   description = '國際醫療減碳協會協助醫療院所達成碳盤查、能源管理、ESG報告與淨零排放目標。',
   ogImage = '/og/index.png',
+  noindex = false,
 } = Astro.props;
 
 const siteTitle = `${title} | 國際醫療減碳協會`;
@@ -47,6 +50,7 @@ const essApiOrigin = new URL(import.meta.env.PUBLIC_ESS_API ?? 'https://ems-api.
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{siteTitle}</title>
     {description && <meta name="description" content={description} />}
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonicalURL} />
     <link rel="icon" href={url('/favicon.ico')} sizes="any" />
     <link rel="icon" type="image/svg+xml" href={url('/favicon.svg')} />

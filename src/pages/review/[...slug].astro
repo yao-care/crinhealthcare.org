@@ -1,0 +1,146 @@
+---
+// 內部審閱用未公開頁（單篇）：只產出 draft:true 的文章，帶 noindex、不進 sitemap、站上無連結。
+// 正式發布時把 frontmatter 的 draft 改成 false —— 該篇就會從 /review/ 消失、
+// 改由 /insights/<id>/ 對外呈現（同一份 markdown，不必搬檔）。
+import Article from '@layouts/Article.astro';
+import { getCollection, render } from 'astro:content';
+import { url } from '@utils/url';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('insights');
+  return entries
+    .filter((e) => e.data.draft)
+    .map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const { title, publishDate, summary, tags, internationalBenchmark, category } = entry.data;
+
+const categoryLabel: Record<string, string> = {
+  policy: '政策解讀',
+  guide: '知識指南',
+  benchmark: '國際標竿',
+};
+---
+
+<Article title={title} description={summary} publishDate={publishDate} tags={tags} noindex>
+  <p class="notice">
+    <strong>內部審閱用，尚未發布。</strong>
+    本文標記為草稿，不在網站文章列表、RSS 與 sitemap 中，搜尋引擎不收錄。請勿轉發到協會以外。
+    <a href={url('/review/')}>回審閱清單</a>
+  </p>
+
+  <div class="insight-category">
+    <span class="category-badge">{categoryLabel[category] ?? category}</span>
+  </div>
+
+  <div class="insight-summary">
+    <p>{summary}</p>
+  </div>
+
+  <Content />
+
+  {internationalBenchmark && (
+    <aside class="benchmark" aria-label="國際標竿資料">
+      <h3 class="benchmark__title">國際標竿：{internationalBenchmark.region}</h3>
+      <div class="benchmark__body">
+        <h4 class="benchmark__subtitle">{internationalBenchmark.title}</h4>
+        <p class="benchmark__summary">{internationalBenchmark.summary}</p>
+        <p class="benchmark__comparison">{internationalBenchmark.comparison}</p>
+        <a
+          href={internationalBenchmark.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="benchmark__link"
+        >
+          閱讀原始資料 ↗
+        </a>
+      </div>
+    </aside>
+  )}
+</Article>
+
+<style>
+  .notice {
+    background-color: var(--color-notice-bg);
+    border: 1px solid var(--color-notice-border);
+    border-left: 4px solid var(--color-notice-accent);
+    color: var(--color-notice-text);
+    padding: var(--space-lg);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    line-height: var(--leading-loose);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .notice a {
+    color: var(--color-notice-text);
+    font-weight: 600;
+  }
+
+  .insight-category {
+    margin-bottom: var(--space-lg);
+  }
+
+  .category-badge {
+    padding: var(--space-xs) var(--space-md);
+    background-color: var(--color-primary-pale);
+    color: var(--color-primary);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    border-radius: 9999px;
+  }
+
+  .insight-summary {
+    font-size: var(--text-lg);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-loose);
+    border-left: 4px solid var(--color-primary);
+    padding-left: var(--space-lg);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .benchmark {
+    margin-top: var(--space-3xl);
+    padding: var(--space-xl);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    border-top: 4px solid var(--color-chart-4);
+  }
+
+  .benchmark__title {
+    font-size: var(--text-lg);
+    font-family: var(--font-heading);
+    font-weight: 700;
+    margin-bottom: var(--space-lg);
+  }
+
+  .benchmark__subtitle {
+    font-size: var(--text-base);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+  }
+
+  .benchmark__summary {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--leading-normal);
+    margin-bottom: var(--space-sm);
+  }
+
+  .benchmark__comparison {
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    margin-bottom: var(--space-lg);
+    font-style: italic;
+  }
+
+  .benchmark__link {
+    font-size: var(--text-sm);
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+  }
+</style>
