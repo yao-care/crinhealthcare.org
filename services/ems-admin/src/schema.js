@@ -78,6 +78,62 @@ const emsScenario = z.object({
       })).default([]),
     }).optional(),
   }),
+  // v2 戰時平面配置圖（選用）：座標為 0–100 的畫布百分比
+  plan: z.object({
+    title: z.string().default(''),
+    sub: z.string().default(''),
+    zones: z.array(z.object({
+      id: z.string().default(''),
+      label: z.string(),
+      kind: z.string().default('zone'),
+      x: z.number(), y: z.number(), w: z.number(), h: z.number(),
+      rot: z.number().default(0),
+      sub: z.string().default(''),
+      star: z.boolean().default(false),
+    })).default([]),
+    legend: z.array(z.object({ label: z.string(), kind: z.string() })).default([]),
+    videos: z.array(z.object({
+      id: z.string(),
+      label: z.string().default(''),
+      src: z.string().default(''),
+      at: z.number().default(0),
+      poster: z.string().default(''),
+      sec: z.number().default(0),
+    })).default([]),
+  }).optional(),
+  // v2 戰時供電規劃（選用）：儲電櫃 + 逐項負載，彙總值全由 loads[].parts 推導
+  power: z.object({
+    title: z.string().default(''),
+    note: z.string().default(''),
+    usablePct: z.number().default(100),
+    cabinets: z.array(z.object({
+      name: z.string(),
+      kwh: z.number(), kw: z.number(),
+      out: z.string().default(''), loc: z.string().default(''), state: z.string().default(''),
+    })).default([]),
+    mobile: z.array(z.object({
+      name: z.string(),
+      qty: z.number().default(1),
+      zone: z.string().default(''),
+      use: z.string().default(''),
+      kwh: z.number().default(0),
+      kw: z.number().default(0),
+      out: z.string().default(''),
+      weight: z.string().default(''),
+      spec: z.string().default(''),
+      state: z.string().default(''),
+    })).default([]),
+    loads: z.array(z.object({
+      name: z.string(),
+      essential: z.boolean().default(true),
+      parts: z.array(z.object({
+        zone: z.string().default(''),
+        n: z.string().default(''),
+        qty: z.number(), w: z.number(),
+        flat: z.boolean().default(false),
+      })).default([]),
+    })).default([]),
+  }).optional(),
 });
 
 const envFloor = z.object({
@@ -108,6 +164,7 @@ const emsEnv = z.object({
 
 export const hospitalSchema = z.object({
   name: z.string(),
+  boardTitle: z.string().default(''),
   location: z.string().default(''),
   updated: z.string().default(''),
   version: z.string().default(''),
@@ -161,9 +218,30 @@ export const hospitalSchema = z.object({
   })).default([]),
 });
 
+// zod 的英文訊息院方看不懂（原本畫面上直接出現 "Invalid enum value. Expected 'grey' | ..."）。
+// 這裡翻成中文；路徑仍保持 zod 原樣，前端要靠它把錯誤對回畫面上的欄位。
+const TYPE_ZH = { string: '文字', number: '數字', boolean: '是/否', array: '清單', object: '區塊' };
+function zhIssue(i) {
+  switch (i.code) {
+    case 'invalid_type':
+      if (i.received === 'undefined') return '這是必填欄位，不能留空';
+      return `格式應為${TYPE_ZH[i.expected] || i.expected}，目前是${TYPE_ZH[i.received] || i.received}`;
+    case 'invalid_enum_value':
+      return `只能是這幾個值之一：${(i.options || []).join('、')}（目前是「${i.received}」）`;
+    case 'too_small':
+      return `不能少於 ${i.minimum}`;
+    case 'too_big':
+      return `不能多於 ${i.maximum}`;
+    case 'unrecognized_keys':
+      return `有無法辨識的欄位：${(i.keys || []).join('、')}`;
+    default:
+      return i.message;
+  }
+}
+
 // 驗證並回傳 { ok, data|errors }。strict 不加：容忍未知欄位（與 zod 預設 strip 一致，避免擋掉 schema 尚未涵蓋的欄位）
 export function validateHospital(obj) {
   const r = hospitalSchema.safeParse(obj);
   if (r.success) return { ok: true, data: r.data };
-  return { ok: false, errors: r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) };
+  return { ok: false, errors: r.error.issues.map((i) => `${i.path.join('.')}: ${zhIssue(i)}`) };
 }

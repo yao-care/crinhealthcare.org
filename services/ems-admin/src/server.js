@@ -9,6 +9,7 @@ import { signToken, setSessionCookie, clearSessionCookie, readSession } from './
 import { validateHospital } from './schema.js';
 import { readHospital, saveHospital, hospitalExists } from './repo.js';
 import { deployStatus } from './deploy.js';
+import { hospitalSpec } from './spec.js';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -85,6 +86,11 @@ const server = createServer(async (req, res) => {
         const sha = new URL(req.url, 'http://x').searchParams.get('commit') || '';
         try { const st = await deployStatus(sha, sess.hid); return json(res, 200, { ok: true, ...st }); }
         catch (e) { return json(res, 200, { ok: true, phase: 'unknown', detail: String(e.message || e) }); }
+      }
+
+      // 表單規格（由 zod schema 推導）：前端據此長欄位，JSON 沒有的鍵也長得出來
+      if (req.method === 'GET' && pathname === '/api/schema') {
+        return json(res, 200, { ok: true, spec: hospitalSpec });
       }
 
       // 讀取自家院所現況

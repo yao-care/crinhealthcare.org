@@ -13,29 +13,58 @@
     <h1>🔋 EMS 看板維護</h1>
     <p class="muted">請以院所帳號登入。登入後只能編輯貴院看板。</p>
     <form id="loginForm">
-      <label>帳號<input name="username" autocomplete="username" required /></label>
+      <label>帳號<input name="username" autocomplete="username" autofocus required /></label>
       <label>密碼<input name="password" type="password" autocomplete="current-password" required /></label>
       <button type="submit">登入</button>
       <p id="loginErr" class="err"></p>
     </form>
+    <p class="muted foot">忘記密碼或帳號被鎖，請聯絡維護窗口重設。</p>
   </section>
 
   <!-- 編輯器 -->
-  <section id="editor" class="editor hidden">
+  <div id="editor" class="editor hidden">
     <header class="topbar">
-      <div><strong id="hName"></strong> <span class="muted" id="hId"></span></div>
+      <button id="navToggle" type="button" class="ghost only-narrow" aria-label="開關分區選單">☰</button>
+      <div class="who"><strong id="hName"></strong> <span class="muted" id="hId"></span></div>
+      <div class="grow"></div>
+      <span id="dirtyBadge" class="badge hidden">未送出 <b>0</b> 項修改</span>
       <div class="actions">
-        <button id="reloadBtn" type="button" class="ghost">重新載入</button>
+        <button id="reloadBtn" type="button" class="ghost">捨棄修改</button>
         <button id="saveBtn" type="button" class="primary">送出並上線</button>
         <button id="logoutBtn" type="button" class="ghost">登出</button>
       </div>
     </header>
-    <div class="hint">改好欄位後按「送出並上線」。送出後按鈕會鎖住並自動等待部署完成（約 1–2 分鐘），確認看板更新後才顯示「已完成」。結構固定、只改內容，不必懂 JSON。</div>
-    <form id="formRoot" class="formroot"></form>
-  </section>
+
+    <div class="body">
+      <nav id="nav" class="nav" aria-label="分區">
+        <div class="search">
+          <input id="searchBox" type="search" placeholder="🔍 搜尋欄位或內容…" autocomplete="off" />
+        </div>
+        <div id="navList" class="navlist"></div>
+        <div id="searchResults" class="results hidden"></div>
+      </nav>
+      <div id="navScrim" class="scrim hidden"></div>
+
+      <main class="pane">
+        <div id="crumb" class="crumb"></div>
+        <form id="formRoot" class="formroot"></form>
+      </main>
+    </div>
+  </div>
+
+  <!-- 確認對話框（刪除／捨棄／送出前變更摘要共用） -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <h2 id="modalTitle"></h2>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modalCancel" type="button" class="ghost">取消</button>
+        <button id="modalOk" type="button" class="primary">確定</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
   <div id="boot" class="card"><p class="muted">載入中…</p></div>
 
   <script src="/app.js"></script>
