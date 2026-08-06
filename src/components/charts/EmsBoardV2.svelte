@@ -291,8 +291,9 @@
 
 <div class="v2" class:solo={solo}>
   <header class="top">
-    <!-- 盤面抬頭：預設沿用「平-戰(災) EMS」；醫院可在 JSON 用 boardTitle 自訂（804 為「韌性電網即時看板」） -->
-    <h1 class="ttl">{hospital.boardTitle || `🔋 平 - 戰(災) EMS · ${hospital.name}`}</h1>
+    <!-- 盤面抬頭：全院統一「🔋 平 - 戰(災) 韌性即時看板」（2026-08-06 業主定名）；
+         個別醫院仍可在 JSON 用 boardTitle 覆寫 -->
+    <h1 class="ttl">{hospital.boardTitle || '🔋 平 - 戰(災) 韌性即時看板'}</h1>
     <button type="button" class="scn" class:war onclick={() => { scenario = other.id; planView = true; }}>
       {war ? '☀️ ' : '🚨 '}轉{other.label}
     </button>
