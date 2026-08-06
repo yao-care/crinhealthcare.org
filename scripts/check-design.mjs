@@ -41,19 +41,11 @@ const PX_FONT_EXEMPT = new Set([
 ]);
 
 // 規則 6 掃「全部檔案」的 --text-* 定義，不是只掃 token 檔——2026-08-06 發現的洞：
-// EmsBoardV2.svelte 在元件內自建一套 clamp(8px…14px) 的私有階梯覆寫全站 token，
-// 只查 token 檔的話完全掃不到，而那正是全站字最小的地方。
-//
-// ⚠ 下列豁免是「已知未解」，不是「已解決」，禁再擴充：
-// EmsBoardV2.svelte＝醫院 kiosk 資料牆，height:100dvh + overflow:hidden，
-// 五區塊按 65/35 比例硬切一屏。實測（2026-08-06）改吃 18px 階梯後：
-//   2560×1440 可完整呈現；1920×1080 內容需 1414px（超出 334px）；1440×900 更嚴重。
-//   放寬高度改為可捲動後，SOC 量表溢出到下一區塊、儲電櫃磁磚擠成一行一字。
-// 亦即「≥18px」與「一屏不捲動」在 1080p 互斥，要合規得重新設計看板密度
-// （減少同屏欄位／加大輪播輪替／改版面），屬產品決策，已回報待用戶決定。
-const LADDER_FLOOR_EXEMPT = new Set([
-  join("src", "components", "charts", "EmsBoardV2.svelte"),
-]);
+// EmsBoardV2.svelte 曾在元件內自建一套 clamp(8px…14px) 的私有階梯覆寫全站 token，
+// 只查 token 檔的話完全掃不到，而那正是全站字最小的地方。該私有階梯已移除、
+// 看板改以「有界＋自動輪播」降密度來吃全站 18px 階梯，故本表為空。
+// ⚠ 要加豁免前先想清楚：階梯開小門一次，全站規範就等於沒有。
+const LADDER_FLOOR_EXEMPT = new Set([]);
 const violations = [];
 
 function walk(dir, root) {

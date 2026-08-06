@@ -70,7 +70,7 @@ UNSPLASH_ACCESS_KEY=...
 掃描兩塊範圍：`src/`（token＝`src/styles/variables.css`）＋ `services/ems-admin/public/`
 （token＝`public/tokens.css`，css 白名單只准 `tokens.css`／`style.css`）。
 
-- 唯一豁免 `EmsBoardV2.svelte`（kiosk 一屏看板，與 ≥18px 互斥，待產品拍板），禁再擴充。
+- 零豁免。kiosk 看板靠「有界＋自動輪播」降密度來吃 18px 階梯，不是靠開小門。
 - `html` 的 font-size 不准寫 `var(--text-*)`：階梯是 rem，會整座再乘一次。內文字級寫在 `body`。
 
 ### 內容守門（去 AI 味，`pnpm build` 前 `scripts/check-content.mjs` 自動守門）

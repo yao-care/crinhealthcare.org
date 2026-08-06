@@ -178,19 +178,36 @@
       <div class="leftcol">
         <div class="seg supply">
           <div class="seg-h">🔌 供給端 <small>{war ? '誰還在供·能否自主' : '誰在供'}</small></div>
+          <!-- 來源列有界＋溢出才輪播；「合計」留在外面不參與輪播（總量任何時刻都要看得到）。 -->
+          <div class="slist" use:carousel>
           {#each d.supply as s}
             <div class="srow" class:off={!s.online} class:abn={isSupplyAbnormal(s)} style="border-left-color:{isSupplyAbnormal(s) ? 'var(--color-alert)' : tone(ESG[s.esg] ?? 'border')}">
               <span class="nm">{s.name}{#if war && s.autonomous}<span class="auto">自主</span>{/if}</span>
               <span class="vv" class:inuse={supplyInUse(s)} class:vlive={s.live === 'ess' && ess?.status === 'live'} class:vdemo={s.live === 'ess' && ess?.status === 'demo'}><span class="fit" use:fitText>{supplyText(s)}{#if war && s.react}<small> {s.react}</small>{:else if !war && s.pct}<small> {s.pct}</small>{/if}</span></span>
             </div>
           {/each}
+          </div>
           {#if d.supplySum}<div class="srow sum"><span class="nm">合計</span><span class="vv"><span class="fit" use:fitText>{d.supplySum}</span></span></div>{/if}
         </div>
         <div class="seg store">
           <div class="seg-h">🔋 儲存端 <small>{war ? '剩多久·夠不夠' : '剩多久'}</small></div>
-          <div class="tanks">
-            {#each d.store as st}
-              {#if st.metrics?.length}
+          <!-- 密度重排：小水位桶固定一排在上（內容高），儀表板磁磚吃剩下的高度、
+               內部數值格點溢出才輪播。原本兩者同一層 flex-wrap，磁磚會被內容撐到 508px。 -->
+          <div class="tanks" use:carousel>
+            {#if d.store.some((x) => !x.metrics?.length)}
+              <div class="tanks-row">
+                {#each d.store.filter((x) => !x.metrics?.length) as st}
+                  <div class="tank" class:warn={st.warn} class:crit={st.critical}>
+                    <div class="days">{st.days || '—'}</div>
+                    <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span>{#if st.pct}<span class="pct over" style="clip-path: inset(calc(100% - {st.pct}%) 0 0 0)">{st.pct}%</span>{/if}<i style="height:{st.pct || 0}%"></i></div>
+                    <div class="tn">{st.name}</div>
+                    <div class="tc">{st.cap}{#if st.state} · {st.state}{/if}</div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+            {#each d.store.filter((x) => x.metrics?.length) as st}
+              {#if true}
                 <!-- 儀表板磁磚（智慧儲存設備，如儲電櫃）：左＝SOC 水位＋續航；右＝狀態 pills＋標籤/數值格點。
                      數值一律墨色；即時/展示狀態由 ●+文字 pill 承載（不整片染色）。 -->
                 <div class="tank wide" class:warn={st.warn} class:crit={st.critical} class:mdemo={st.live === 'ess' && ess?.status === 'demo'}>
@@ -207,19 +224,12 @@
                         {#each st.flags as f}<span class="pill {f.tone}">{f.label}</span>{/each}
                       </div>
                     {/if}
-                    <div class="tgrid">
+                    <div class="tgrid" use:carousel>
                       {#each st.metrics as m}
                         <div class="tcell"><span class="tk">{m.k}</span><span class="tv">{m.v}</span></div>
                       {/each}
                     </div>
                   </div>
-                </div>
-              {:else}
-                <div class="tank" class:warn={st.warn} class:crit={st.critical}>
-                  <div class="days">{st.days || '—'}</div>
-                  <div class="col"><span class="pct">{st.pct ? st.pct + '%' : '—'}</span>{#if st.pct}<span class="pct over" style="clip-path: inset(calc(100% - {st.pct}%) 0 0 0)">{st.pct}%</span>{/if}<i style="height:{st.pct || 0}%"></i></div>
-                  <div class="tn">{st.name}</div>
-                  <div class="tc">{st.cap}{#if st.state} · {st.state}{/if}</div>
                 </div>
               {/if}
             {/each}
@@ -359,7 +369,7 @@
           <!-- 排法：碳盤查置左（窄，4 欄），各大樓樓層表在右側網格自動換列、底部對齊（B1 同基準線）；大樓為主角、不捲動。 -->
           <div class="env-body">
             {#if env.carbon}
-              <div class="carbon-wrap">
+              <div class="carbon-wrap" use:carousel>
                 <div class="carbon-h">📈 {env.carbon.title}</div>
                 <table class="carbon">
                   <thead><tr>{#each env.carbon.cols as c}<th>{c}</th>{/each}</tr></thead>
@@ -371,7 +381,7 @@
                 </table>
               </div>
             {/if}
-            <div class="all-blds">
+            <div class="all-blds" use:carousel>
               {#each blds as bld}{@render bldTable(bld)}{/each}
             </div>
           </div>
@@ -393,13 +403,10 @@
 
 <style>
   .v2 {
-    /* 流體字級：依視窗寬度等比縮放（小螢幕自動變小、桌機/大螢幕回設計值）。
-       覆寫全站 --text-*，元件內所有 var(--text-*) 自動跟著縮。 */
-    --text-xs: clamp(8px, 1.0vw, 14px);
-    --text-sm: clamp(9px, 1.2vw, 16px);
-    --text-base: clamp(10px, 1.45vw, 18px);
-    --text-lg: clamp(11px, 1.7vw, 20px);
-    --text-xl: clamp(13px, 2.2vw, 26px);
+    /* 2026-08-06：這裡原本覆寫一套 clamp(8px…14px) 的私有字級階梯（全站字最小之處，
+       且守門只掃 token 檔時完全掃不到）。已移除，改吃全站 --text-* 階梯（18–32px）。
+       字級變大＝一屏能塞的資訊變少，所以長清單改為「有界＋自動輪播」(use:carousel)：
+       放得下不動作、放不下才換頁。kiosk 一屏不捲動的前提維持不變。 */
     height: 100dvh; display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); background: var(--color-paper); overflow: hidden;
   }
 
@@ -450,12 +457,20 @@
   .bbody { flex: 1; display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.6fr); min-height: 0; }
   .leftcol { display: flex; flex-direction: column; border-right: 1px dashed var(--color-border); min-height: 0; min-width: 0; }
   .seg { padding: 4px var(--space-sm); min-height: 0; }
-  .seg-h { font-size: var(--text-xs); font-weight: 700; color: var(--color-primary); margin-bottom: 3px; }
+  /* 標題收一行：18px 下「🔌 供給端 誰還在供·能否自主」在 r2 的窄欄會折成兩行、
+     吃掉 30px，把下面的來源清單擠成 0 列。主標一定看得到，副標(hint)超出才省略。 */
+  .seg-h { font-size: var(--text-xs); font-weight: 700; color: var(--color-primary); margin-bottom: 3px;
+    display: flex; gap: 6px; align-items: baseline; white-space: nowrap; min-width: 0; }
+  .seg-h small { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .seg-h small { color: var(--color-text-secondary); font-weight: 400; }
-  .supply { flex: 1; overflow: auto; }
-  .store { flex: 0.85; border-top: 1px dashed var(--color-border); display: flex; flex-direction: column; }
+  /* 供給端：先靠壓縮列高把來源塞滿（802/806 共 12 列剛好放得下）；
+     來源更多的院所才由 use:carousel 換頁——放得下時 carousel 完全不動作。
+     用 hidden 不用 auto：kiosk 沒有人會去捲那條捲軸。 */
+  .supply { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .slist { flex: 1; min-height: 0; overflow: hidden; }
+  .store { flex: 0.85; min-height: 0; border-top: 1px dashed var(--color-border); display: flex; flex-direction: column; }
 
-  .srow { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); padding: 2px 6px; border-left: 5px solid var(--color-border); margin-bottom: 2px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: color-mix(in oklch, var(--color-accent) 10%, transparent); }
+  .srow { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); line-height: 1.25; padding: 1px 6px; border-left: 5px solid var(--color-border); margin-bottom: 1px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; background: color-mix(in oklch, var(--color-accent) 10%, transparent); }
   .srow.off { background: var(--color-surface); color: var(--color-text-secondary); }
   /* 供給端異常 → 紅底（@utils/ems isSupplyAbnormal）。
      border-left-color 由模板 inline style 條件給值（abn 時 var(--color-alert)），
@@ -475,11 +490,31 @@
   .srow.sum .vv { flex: 1; overflow: hidden; white-space: nowrap; text-align: left; }
   .srow.sum .vv .fit { transform-origin: left center; }
 
-  .tanks { flex: 1; display: flex; gap: var(--space-sm); align-items: stretch; min-height: 0; padding: 2px 0; }
+  /* 密度重排（2026-08-06，字級改吃 18px 階梯後）：儀表板磁磚獨佔一列、拿滿左欄寬，
+     小水位桶擠成上面一排。原本磁磚跟 6 個桶子並排只分到 ~110px 寬，
+     名稱被迫換行吃掉 153px、狀態 pills 擠成 4 排吃掉 121px，數值格點就被壓成 0。 */
+  .tanks { flex: 1; display: flex; flex-direction: column; gap: var(--space-xs); min-height: 0; overflow: hidden; padding: 2px 0; }
+  /* 小水位桶：一排、內容高度（不搶磁磚的高度）；水位筒本身封頂避免拉長整段 */
+  .tanks-row { flex: 0 0 auto; display: flex; gap: var(--space-sm); align-items: stretch; }
+  .tanks-row .tank { flex: 1 1 0; min-width: 3.5rem; }
+  .tanks-row .tank .col { max-height: 2.5rem; }
+
+  /* ── 密度配額只套 r1 電力區 ──
+     電力區的儲存端有「儀表板磁磚」，常駐部分（名稱＋狀態 pills）壓不掉，
+     所以把左欄高度從供給端挪過去（供給端有 use:carousel 可吸收）。
+     r2 的水/油/氣整塊只有 ~342px，套同一組數字會把它們的儲存端擠爆
+     （實測 806 戰時「氣」區超出 59px），故不套。 */
+  .r1 .supply { flex: 0.8; }
+  .r1 .store { flex: 1.4; }
+  .r1 .tank.wide { min-height: 10.5rem; }
+  /* r2（水/油/氣）：整塊 ~342px，小水位桶那排需要 105–115px 但只分到 91px。
+     同樣把左欄高度從供給端挪給儲存端（供給端一樣有 use:carousel 吸收）。 */
+  .r2 .supply { flex: 0.7; }
+  .r2 .store { flex: 1.2; }
   .tank { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
   .tank .days { font-size: var(--text-base); font-weight: 700; color: var(--color-accent); line-height: 1.1; }
   .tank.warn .days, .tank.crit .days { color: var(--color-alert); }
-  .tank .col { flex: 1; width: 100%; max-width: 46px; background: var(--color-paper); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; display: flex; flex-direction: column-reverse; margin: 3px 0; position: relative; min-height: 24px; }
+  .tank .col { flex: 1; width: 100%; max-width: 3.6rem; background: var(--color-paper); border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; display: flex; flex-direction: column-reverse; margin: 3px 0; position: relative; min-height: 24px; }
   .tank .col i { display: block; width: 100%; background: var(--color-primary); }
   .tank.warn .col i, .tank.crit .col i { background: var(--color-alert); }
   .tank .col .pct { position: absolute; top: 2px; left: 0; right: 0; text-align: center; font-size: var(--text-xs); font-weight: 700; color: var(--color-text); }
@@ -488,25 +523,29 @@
   .tank .tn { font-size: var(--text-xs); font-weight: 700; text-align: center; }
   .tank .tc { font-size: var(--text-xs); color: var(--color-text-secondary); text-align: center; line-height: 1.15; }
   /* ── 儀表板磁磚（智慧儲存設備）：左窄欄 SOC 筒＋右側 pills/格點；數值墨色、狀態靠 pill ── */
-  .tank.wide { flex: 2.2; flex-direction: row; align-items: stretch; gap: 8px; background: var(--color-paper); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 8px; text-align: left; min-width: 0; }
+  .tank.wide { flex: 1 1 auto; min-height: 0; flex-direction: row; align-items: stretch; gap: 8px; background: var(--color-paper); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 4px 8px; text-align: left; min-width: 0; }
   .tank.wide.crit { border-color: var(--color-alert); }
   .tank.wide .tside { display: flex; flex-direction: column; align-items: center; flex: 0 0 64px; min-height: 0; }
   .tank.wide .tside .tcap { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-secondary); white-space: nowrap; }
   .tank.wide .tside .days { font-size: var(--text-sm); text-align: center; white-space: nowrap; }
-  .tank.wide .tside .col { max-width: 40px; }
+  .tank.wide .tside .col { max-width: 3.4rem; }
   .tank.wide .tsoc { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-secondary); }
   .tank.wide .tmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-  .tank.wide .tn { text-align: left; display: flex; align-items: center; gap: 6px; }
+  .tank.wide .tn { text-align: left; display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .tank.wide .tn > :first-child { overflow: hidden; text-overflow: ellipsis; }
   /* 狀態 pills：圖示＋文字承載狀態（ok 綠/warn 琥珀/alert 紅/off 灰），不靠顏色單獨傳達 */
-  .tflags { display: flex; flex-wrap: wrap; gap: 4px; }
-  .pill { font-size: var(--text-xs); font-weight: 700; line-height: 1.4; padding: 0 7px; border-radius: 99px; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface); white-space: nowrap; }
+  .tflags { display: flex; flex-wrap: wrap; gap: 3px; flex: none; }
+  .pill { font-size: var(--text-xs); font-weight: 700; line-height: 1.35; padding: 0 5px; border-radius: 99px; border: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface); white-space: nowrap; }
   .pill.ok { color: var(--color-accent); border-color: var(--color-accent); background: color-mix(in oklch, var(--color-accent) 10%, transparent); }
   .pill.warn { color: var(--color-energy); border-color: var(--color-energy); background: color-mix(in oklch, var(--color-energy) 12%, transparent); }
   .pill.alert { color: var(--color-alert); border-color: var(--color-alert); background: color-mix(in oklch, var(--color-alert) 12%, transparent); }
   /* 標籤/數值格點（stat-tile 格）：標籤 secondary、數值 semibold＋tabular-nums 對齊 */
-  .tgrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; column-gap: 10px; align-content: start; }
+  /* 數值格點：磁磚分到的高度放不下 12 項時由 use:carousel 換頁（放得下不動作）。
+     auto-fit 而非固定兩欄——18px 下「電池電壓／電池電流」塞不進半欄會左右疊字。 */
+  .tgrid { flex: 1; min-height: 0; overflow: hidden; display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); column-gap: 10px; align-content: start; }
   .tcell { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; padding: 1px 0; border-bottom: 1px dashed color-mix(in oklch, var(--color-border) 55%, transparent); min-width: 0; }
-  .tcell .tk { font-size: var(--text-xs); color: var(--color-text-secondary); white-space: nowrap; }
+  .tcell .tk { font-size: var(--text-xs); color: var(--color-text-secondary); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .tcell .tv { font-size: var(--text-xs); font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 展示資料：底紋微染做輔助提示（主要辨識靠 ● pill），即時則維持原底 */
   .tank.wide.mdemo { background: color-mix(in oklch, var(--color-energy) 6%, var(--color-paper)); }
@@ -567,8 +606,10 @@
   .nodata { font-size: var(--text-xs); color: var(--color-text-secondary); font-style: italic; }
 
   /* 環境參數：碳盤查置左（窄，4 欄），各大樓樓層表在右側網格自動換列、每列底部對齊（B1 同基準線）。大樓為主角、不捲動。 */
-  .env-body { flex: 1; display: flex; gap: var(--space-md); align-items: flex-start; padding: var(--space-xs) var(--space-sm); min-height: 0; overflow: hidden; }
-  .all-blds { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: var(--space-sm) var(--space-md); align-items: end; align-content: start; min-width: 0; }
+  .env-body { flex: 1; display: flex; gap: var(--space-md); align-items: stretch; padding: var(--space-xs) var(--space-sm); min-height: 0; overflow: hidden; }
+  /* 每格最小寬 124px→11rem：18px 字級下「樓層｜溫°C｜濕%｜CO₂」四欄需要更寬，
+     124px 會把 CO₂ 欄擠出格外被裁掉（原本 8–14px 時剛好夠）。 */
+  .all-blds { flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: var(--space-sm) var(--space-md); align-items: end; align-content: start; min-width: 0; }
   .bld { min-width: 0; }
   .bld-h { font-size: var(--text-sm); font-weight: 700; text-align: center; margin-bottom: 2px; white-space: nowrap; }
   .floors { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
@@ -580,18 +621,18 @@
   .floors td.sev-crit { background: var(--color-alert); color: var(--color-paper); font-weight: 700; }
   .floors tr.keyfl th { color: var(--color-primary); }
   .floors tr.keyfl th::after { content: ' ★'; color: var(--color-primary); }
-  .carbon-wrap { min-width: 0; flex-shrink: 0; margin-bottom: var(--space-xs); }
+  .carbon-wrap { min-width: 0; flex: 0 1 auto; min-height: 0; overflow: hidden; margin-bottom: var(--space-xs); }
   .carbon-h { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-secondary); margin-bottom: 2px; }
   .carbon { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
   .carbon th, .carbon td { border: 1px solid var(--color-border); padding: 1px 5px; text-align: right; }
   .carbon thead th { background: var(--color-surface); color: var(--color-text-secondary); }
   .carbon tbody th { text-align: left; font-weight: 400; color: var(--color-text-secondary); }
   /* 大螢幕：五區塊 % 佈局在任何寬高都維持(kiosk 等比縮放)、單屏不捲動。
-     窄螢幕(≤1200px：手機/平板/多格排版下的窄電力格)：一屏塞不下且欄位過細會壓扁疊字
-     → 改為直向堆疊＋整頁可捲動、各區塊拿全寬。>1200 的寬桌面維持多格 % 佈局。 */
+     窄螢幕(≤1600px：手機/平板/筆電，及多格排版下的窄電力格；2026-08-06 自 1200 抬高——字級改吃全站 18px 階梯後，原本 1200 才擠的版面 1600 就擠)：一屏塞不下且欄位過細會壓扁疊字
+     → 改為直向堆疊＋整頁可捲動、各區塊拿全寬。>1600 的寬桌面/kiosk 維持多格 % 佈局。 */
   /* 註：所有堆疊規則限 .v2:not(.solo)——單一區塊全螢幕（803）不套堆疊、維持桌面雙欄，
-     kiosk 即使 ≤1200 低解析度也能完整並排呈現供給端｜使用端。多格示意院所照舊堆疊。 */
-  @media (max-width: 1200px) {
+     kiosk 即使 ≤1600 低解析度也能完整並排呈現供給端｜使用端。多格示意院所照舊堆疊。 */
+  @media (max-width: 1600px) {
     .v2:not(.solo) { height: auto; min-height: 100dvh; overflow: visible; }
     .v2:not(.solo) .grid { min-height: 0; }
     .v2:not(.solo) .r { flex-direction: column; }
