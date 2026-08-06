@@ -7,6 +7,9 @@
 - **每院獨立帳號**：一組帳號只能編輯自家院所（`hospitalId` 綁在 session，前後端都以此限定範圍）。
 - **schema 驅動的結構化表單**：欄位樹由 `src/schema.js` 的 zod 定義**推導**而來（`src/spec.js`），不是照載入到的 JSON 長。值可改、結構鎖定＝院方不會改壞語法。**通用全 15 家**。
 - **分區導覽**：左側依「院所／各資源（平時·戰時·設備）／環境參數／報表 ESG」分區，一次只渲染一區，並有全欄位搜尋。
+- **常用／全部 兩段式**：預設只顯示日常會更新的讀值與狀態，代碼與座標收在「進階設定」裡。
+- **看板對照圖**：一張真實看板截圖疊上可點擊熱區，點下去直接跳到表單對應欄位；欄位旁另有「🖥 看板位置」說明。
+- **常駐送出狀態列**：進來就看得到「上次送出是什麼時候、有沒有上線」，不再只靠會消失的 toast。
 - **送出前先看變更摘要**：列出這次改了哪些欄位、前後值各是什麼，確認後才推。有未送出修改時離開會擋，並存 localStorage 草稿（防 8 小時 session 逾時）。
 - **送出前驗證**：用與 Astro 建置同一套 zod schema 驗證，不合規回 422，錯誤翻成中文並可點擊跳回該欄位。
 - **安全**：scrypt 密碼雜湊、HMAC 簽章 session cookie（HttpOnly/SameSite=Strict/Secure）、POST 加 Origin 檢查（CSRF）、登入失敗節流。推送金鑰只在伺服器端。
@@ -36,6 +39,16 @@
 
 - **不要在載入時把 schema 預設值寫進資料**。畫面顯示預設值、標「未設定」，使用者真的改了才寫。否則每個院所一開表單就出現一堆假的「未送出修改」，送出後 JSON 會被灌進一堆原本沒有的欄位。
 - **變更比對要用 LCS 對齊陣列**（`alignArrays`）。照索引比的話，刪掉第 1 項會讓後面每一項都位移，一次刪除被算成三十幾筆修改。
+
+## 院方的四個抱怨與對應作法（2026-08-06）
+
+上線兩週後收到的回饋，四點都處理了。改動時請保住這四件事：
+
+1. **「欄位太多找不到我要改的那個」** → 分區導覽＋全欄位搜尋。單頁 83,297px／1,175 個輸入框 → 常用模式下最大分區 5,267px／42 個輸入框。
+2. **「我只想改幾個數字，為什麼要看到色票和座標」** → `src/labels.js` 的三層分級（1 常用／2 設定／3 代碼與座標），預設只顯示第 1 層。分層預設用鍵名判斷、少數例外在 `P` 表用 `t:` 覆蓋——**新增欄位若分錯層，最糟的情況是院方在常用模式下看不到該欄位**，所以有疑慮就標 `t: 1`。
+   常用模式**故意不給陣列的增刪與排序**：新項目的必填欄位（名稱等）在該模式下看不到，讓人建出半套的項目只會更糟。
+3. **「我不知道哪個欄位對應看板上哪一塊」** → `public/board-map.png` ＋ `board-map.json`（熱區座標），由 `scripts/make-board-map.mjs` 去線上抓真實看板量出來。**看板版面改版後要重跑**：`node scripts/make-board-map.mjs 802`。另外 `labels.js` 的 `where:` 是欄位級的文字說明。
+4. **「送出後不知道有沒有成功」** → 常駐狀態列（`GET /api/history` 讀該院所檔案的 git log ＋ `GET /api/deploy` 查部署結論）。**注意 20 分鐘的 stale 判斷**：部署只要 1–2 分鐘，超過 20 分鐘還查不到結論就不要硬報「部署進行中」，那會讓人以為卡住。
 
 ## 欄位中文名稱（`src/labels.js`）
 
@@ -96,13 +109,15 @@ pnpm test                   # schema 對所有現有院所 JSON 做回歸
 - `src/config.js` — .env 載入＋啟動檢查
 - `src/schema.js` — 移植的 zod 驗證 schema＋中文化的錯誤訊息
 - `src/spec.js` — 由 zod 內省推導出前端欄位樹（含 `itemBlank`／`blank` 空白骨架）
-- `src/labels.js` — 路徑 → 中文名稱／說明／建議值／enum 中文選項
+- `src/labels.js` — 路徑 → 中文名稱／說明／建議值／enum 中文選項／分層 `t`／看板位置 `where`
 - `src/auth.js` — scrypt 雜湊、HMAC token、cookie
 - `src/accounts.js` — 帳號載入＋登入節流
 - `src/repo.js` — 讀寫 hospital JSON、git commit/push（互斥鎖序列化）
 - `src/server.js` — HTTP 路由＋靜態
 - `public/` — 登入＋分區導覽表單（原生 JS，無 build）
+- `public/board-map.png` / `board-map.json` — 看板對照圖素材（由下面那支腳本產生，直接 commit 進 repo）
 - `scripts/hash-password.mjs` — 產/追加院所帳號
+- `scripts/make-board-map.mjs` — 重新產生看板對照圖（一次性，不進 CI；看板改版才需要跑）
 - `test/spec.test.js` — A1–A5 的回歸測試＋schema 對齊檢查
 
 > 改 `src/*` 後要 `pm2 restart ems-admin`；`public/*` 是靜態檔、存檔即生效（伺服器對靜態檔送 `no-store`）。

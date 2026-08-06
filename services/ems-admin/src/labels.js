@@ -16,7 +16,28 @@ export function canonical(path) {
     .replace(/^env\.(peace|war)\./, 'env.@.');
 }
 
-// label：欄位名稱｜hint：欄位下方灰字說明｜suggest：datalist 建議值（仍可自由輸入）
+// ── 欄位分層（決定「常用欄位」模式要顯示什麼）──
+//
+// 院方的抱怨是「我只想改幾個數字，為什麼要看到色票和座標」。803 一份 JSON 會長出約 1,570 個欄位，
+// 其中約 257 個是機器代碼與座標。分成三層，預設只顯示第 1 層：
+//   1 常用：日常會更新的讀值、狀態、日期
+//   2 設定：名稱、標題、說明、單位——會改但不常改
+//   3 勿動：機器代碼與座標（id / 色票 / kind / live / x,y,w,h,rot / tone / zone…）
+//
+// 預設用「鍵名」判層（同名的欄位意思通常一樣），少數例外在下面的 P 表用 t: 明寫覆蓋。
+const TIER1_KEYS = new Set([
+  'value', 'reading', 'status', 'current', 'lastYear', 'pctOfTotal', 'daily', 'lastYearDaily', 'refDaily',
+  'days', 'cap', 'state', 'temp', 'rh', 'co2', 'updated', 'supplySum', 'text', 'online', 'critical',
+  'pending', 'cells', 'v',
+]);
+const TIER3_KEYS = new Set([
+  'id', 'icon', 'color', 'kind', 'live', 'esg', 'tone', 'layout', 'x', 'y', 'w', 'h', 'rot',
+  'star', 'zone', 'flat', 'at', 'sec', 'poster', 'src', 'usablePct', 'autonomous', 'essential', 'compare',
+]);
+const tierOf = (key) => (TIER1_KEYS.has(key) ? 1 : TIER3_KEYS.has(key) ? 3 : 2);
+
+// label：欄位名稱｜hint：灰字說明｜suggest：datalist 建議值｜t：分層（覆蓋鍵名判斷）
+// where：這個欄位顯示在看板的哪裡（回答「我不知道哪個欄位對應看板上哪一塊」）
 const P = {
   // ── 基本資料 ──
   name: { label: '院所名稱' },
@@ -48,58 +69,58 @@ const P = {
   'resources[].@.perf.fc': { label: '預測值序列' },
   'resources[].@.perf.base': { label: '基準線' },
   'resources[].@.perf.warn': { label: '警戒線' },
-  'resources[].@.perf.text': { label: '摘要文字' },
+  'resources[].@.perf.text': { label: '摘要文字', t: 1, where: '平時：資源區塊標題列的右側灰字', hint: '例：用電 6,302,756 度 · 電力碳排 2,988 t' },
 
   // 續航
   'resources[].@.endur': { label: '續航' },
-  'resources[].@.endur.days': { label: '可撐天數', hint: '文字，例：3.2 天' },
-  'resources[].@.endur.pct': { label: '存量百分比', hint: '文字，例：78%' },
+  'resources[].@.endur.days': { label: '可撐天數', hint: '文字，例：3.2 天', t: 1, where: '戰時：資源區塊標題列右側「⏳ 撐 ○ · 餘 ○」的前半' },
+  'resources[].@.endur.pct': { label: '存量百分比', hint: '文字，例：78%（低於 30% 會標紅）', t: 1, where: '戰時：標題列「⏳ 撐 ○ · 餘 ○」的後半' },
   'resources[].@.endur.live': { label: '即時來源代碼', hint: '留空＝不接即時資料' },
 
   // 供給端
-  'resources[].@.supply': { label: '供給端' },
-  'resources[].@.supply[].name': { label: '來源名稱' },
-  'resources[].@.supply[].value': { label: '狀態/數值', hint: '例：供電中、待命、2,150 kW' },
-  'resources[].@.supply[].online': { label: '供應中' },
-  'resources[].@.supply[].esg': { label: 'ESG 分類' },
-  'resources[].@.supply[].pct': { label: '容量/說明', hint: '自由文字，例：插座110/220V · 82.6h' },
-  'resources[].@.supply[].react': { label: '反應時間', hint: '例：10 秒內' },
-  'resources[].@.supply[].autonomous': { label: '可自主供應' },
-  'resources[].@.supply[].warn': { label: '標為異常' },
+  'resources[].@.supply': { label: '供給端', where: '資源區塊左上角「🔌 供給端」那一欄' },
+  'resources[].@.supply[].name': { label: '來源名稱', where: '供給端每一列的左半' },
+  'resources[].@.supply[].value': { label: '狀態/數值', hint: '例：供電中、待命、2,150 kW', t: 1, where: '供給端每一列的右半（大字）' },
+  'resources[].@.supply[].online': { label: '供應中', t: 1, hint: '取消勾選＝該列在看板上變灰（停供）' },
+  'resources[].@.supply[].esg': { label: 'ESG 分類', hint: '決定該列左側色條顏色' },
+  'resources[].@.supply[].pct': { label: '容量/說明', hint: '自由文字，例：22.8KV → 急重症大樓', t: 2, where: '平時：接在數值後面的小字' },
+  'resources[].@.supply[].react': { label: '反應時間', hint: '例：10 秒內', where: '戰時：接在數值後面的小字' },
+  'resources[].@.supply[].autonomous': { label: '可自主供應', hint: '戰時會在名稱旁加「自主」標記' },
+  'resources[].@.supply[].warn': { label: '標為異常', t: 1, hint: '勾選＝該列在看板上變紅底' },
   'resources[].@.supply[].live': { label: '即時來源代碼', hint: '留空＝不接即時資料' },
-  'resources[].@.supplySum': { label: '供給合計文字' },
+  'resources[].@.supplySum': { label: '供給合計文字', t: 1, where: '供給端最後一列「合計」' },
 
   // 明細
   'resources[].@.detailLabel': { label: '明細區標題' },
   'resources[].@.detail': { label: '明細' },
   'resources[].@.detail[].name': { label: '項目' },
-  'resources[].@.detail[].value': { label: '數值' },
-  'resources[].@.detail[].warn': { label: '標為異常' },
+  'resources[].@.detail[].value': { label: '數值', t: 1 },
+  'resources[].@.detail[].warn': { label: '標為異常', t: 1 },
 
   // 儲存端
-  'resources[].@.store': { label: '儲存端' },
-  'resources[].@.store[].name': { label: '設備名稱' },
-  'resources[].@.store[].days': { label: '可撐天數', hint: '文字，例：3.2 天' },
-  'resources[].@.store[].cap': { label: '容量', hint: '文字，例：2,000 kWh' },
-  'resources[].@.store[].pct': { label: '存量百分比', hint: '數字 0–100（不含 % 符號），畫成電量條' },
-  'resources[].@.store[].warn': { label: '標為異常' },
-  'resources[].@.store[].state': { label: '狀態文字', hint: '例：充電中、放電中' },
-  'resources[].@.store[].critical': { label: '維生關鍵設備' },
-  'resources[].@.store[].metrics': { label: '儀表格點' },
+  'resources[].@.store': { label: '儲存端', where: '資源區塊左下角「🔋 儲存端」那一欄' },
+  'resources[].@.store[].name': { label: '設備名稱', where: '每個儲槽磁磚的標題' },
+  'resources[].@.store[].days': { label: '可撐天數', hint: '文字，例：24.5–82.6 h', t: 1, where: '儲槽磁磚左側「續航」下方的大字' },
+  'resources[].@.store[].cap': { label: '容量', hint: '文字，例：5,700 kW · 有效油量 13,085 L', t: 1, where: '儲槽磁磚的容量說明' },
+  'resources[].@.store[].pct': { label: '存量百分比', hint: '數字 0–100（不含 % 符號）', t: 1, where: '儲槽磁磚的水位條高度與百分比數字' },
+  'resources[].@.store[].warn': { label: '標為異常', t: 1, hint: '勾選＝磁磚變黃底' },
+  'resources[].@.store[].state': { label: '狀態文字', hint: '例：充電中、放電中', t: 1 },
+  'resources[].@.store[].critical': { label: '維生關鍵設備', t: 1, hint: '勾選＝磁磚變紅框' },
+  'resources[].@.store[].metrics': { label: '儀表格點', where: '智慧儲能磁磚右側的標籤/數值格' },
   'resources[].@.store[].metrics[].k': { label: '格點名稱' },
-  'resources[].@.store[].metrics[].v': { label: '格點數值' },
-  'resources[].@.store[].flags': { label: '狀態標籤' },
+  'resources[].@.store[].metrics[].v': { label: '格點數值', t: 1 },
+  'resources[].@.store[].flags': { label: '狀態標籤', where: '智慧儲能磁磚右上的狀態 pill' },
   'resources[].@.store[].flags[].label': { label: '標籤文字' },
   'resources[].@.store[].flags[].tone': { label: '顏色' },
   'resources[].@.store[].live': { label: '即時來源代碼', hint: '留空＝不接即時資料' },
 
   // 使用端
-  'resources[].@.use': { label: '使用端' },
-  'resources[].@.use.headline': { label: '標題' },
-  'resources[].@.use.sub': { label: '副標' },
-  'resources[].@.use.blocks': { label: '分項卡' },
-  'resources[].@.use.blocks[].name': { label: '卡片名稱' },
-  'resources[].@.use.blocks[].value': { label: '主要數值' },
+  'resources[].@.use': { label: '使用端', where: '資源區塊右半整欄' },
+  'resources[].@.use.headline': { label: '標題', t: 2 },
+  'resources[].@.use.sub': { label: '副標', t: 2, where: '使用端欄位最上方的說明字' },
+  'resources[].@.use.blocks': { label: '分項卡', where: '使用端欄位裡那一張張的卡片' },
+  'resources[].@.use.blocks[].name': { label: '卡片名稱', where: '卡片標題（例：空調、照明）' },
+  'resources[].@.use.blocks[].value': { label: '主要數值', t: 1 },
   'resources[].@.use.blocks[].sub': { label: '副標' },
   'resources[].@.use.blocks[].color': { label: '色票', suggest: ['primary', 'accent', 'energy', 'alert', 'text-secondary', 'chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5', 'chart-6'] },
   'resources[].@.use.blocks[].kind': { label: '卡片型別', hint: 'trend＝走勢圖、status＝狀態清單' },
@@ -112,14 +133,14 @@ const P = {
   'resources[].@.use.blocks[].segs[].label': { label: '分段名稱' },
   'resources[].@.use.blocks[].segs[].count': { label: '數量' },
   'resources[].@.use.blocks[].segs[].color': { label: '色票' },
-  'resources[].@.use.blocks[].pctOfTotal': { label: '佔總量', hint: '文字，例：12%' },
-  'resources[].@.use.blocks[].lastYear': { label: '去年同期' },
-  'resources[].@.use.blocks[].current': { label: '現況電表讀值' },
+  'resources[].@.use.blocks[].pctOfTotal': { label: '佔總量', hint: '文字，例：53%', t: 1, where: '卡片上的佔比數字' },
+  'resources[].@.use.blocks[].lastYear': { label: '去年同期', t: 1 },
+  'resources[].@.use.blocks[].current': { label: '現況電表讀值', hint: '例：3,739,418', t: 1, where: '卡片主要數字' },
   'resources[].@.use.blocks[].unit': { label: '單位', suggest: ['kWh', 'kW', '度', 'CMD', 'L', 'm³'] },
-  'resources[].@.use.blocks[].daily': { label: '每日數值序列' },
-  'resources[].@.use.blocks[].lastYearDaily': { label: '去年每日序列' },
-  'resources[].@.use.blocks[].critical': { label: '維生關鍵' },
-  'resources[].@.use.blocks[].items': { label: '條列項目' },
+  'resources[].@.use.blocks[].daily': { label: '每日數值序列', t: 1, where: '卡片上的長條圖' },
+  'resources[].@.use.blocks[].lastYearDaily': { label: '去年每日序列', t: 1, where: '卡片長條圖上的參考線' },
+  'resources[].@.use.blocks[].critical': { label: '維生關鍵', t: 1 },
+  'resources[].@.use.blocks[].items': { label: '條列項目', t: 1, hint: '戰時收治區型卡片：每行一項（床數、動線、演練時程…）', where: '卡片內容取代電表數字' },
   'resources[].@.use.blocks[].img': { label: '圖片路徑', hint: '相對於網站根目錄，例：/img/803/a.jpg' },
   'resources[].@.use.blocks[].imgs': { label: '輪播圖路徑' },
   'resources[].@.use.blocks[].caption': { label: '圖說' },
@@ -277,6 +298,6 @@ export const ENUM_LABELS = {
 
 export function metaFor(path, key) {
   const hit = P[canonical(path)];
-  if (hit) return hit;
-  return { label: FALLBACK[key] || key };
+  const base = hit || { label: FALLBACK[key] || key };
+  return { ...base, t: base.t || tierOf(key) };
 }

@@ -1,0 +1,161 @@
+{
+  "hospital": "802",
+  "width": 1600,
+  "height": 1000,
+  "capturedFrom": "https://crinhealthcare.org/802/",
+  "regions": [
+    {
+      "x": 21,
+      "y": 72,
+      "w": 950,
+      "h": 44,
+      "label": "電力：標題列（效能摘要／續航）",
+      "part": "head",
+      "resourceId": "power"
+    },
+    {
+      "x": 21,
+      "y": 116,
+      "w": 328,
+      "h": 293,
+      "label": "電力：供給端",
+      "part": "supply",
+      "resourceId": "power"
+    },
+    {
+      "x": 21,
+      "y": 408,
+      "w": 328,
+      "h": 251,
+      "label": "電力：儲存端",
+      "part": "store",
+      "resourceId": "power"
+    },
+    {
+      "x": 350,
+      "y": 116,
+      "w": 620,
+      "h": 544,
+      "label": "電力：使用端",
+      "part": "use",
+      "resourceId": "power"
+    },
+    {
+      "x": 983,
+      "y": 69,
+      "w": 599,
+      "h": 594,
+      "label": "環境參數（各大樓樓層溫濕度／CO₂）",
+      "part": "env",
+      "resourceId": "env"
+    },
+    {
+      "x": 21,
+      "y": 674,
+      "w": 509,
+      "h": 44,
+      "label": "水：標題列（效能摘要／續航）",
+      "part": "head",
+      "resourceId": "water"
+    },
+    {
+      "x": 21,
+      "y": 718,
+      "w": 176,
+      "h": 145,
+      "label": "水：供給端",
+      "part": "supply",
+      "resourceId": "water"
+    },
+    {
+      "x": 21,
+      "y": 863,
+      "w": 176,
+      "h": 125,
+      "label": "水：儲存端",
+      "part": "store",
+      "resourceId": "water"
+    },
+    {
+      "x": 198,
+      "y": 718,
+      "w": 333,
+      "h": 270,
+      "label": "水：使用端",
+      "part": "use",
+      "resourceId": "water"
+    },
+    {
+      "x": 545,
+      "y": 674,
+      "w": 509,
+      "h": 44,
+      "label": "油：標題列（效能摘要／續航）",
+      "part": "head",
+      "resourceId": "oil"
+    },
+    {
+      "x": 545,
+      "y": 718,
+      "w": 176,
+      "h": 145,
+      "label": "油：供給端",
+      "part": "supply",
+      "resourceId": "oil"
+    },
+    {
+      "x": 545,
+      "y": 863,
+      "w": 176,
+      "h": 125,
+      "label": "油：儲存端",
+      "part": "store",
+      "resourceId": "oil"
+    },
+    {
+      "x": 722,
+      "y": 718,
+      "w": 333,
+      "h": 270,
+      "label": "油：使用端",
+      "part": "use",
+      "resourceId": "oil"
+    },
+    {
+      "x": 1070,
+      "y": 674,
+      "w": 509,
+      "h": 44,
+      "label": "氣：標題列（效能摘要／續航）",
+      "part": "head",
+      "resourceId": "gas"
+    },
+    {
+      "x": 1070,
+      "y": 718,
+      "w": 176,
+      "h": 145,
+      "label": "氣：供給端",
+      "part": "supply",
+      "resourceId": "gas"
+    },
+    {
+      "x": 1070,
+      "y": 863,
+      "w": 176,
+      "h": 125,
+      "label": "氣：儲存端",
+      "part": "store",
+      "resourceId": "gas"
+    },
+    {
+      "x": 1246,
+      "y": 718,
+      "w": 333,
+      "h": 270,
+      "label": "氣：使用端",
+      "part": "use",
+      "resourceId": "gas"
+    }
+  ]
+}

@@ -29,8 +29,9 @@ function describe(t, path, ownerKey) {
   const name = core?._def?.typeName;
   const meta = metaFor(path, ownerKey);
   const base = {
-    path, optional, hasDefault, default: defaultValue,
+    path, optional, hasDefault, default: defaultValue, tier: meta.t,
     label: meta.label, ...(meta.hint ? { hint: meta.hint } : {}), ...(meta.suggest ? { suggest: meta.suggest } : {}),
+    ...(meta.where ? { where: meta.where } : {}),
   };
 
   if (name === 'ZodObject') {
@@ -61,7 +62,17 @@ function describe(t, path, ownerKey) {
   return { ...base, type: 'unknown' };
 }
 
+// minTier＝這個節點底下最「常用」的欄位是第幾層。容器要靠它決定在「常用欄位」模式下要不要出現：
+// 供給端裡有第 1 層的「狀態/數值」，所以供給端本身要顯示；配置圖底下全是座標，就整段收起來。
+function rollupTier(node) {
+  if (node.type === 'object') node.minTier = Math.min(...node.fields.map(rollupTier), 3);
+  else if (node.type === 'array') node.minTier = rollupTier(node.item);
+  else node.minTier = node.tier;
+  return node.minTier;
+}
+
 export const hospitalSpec = describe(hospitalSchema, '', '');
+rollupTier(hospitalSpec);
 
 // ── 依 spec 造一個「schema 合法」的空白值 ──
 // 關鍵差異：enum 取第一個合法值（或其 default），不再塞 ''；有 default 的直接用 default。

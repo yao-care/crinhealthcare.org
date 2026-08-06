@@ -44,6 +44,25 @@ textarea { resize: vertical; }
 .badge b { font-weight: 800; }
 .only-narrow { display: none; }
 
+/* 常用／全部 欄位切換 */
+.modeswitch { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; background: #f2f5f8; }
+.modeswitch button { border: 0; border-radius: 0; background: none; padding: 6px 14px; font-size: 13px; color: var(--muted); }
+.modeswitch button.on { background: var(--primary); color: #fff; font-weight: 700; }
+.modeswitch button:not(.on):hover { background: #e6ebf0; }
+
+/* 常駐送出狀態列 */
+.statusbar { flex: none; padding: 7px 16px; font-size: 13px; background: #eef2f6; border-bottom: 1px solid var(--border); }
+.statusbar.ok { background: var(--primary-l); color: #17513f; }
+.statusbar.busy { background: #eaf1fb; color: #23486f; }
+.statusbar.err { background: var(--err-l); color: #8a2b1d; }
+.sb-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sb-state { font-weight: 700; }
+.statusbar a { color: inherit; font-weight: 700; }
+.histlist .histrow { display: flex; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-s); font-size: 13px; }
+.hist-t { flex: none; width: 120px; color: var(--muted); }
+.hist-s { flex: none; width: 66px; font-family: ui-monospace, monospace; color: var(--muted); }
+.hist-m { flex: 1; min-width: 0; }
+
 .body { flex: 1; display: flex; min-height: 0; }
 
 /* ── 左側導覽 ── */
@@ -146,6 +165,29 @@ fieldset.grp.inactive { border-style: dashed; background: #fafbfc; }
 .modal-body { padding: 0 22px; overflow-y: auto; flex: 1; }
 .modal-body p { margin: 0 0 10px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px 18px; border-top: 1px solid var(--border-s); margin-top: 12px; }
+
+/* 進階設定（第 3 層：代碼與座標） */
+details.machine { border: 1px dashed var(--border); border-radius: 6px; margin: 10px 0 4px; background: #fafbfc; }
+details.machine > summary { cursor: pointer; padding: 7px 12px; font-size: 13px; color: var(--muted); font-weight: 600; list-style-position: inside; }
+details.machine > summary:hover { background: #f2f5f8; }
+details.machine[open] > summary { border-bottom: 1px solid var(--border-s); margin-bottom: 4px; }
+details.machine .field { padding-left: 12px; padding-right: 12px; }
+.hiddenhint { padding: 6px 8px; font-style: italic; }
+.note.where { color: #2c5c7a; }
+
+/* 看板對照圖 */
+.modal-box.wide { max-width: min(1280px, 96vw); }
+.bmtabs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.bmtabs button { padding: 4px 14px; font-size: 13px; border-radius: 999px; }
+.bmtabs button.on { background: var(--primary); color: #fff; border-color: var(--primary-d); font-weight: 700; }
+.bmstage { position: relative; line-height: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.bmstage img { width: 100%; height: auto; display: block; }
+.bmhot { position: absolute; border: 2px solid transparent; border-radius: 6px; background: transparent; padding: 0;
+  display: flex; align-items: flex-start; justify-content: flex-start; transition: background .12s, border-color .12s; }
+.bmhot span { opacity: 0; font-size: 12px; font-weight: 700; background: var(--primary-d); color: #fff; padding: 2px 8px;
+  border-radius: 0 0 6px 0; line-height: 1.4; white-space: nowrap; transition: opacity .12s; }
+.bmhot:hover { background: rgba(11,122,91,.22); border-color: var(--primary-d); }
+.bmhot:hover span { opacity: 1; }
 
 .difflist .diffrow { border-bottom: 1px solid var(--border-s); padding: 7px 0; }
 .diffpath { font-size: 12px; color: var(--muted); }

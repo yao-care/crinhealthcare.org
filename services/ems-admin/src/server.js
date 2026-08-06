@@ -7,12 +7,16 @@ import { config, originAllowed } from './config.js';
 import { login } from './accounts.js';
 import { signToken, setSessionCookie, clearSessionCookie, readSession } from './auth.js';
 import { validateHospital } from './schema.js';
-import { readHospital, saveHospital, hospitalExists } from './repo.js';
+import { readHospital, saveHospital, hospitalExists, historyFor } from './repo.js';
 import { deployStatus } from './deploy.js';
 import { hospitalSpec } from './spec.js';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.json': 'application/json; charset=utf-8',
+};
 
 const json = (res, code, obj) => {
   const body = JSON.stringify(obj);
@@ -91,6 +95,12 @@ const server = createServer(async (req, res) => {
       // 表單規格（由 zod schema 推導）：前端據此長欄位，JSON 沒有的鍵也長得出來
       if (req.method === 'GET' && pathname === '/api/schema') {
         return json(res, 200, { ok: true, spec: hospitalSpec });
+      }
+
+      // 送出紀錄：讓院方隨時看得到「上次送出是什麼時候、有沒有成功」
+      if (req.method === 'GET' && pathname === '/api/history') {
+        try { return json(res, 200, { ok: true, items: await historyFor(sess.hid) }); }
+        catch (e) { return json(res, 200, { ok: true, items: [], error: String(e.message || e) }); }
       }
 
       // 讀取自家院所現況

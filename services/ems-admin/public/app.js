@@ -41,6 +41,12 @@ let activeId = null;
 let busy = false;
 const collapsed = new Map();   // 陣列項目卡片的展開/收合狀態（key = data path）
 
+// 顯示範圍：'common' 只顯示第 1 層（日常會改的讀值/狀態），'all' 全部。
+// 院方的抱怨是「我只想改幾個數字，為什麼要看到色票和座標」，所以預設 common。
+let MODE = 'common';
+try { MODE = localStorage.getItem('ems-admin-mode') === 'all' ? 'all' : 'common'; } catch {}
+const showsTier = (t) => MODE === 'all' || t === 1;
+
 // ─────────────────── spec 尋址（把資料路徑對應到規格節點） ───────────────────
 function specAt(segs) {
   let node = SPEC;
@@ -230,7 +236,13 @@ function fieldRow(spec, segs, control, opts = {}) {
       el('span', { text: spec.label || segs[segs.length - 1] }),
       opts.unset ? el('em', { class: 'unset-tag', text: '未設定' }) : null,
     ]),
-    el('div', { class: 'fctl' }, [control, spec.hint ? el('div', { class: 'note', text: spec.hint }) : null, opts.extra || null]),
+    el('div', { class: 'fctl' }, [
+      control,
+      spec.hint ? el('div', { class: 'note', text: spec.hint }) : null,
+      // 「這個欄位對應看板上哪一塊」——院方看不出對應關係是原本的抱怨之一
+      spec.where ? el('div', { class: 'note where', text: `🖥 看板位置：${spec.where}` }) : null,
+      opts.extra || null,
+    ]),
   ]);
   return row;
 }
@@ -254,6 +266,29 @@ function renderNode(obj, key, spec, segs) {
   }
 }
 
+// 把一個物件的欄位依分層畫進容器：
+//  - 常用模式：只畫 minTier===1 的，其餘完全不出現
+//  - 全部模式：第 1、2 層照畫，第 3 層（代碼/座標/色票）收進可展開的「進階設定」
+function renderFields(box, obj, spec, segs) {
+  const visible = spec.fields.filter((f) => showsTier(f.minTier));
+  const plain = visible.filter((f) => f.minTier !== 3);
+  const machine = visible.filter((f) => f.minTier === 3);
+
+  for (const f of plain) box.append(renderNode(obj, f.key, f, [...segs, f.key]));
+
+  if (machine.length) {
+    const det = el('details', { class: 'machine' });
+    det.append(el('summary', { text: `⚙ 進階設定（${machine.length}）· 代碼與座標，不確定就別動` }));
+    for (const f of machine) det.append(renderNode(obj, f.key, f, [...segs, f.key]));
+    box.append(det);
+  }
+
+  if (MODE === 'common') {
+    const hidden = spec.fields.length - visible.length;
+    if (hidden > 0) box.append(el('p', { class: 'note hiddenhint', text: `另有 ${hidden} 個設定欄位未顯示，需要時請切到「全部欄位」。` }));
+  }
+}
+
 function renderObject(obj, key, spec, segs) {
   const present = obj && obj[key] != null;
   const box = el('fieldset', { class: 'grp', 'data-path': pathKey(segs) }, [el('legend', { text: spec.label })]);
@@ -268,7 +303,7 @@ function renderObject(obj, key, spec, segs) {
   }
 
   const inner = obj[key];
-  for (const f of spec.fields) box.append(renderNode(inner, f.key, f, [...segs, f.key]));
+  renderFields(box, inner, spec, segs);
 
   if (spec.optional) {
     const off = el('button', { type: 'button', class: 'link danger', text: '停用此區塊' });
@@ -411,16 +446,20 @@ function renderObjectArray(obj, key, spec, segs) {
 
       const caret = el('button', { type: 'button', class: 'caret', text: isCollapsed ? '▸' : '▾' });
       const titleEl = el('span', { class: 'arr-title', text: title });
+      // 常用模式不給增刪與排序：新項目的必填欄位（名稱等）在這個模式下看不到，
+      // 讓人建出半套的項目只會更難用。
+      const structural = MODE === 'all';
       const up = el('button', { type: 'button', class: 'icon', title: '上移', text: '↑', disabled: i === 0 });
       const down = el('button', { type: 'button', class: 'icon', title: '下移', text: '↓', disabled: i === arr.length - 1 });
       const del = el('button', { type: 'button', class: 'icon danger', title: '刪除', text: '刪除' });
       const head = el('div', { class: 'arr-head' }, [
         caret, titleEl,
         el('span', { class: 'arr-sub muted', text: itemSummary(item) }),
-        el('span', { class: 'grow' }), up, down, del,
+        el('span', { class: 'grow' }),
+        structural ? up : null, structural ? down : null, structural ? del : null,
       ]);
       const body = el('div', { class: 'arr-body' + (isCollapsed ? ' hidden' : '') });
-      if (!isCollapsed) for (const f of spec.item.fields) body.append(renderNode(item, f.key, f, [...iSegs, f.key]));
+      if (!isCollapsed) renderFields(body, item, spec.item, iSegs);
 
       caret.addEventListener('click', () => { collapsed.set(ck, !collapsed.get(ck)); draw(); });
       titleEl.addEventListener('click', () => { collapsed.set(ck, !collapsed.get(ck)); draw(); });
@@ -453,7 +492,8 @@ function renderObjectArray(obj, key, spec, segs) {
   });
 
   draw();
-  box.append(filterWrap, list, el('div', { class: 'arr-tools' }, [add]));
+  box.append(filterWrap, list, el('div', { class: 'arr-tools' },
+    MODE === 'all' ? [add] : [el('span', { class: 'note', text: '要新增或刪除項目，請切到右上角的「全部欄位」。' })]));
   return box;
 }
 
@@ -478,12 +518,21 @@ function sectionChangeCounts() {
   return m;
 }
 
+// 這個分區在常用模式下有沒有東西可看（整段都是代碼/座標的分區就不列出來）
+function sectionHasCommon(s) {
+  const baseSpec = s.base.length ? specAt(s.base) : SPEC;
+  if (!baseSpec || baseSpec.type !== 'object') return true;
+  const keys = s.keys || baseSpec.fields.map((f) => f.key);
+  return keys.some((k) => baseSpec.fields.find((f) => f.key === k)?.minTier === 1);
+}
+
 function renderNav() {
   const counts = sectionChangeCounts();
   const list = $('navList');
   list.textContent = '';
   let lastGroup = null;
-  for (const s of SECTIONS) {
+  const shown = MODE === 'all' ? SECTIONS : SECTIONS.filter((s) => sectionHasCommon(s) || counts.get(s.id));
+  for (const s of shown) {
     if (s.group !== lastGroup) { list.append(el('div', { class: 'navgroup', text: s.group })); lastGroup = s.group; }
     const n = counts.get(s.id) || 0;
     const btn = el('button', { type: 'button', class: 'navitem' + (s.id === activeId ? ' active' : ''), 'data-sec': s.id }, [
@@ -493,16 +542,18 @@ function renderNav() {
     btn.addEventListener('click', () => goSection(s.id));
     list.append(btn);
   }
-  const addRes = el('button', { type: 'button', class: 'navadd', text: '＋ 新增資源區塊' });
-  addRes.addEventListener('click', () => {
-    const spec = specAt(['resources']);
-    DATA.resources = DATA.resources || [];
-    DATA.resources.push(clone(spec.itemBlank));
-    SECTIONS = buildSections();
-    goSection(`r${DATA.resources.length - 1}m`);
-    markChanged();
-  });
-  list.append(addRes);
+  if (MODE === 'all') {
+    const addRes = el('button', { type: 'button', class: 'navadd', text: '＋ 新增資源區塊' });
+    addRes.addEventListener('click', () => {
+      const spec = specAt(['resources']);
+      DATA.resources = DATA.resources || [];
+      DATA.resources.push(clone(spec.itemBlank));
+      SECTIONS = buildSections();
+      goSection(`r${DATA.resources.length - 1}m`);
+      markChanged();
+    });
+    list.append(addRes);
+  }
 }
 
 function rerenderPane() {
@@ -525,12 +576,9 @@ function rerenderPane() {
   if (!baseObj || !baseSpec) { root.append(el('p', { class: 'note', text: '此分區無內容。' })); return; }
 
   const keys = s.keys || baseSpec.fields.map((f) => f.key);
-  for (const k of keys) {
-    const fs = baseSpec.fields.find((f) => f.key === k);
-    if (fs) root.append(renderNode(baseObj, k, fs, [...s.base, k]));
-  }
+  renderFields(root, baseObj, { ...baseSpec, fields: keys.map((k) => baseSpec.fields.find((f) => f.key === k)).filter(Boolean) }, s.base);
 
-  if (s.resourceIndex !== undefined) {
+  if (s.resourceIndex !== undefined && MODE === 'all') {
     const del = el('button', { type: 'button', class: 'link danger', text: '刪除整個資源區塊' });
     del.addEventListener('click', async () => {
       const r = DATA.resources[s.resourceIndex];
@@ -606,7 +654,13 @@ function jumpTo(segs) {
   for (let i = 1; i <= segs.length; i++) if (typeof segs[i - 1] === 'number') collapsed.set(pathKey(segs.slice(0, i)), false);
   goSection(sid);
   requestAnimationFrame(() => {
-    const node = document.querySelector(`[data-path="${CSS.escape(pathKey(segs))}"]`);
+    let node = document.querySelector(`[data-path="${CSS.escape(pathKey(segs))}"]`);
+    // 常用模式可能把目標欄位藏起來了（搜尋/錯誤/對照圖都可能指向設定類欄位）→ 自動切到全部欄位
+    if (!node && MODE === 'common') {
+      setMode('all');
+      toast('已切換到「全部欄位」才能顯示這個欄位', 'ok');
+      node = document.querySelector(`[data-path="${CSS.escape(pathKey(segs))}"]`);
+    }
     if (!node) return;
     node.scrollIntoView({ block: 'center', behavior: 'smooth' });
     node.classList.add('flash');
@@ -636,6 +690,122 @@ function saveDraft() {
 }
 function dropDraft() { try { localStorage.removeItem(draftKey()); } catch {} }
 
+// ─────────────────────────── 看板對照圖 ───────────────────────────
+// 「我不知道哪個欄位對應看板上哪一塊」→ 直接給一張真實看板截圖，上面疊可點擊的熱區，
+// 點下去跳到表單裡對應的區段。素材由 scripts/make-board-map.mjs 產生（全 15 家同一版面）。
+let BOARDMAP = null;
+
+async function openBoardMap() {
+  if (!BOARDMAP) {
+    try { BOARDMAP = await (await fetch('/board-map.json')).json(); }
+    catch { toast('對照圖載入失敗', 'err'); return; }
+  }
+  let scenario = 'peace';
+
+  const wrap = el('div', { class: 'bmwrap' });
+  const tabs = el('div', { class: 'bmtabs' }, [
+    el('span', { class: 'note', text: '點圖上任一區塊，直接跳到表單對應的欄位。要改哪個情境：' }),
+  ]);
+  const bPeace = el('button', { type: 'button', class: 'on', text: '平時' });
+  const bWar = el('button', { type: 'button', text: '戰時/救災' });
+  bPeace.addEventListener('click', () => { scenario = 'peace'; bPeace.classList.add('on'); bWar.classList.remove('on'); });
+  bWar.addEventListener('click', () => { scenario = 'war'; bWar.classList.add('on'); bPeace.classList.remove('on'); });
+  tabs.append(bPeace, bWar);
+
+  const stage = el('div', { class: 'bmstage' });
+  const img = el('img', { src: '/board-map.png', alt: '看板版面對照圖' });
+  stage.append(img);
+
+  for (const r of BOARDMAP.regions) {
+    const hot = el('button', { type: 'button', class: 'bmhot', title: r.label });
+    hot.style.left = `${(r.x / BOARDMAP.width) * 100}%`;
+    hot.style.top = `${(r.y / BOARDMAP.height) * 100}%`;
+    hot.style.width = `${(r.w / BOARDMAP.width) * 100}%`;
+    hot.style.height = `${(r.h / BOARDMAP.height) * 100}%`;
+    hot.append(el('span', { text: r.label.split('：').pop() }));
+    hot.addEventListener('click', () => { closeModal(false); jumpToBoardPart(r, scenario); });
+    stage.append(hot);
+  }
+
+  wrap.append(tabs, stage, el('p', {
+    class: 'note',
+    text: `對照圖取自 ${BOARDMAP.capturedFrom}（全院所同一套版面）。實際內容依貴院資料而定，位置一致。`,
+  }));
+  confirmModal({ title: '看板對照圖：哪個欄位長在哪裡', node: wrap, okText: '關閉', cancelText: '', wide: true });
+}
+
+function jumpToBoardPart(region, scenario) {
+  if (region.part === 'env') { goSection(scenario === 'war' ? 'envw' : 'envp'); return; }
+  const i = (DATA.resources || []).findIndex((r) => r.id === region.resourceId);
+  if (i < 0) { toast(`貴院看板沒有「${region.label.split('：')[0]}」這個區塊`, 'warn'); return; }
+  const inner = { head: 'perf', supply: 'supply', store: 'store', use: 'use' }[region.part];
+  jumpTo(['resources', i, scenario, inner]);
+}
+
+// ─────────────────────── 常駐送出狀態（不是只有 toast） ───────────────────────
+// 原本送出結果只存在飄浮的 toast 裡：關掉分頁、重新登入、或 toast 消失後，
+// 院方就無從確認「我上次到底送出成功了沒」。這條狀態列每次載入都會重新查。
+const fmtTime = (ms) => new Date(ms).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+
+async function refreshStatusBar(pending) {
+  const bar = $('statusBar');
+  const { body } = await api('/api/history');
+  const items = body?.items || [];
+  bar.textContent = '';
+  if (!items.length) {
+    bar.className = 'statusbar';
+    bar.append(el('span', { text: '這個看板還沒有透過本系統送出過修改。' }));
+    return;
+  }
+  const last = items[0];
+  bar.className = 'statusbar';
+  const line = el('div', { class: 'sb-line' }, [
+    el('b', { text: '上次送出：' }),
+    el('span', { text: `${fmtTime(last.at)}（${last.shortSha}）` }),
+  ]);
+
+  const boardUrl = `https://crinhealthcare.org/${ME?.hid}/`;
+  const link = () => el('a', { href: boardUrl, target: '_blank', rel: 'noopener', text: '開啟看板 ↗' });
+
+  if (pending) {
+    bar.classList.add('busy');
+    line.append(el('span', { class: 'sb-state', text: '· 部署中…' }));
+  } else {
+    const { body: st } = await api('/api/deploy?commit=' + encodeURIComponent(last.sha));
+    const phase = st?.phase;
+    // 十幾分鐘前的送出還顯示「部署進行中」會讓人以為卡住了。部署本身只要 1–2 分鐘，
+    // 超過 20 分鐘還查不到結論，就是查不到，不要硬報一個進行中。
+    const stale = Date.now() - last.at > 20 * 60 * 1000;
+    if (phase === 'done') {
+      bar.classList.add('ok');
+      line.append(el('span', { class: 'sb-state', text: '· ✅ 已上線' }), link());
+    } else if (phase === 'failed') {
+      bar.classList.add('err');
+      line.append(el('span', { class: 'sb-state', text: '· ⚠️ 部署失敗，看板未更新，請聯絡維護人員' }));
+    } else if (!stale && (phase === 'pending' || phase === 'deploying' || phase === 'propagating')) {
+      bar.classList.add('busy');
+      line.append(el('span', { class: 'sb-state', text: '· 部署進行中' }), link());
+    } else {
+      line.append(el('span', { class: 'sb-state', text: '· 資料已送出' }),
+        el('span', { class: 'muted', text: '（查不到這次的部署紀錄，請直接看看板確認）' }), link());
+    }
+  }
+
+  const more = el('button', { type: 'button', class: 'link', text: `更早的紀錄（${items.length - 1}）` });
+  more.addEventListener('click', () => confirmModal({
+    title: '送出紀錄',
+    okText: '關閉', cancelText: '',
+    node: el('div', { class: 'histlist' }, items.map((it) => el('div', { class: 'histrow' }, [
+      el('span', { class: 'hist-t', text: fmtTime(it.at) }),
+      el('span', { class: 'hist-s', text: it.shortSha }),
+      el('span', { class: 'hist-m', text: it.subject }),
+    ]))),
+  }));
+  if (items.length > 1) line.append(more);
+  bar.append(line);
+  bar.classList.remove('hidden');
+}
+
 // ─────────────────────────────── toast / modal ───────────────────────────────
 function toast(msg, kind) { const t = $('toast'); t.className = 'toast show ' + (kind || ''); t.textContent = msg; }
 function toastHide() { $('toast').className = 'toast'; }
@@ -652,14 +822,17 @@ function toastAction(msg, actionText, fn) {
 }
 
 let modalResolve = null;
-function confirmModal({ title, body, okText = '確定', cancelText = '取消', danger = false, node = null }) {
+function confirmModal({ title, body, okText = '確定', cancelText = '取消', danger = false, node = null, wide = false }) {
   $('modalTitle').textContent = title;
   const mb = $('modalBody'); mb.textContent = '';
   if (node) mb.append(node); else mb.append(el('p', { text: body || '' }));
   const ok = $('modalOk');
   ok.textContent = okText;
   ok.className = danger ? 'danger-btn' : 'primary';
-  $('modalCancel').textContent = cancelText;
+  const cancel = $('modalCancel');
+  cancel.textContent = cancelText;
+  cancel.classList.toggle('hidden', !cancelText);   // 純告知的對話框不需要「取消」
+  $('modal').querySelector('.modal-box').classList.toggle('wide', wide);
   $('modal').classList.remove('hidden');
   ok.focus();
   return new Promise((r) => { modalResolve = r; });
@@ -707,6 +880,8 @@ function showEditor(me) {
   ME = me;
   $('boot').classList.add('hidden'); $('login').classList.add('hidden'); $('editor').classList.remove('hidden');
   $('hName').textContent = me.name || ''; $('hId').textContent = `（${me.hid}）`;
+  $('modeCommon').classList.toggle('on', MODE === 'common');
+  $('modeAll').classList.toggle('on', MODE === 'all');
 }
 
 async function loadSpec() {
@@ -734,6 +909,7 @@ async function loadHospital(opts = {}) {
 
   // 搜尋索引改在使用搜尋時才建（見 runSearch）
   renderNav(); rerenderPane(); updateDirtyBadge();
+  refreshStatusBar();   // 不 await：查 GitHub Actions 會慢，不該卡住表單顯示
   if (opts.notify) toast('已載入最新內容 ✓', 'ok');
   return true;
 }
@@ -797,7 +973,9 @@ async function save() {
   if (body.unchanged) { toast('內容與線上相同，未變更', 'ok'); ORIG = clone(DATA); dropDraft(); renderNav(); updateDirtyBadge(); return endSave(); }
 
   ORIG = clone(DATA); dropDraft(); renderNav(); updateDirtyBadge();
+  refreshStatusBar(true);
   await waitDeploy(body.commit, body.sha);
+  refreshStatusBar();
   endSave();
 }
 
@@ -853,6 +1031,24 @@ $('logoutBtn').addEventListener('click', async () => {
   await api('/api/logout', { method: 'POST', headers: { 'X-Requested-With': 'ems-admin' } });
   location.reload();
 });
+
+function setMode(m) {
+  if (MODE === m) return;
+  MODE = m;
+  try { localStorage.setItem('ems-admin-mode', m); } catch {}
+  $('modeCommon').classList.toggle('on', m === 'common');
+  $('modeAll').classList.toggle('on', m === 'all');
+  // 切模式後目前分區可能被隱藏了，退回第一個看得到的
+  renderNav();
+  if (!document.querySelector(`[data-sec="${CSS.escape(activeId)}"]`)) {
+    const first = document.querySelector('.navitem');
+    if (first) { activeId = first.dataset.sec; renderNav(); }
+  }
+  rerenderPane();
+}
+$('modeCommon').addEventListener('click', () => setMode('common'));
+$('modeAll').addEventListener('click', () => setMode('all'));
+$('mapBtn').addEventListener('click', openBoardMap);
 
 $('searchBox').addEventListener('input', (e) => runSearch(e.target.value));
 $('searchBox').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.target.value = ''; runSearch(''); } });

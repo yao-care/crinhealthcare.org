@@ -64,6 +64,21 @@ export async function saveHospital(hid, dataObj, meta) {
   });
 }
 
+// 該院所檔案的送出紀錄（回答「我上次到底有沒有送出成功」）。
+// 只讀本地工作副本的 git log——每次 save 都會 fetch+reset 到 origin，所以它就是線上狀態。
+export async function historyFor(hid, n = 5) {
+  const rel = `${HOSP_DIR}/${hid}.json`;
+  hospitalPath(hid);                                    // 沿用同一套 hid 合法性檢查
+  try { await git(['fetch', 'origin', config.gitBranch]); } catch { /* 離線時仍回本地紀錄 */ }
+  const out = await git(['log', `-n${Math.min(Number(n) || 5, 20)}`, '--format=%H%x1f%ct%x1f%s',
+    `origin/${config.gitBranch}`, '--', rel]);
+  if (!out) return [];
+  return out.split('\n').map((line) => {
+    const [sha, ts, subject] = line.split('\x1f');
+    return { sha, shortSha: sha.slice(0, 7), at: Number(ts) * 1000, subject };
+  });
+}
+
 // 健康檢查：確認 REPO_DIR 是 git 樹且能連遠端
 export async function repoHealth() {
   const branch = await git(['rev-parse', '--abbrev-ref', 'HEAD']);

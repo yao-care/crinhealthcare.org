@@ -27,6 +27,11 @@
       <button id="navToggle" type="button" class="ghost only-narrow" aria-label="開關分區選單">☰</button>
       <div class="who"><strong id="hName"></strong> <span class="muted" id="hId"></span></div>
       <div class="grow"></div>
+      <div class="modeswitch" role="group" aria-label="顯示欄位範圍">
+        <button id="modeCommon" type="button" class="on">常用欄位</button>
+        <button id="modeAll" type="button">全部欄位</button>
+      </div>
+      <button id="mapBtn" type="button" class="ghost">🗺 看板對照圖</button>
       <span id="dirtyBadge" class="badge hidden">未送出 <b>0</b> 項修改</span>
       <div class="actions">
         <button id="reloadBtn" type="button" class="ghost">捨棄修改</button>
@@ -34,6 +39,9 @@
         <button id="logoutBtn" type="button" class="ghost">登出</button>
       </div>
     </header>
+
+    <!-- 常駐送出狀態：關掉分頁再回來也看得到上次送出的結果 -->
+    <div id="statusBar" class="statusbar hidden"></div>
 
     <div class="body">
       <nav id="nav" class="nav" aria-label="分區">
