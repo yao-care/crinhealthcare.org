@@ -61,10 +61,14 @@ UNSPLASH_ACCESS_KEY=...
 ### CSS（設計規範 v2，`pnpm build` 前 `scripts/check-design.mjs` 自動守門）
 
 1. font-size 禁用 px（一律 var(--text-*) 階梯；例外清單見 check-design.mjs 的 PX_FONT_EXEMPT）
-2. 顏色（hex/rgb/hsl）只准出現在 `src/styles/variables.css`（本站以 OKLCH 為準；favicon 除外）
+2. 顏色（hex/rgb/hsl）只准出現在該範圍的 token 檔（本站以 OKLCH 為準；favicon 除外）
 3. 禁 important 覆寫
 4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
 5. 統一 css 檔：src/ 下的 .css 只准 `src/styles/{variables,global}.css`，元件樣式寫 scoped `<style>`
+6. 字級階梯下限 ≥18px（只對 ems-admin 生效；本站舊階梯待拍板，見 CLAUDE.md）
+
+掃描兩塊範圍：`src/`（token＝`src/styles/variables.css`）＋ `services/ems-admin/public/`
+（token＝`public/tokens.css`，css 白名單只准 `tokens.css`／`style.css`）。
 
 ### 內容守門（去 AI 味，`pnpm build` 前 `scripts/check-content.mjs` 自動守門）
 

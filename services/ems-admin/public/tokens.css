@@ -1,0 +1,105 @@
+/* ems-admin 設計 token（本服務唯一顏色/字級來源）。
+ *
+ * 為什麼要有這一檔：ems-admin 是獨立 pm2 服務、public/ 直接靜態送出，
+ * 拿不到 Astro 的 src/styles/variables.css，所以在此鏡射一份。
+ * 色票數值與 ../../src/styles/variables.css 同源（oklch），改品牌色時兩邊都要改。
+ *
+ * 規範（團隊網站共用 v2，守門：../../scripts/check-design.mjs）：
+ * 1. font-size 禁用 px（一律 var(--text-*) 階梯）
+ * 2. 顏色（hex / rgb() / hsl()）只准出現在本檔——本服務更嚴格：本檔也只寫 oklch
+ * 3. 禁 important 覆寫
+ * 4. 禁外部 CDN（字型走系統堆疊）
+ * 5. 統一 css 檔案：public/ 下只准 tokens.css 與 style.css
+ * 6. 字級階梯下限 ≥18px（1.125rem），clamp() 以最小值計 */
+
+:root {
+  /* ── 字級階梯（rem；最小 18px；--text-base 為內文下限）——鎖死，勿改小 ── */
+  --text-xs: 1.125rem;   /* 18px 標籤/徽章/註記 */
+  --text-sm: 1.25rem;    /* 20px 導覽/輔助資訊 */
+  --text-base: 1.375rem; /* 22px 內文、輸入框 */
+  --text-lg: 1.625rem;   /* 26px 小標/區塊標題 */
+  --text-xl: 2rem;       /* 32px 頁面主標 */
+
+  --leading-tight: 1.3;
+  --leading-normal: 1.55;
+
+  /* ── 字型（系統堆疊，不載外部字型） ── */
+  --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Consolas, monospace;
+
+  /* ── 品牌色（同 crinhealthcare.org variables.css） ── */
+  --color-primary: oklch(0.45 0.15 195);       /* teal，L=0.45 對白底 AA 4.5:1 */
+  --color-primary-light: oklch(0.75 0.10 195);
+  --color-primary-pale: oklch(0.95 0.03 195);
+  --color-accent: oklch(0.60 0.18 155);
+  --color-energy: oklch(0.70 0.15 85);
+  --color-alert: oklch(0.65 0.20 25);
+
+  /* ── 中性色（同 variables.css） ── */
+  --color-text: oklch(0.25 0.02 250);
+  --color-text-secondary: oklch(0.50 0.01 250);
+  --color-border: oklch(0.88 0.01 250);
+  --color-surface: oklch(0.98 0.005 250);
+  --color-paper: oklch(1.00 0 0);
+
+  /* ── ems-admin 自有延伸（皆自上列品牌色推導，維持 oklch） ── */
+  --color-primary-dark: oklch(0.36 0.13 195);  /* 深底按鈕/hover、pale 底上的文字 */
+  --color-on-primary: oklch(1.00 0 0);         /* 深色底上的文字 */
+  --color-bg: oklch(0.965 0.005 250);          /* 頁底 */
+  --color-border-soft: oklch(0.93 0.008 250);  /* 次級分隔線 */
+  --color-surface-2: oklch(0.985 0.004 250);   /* 巢狀 fieldset 第 2 層 */
+  --color-surface-3: oklch(0.97 0.006 250);    /* 巢狀 fieldset 第 3 層 */
+  --color-hover: oklch(0.945 0.008 250);       /* 列/按鈕 hover */
+  --color-track: oklch(0.85 0.012 250);        /* switch 關閉時軌道 */
+
+  /* --color-alert 原值（L=0.65）配白字只有 3.56:1＝僅大字合格，
+   * 故錯誤文字與危險按鈕改用 strong（6.08:1，AA），alert 只留作邊框/圖示。 */
+  --color-alert-strong: oklch(0.52 0.19 25);   /* 錯誤文字、危險按鈕底 */
+  --color-alert-dark: oklch(0.42 0.16 25);     /* 危險按鈕 hover、pale 底上的文字 */
+  --color-alert-pale: oklch(0.965 0.018 25);
+  --color-alert-border: oklch(0.86 0.06 25);
+
+  --color-warn: oklch(0.52 0.12 85);           /* 警示文字（對 pale 底 AA） */
+  --color-warn-pale: oklch(0.97 0.04 85);
+  --color-warn-border: oklch(0.88 0.09 85);
+  --color-flash: oklch(0.95 0.09 95);          /* 跳轉後閃爍highlight */
+
+  --color-info: oklch(0.45 0.12 250);          /* 進行中/看板位置說明 */
+  --color-info-pale: oklch(0.955 0.02 250);
+  --color-info-dark: oklch(0.30 0.09 250);
+
+  --color-ok-pale: var(--color-primary-pale);
+  --color-toast: oklch(0.27 0.02 250);         /* toast 深底 */
+  --color-toast-ok: var(--color-primary-dark);
+  --color-toast-err: oklch(0.33 0.10 25);
+  --color-toast-warn: oklch(0.38 0.07 85);
+  --color-toast-busy: oklch(0.33 0.07 250);
+  --color-on-toast-a15: oklch(1 0 0 / 0.15);   /* toast 內按鈕 */
+  --color-on-toast-a28: oklch(1 0 0 / 0.28);
+  --color-on-toast-a50: oklch(1 0 0 / 0.5);
+
+  --color-scrim: oklch(0.18 0.01 250 / 0.45);  /* modal/側欄遮罩 */
+  --color-hotspot: oklch(0.45 0.15 195 / 0.22);/* 看板對照圖熱區 */
+
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.08);
+  --shadow-md: 0 4px 12px oklch(0 0 0 / 0.12);
+  --shadow-lg: 0 20px 60px oklch(0 0 0 / 0.30);
+  --shadow-toast: 0 8px 30px oklch(0 0 0 / 0.25);
+  --shadow-drawer: 0 0 40px oklch(0 0 0 / 0.20);
+
+  /* ── 版面 ── */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-pill: 999px;
+  --nav-w: 19rem;        /* 左側分區導覽 */
+  --label-w: 17rem;      /* 欄位標籤欄寬 */
+  --tap: 2.75rem;        /* 觸控目標下限 44px */
+
+  --space-2xs: 0.25rem;
+  --space-xs: 0.375rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+}

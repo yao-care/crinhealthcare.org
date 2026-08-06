@@ -104,6 +104,27 @@ pnpm test                   # schema 對所有現有院所 JSON 做回歸
 
 `pnpm test` 的「spec 涵蓋 schema」會拿全 15 家 JSON 的**每一個鍵**去比對 spec，漏同步會直接測試失敗——這是最快的對齊檢查。改完 schema 也要在 `src/labels.js` 補中文標籤，否則「每個欄位都有中文標籤」那條測試會擋下。
 
+## 設計規範（2026-08-06 起納入守門，勿再寫死色/字級）
+
+本服務的畫面**受團隊 CSS 設計規範 v2 管**，由站台的 `../../scripts/check-design.mjs` 一起掃
+（該腳本現在掃兩塊：`src/` 與 `services/ems-admin/public/`）。**違規會擋掉整個站台的 `pnpm build`。**
+
+- 顏色只准寫在 `public/tokens.css`，而且只用 **oklch**；`style.css` 一律 `var(--color-*)`，禁 hex／rgb／rgba。
+- 字級只准用 `var(--text-*)` 階梯，禁 px。階梯值本身**不得低於 18px**（`--text-xs: 1.125rem` 是下限，腳本會查）。
+- 禁 important 覆寫。要壓過既有規則就拉選擇器權重：`.hidden.hidden`（取代原本的 `display:none` 加 important）、
+  `.invalid:focus`（0,2,0，壓過 `input:focus` 的 0,1,1）——這兩處有註解，別改回去。
+- `public/` 下的 `.css` 只准 `tokens.css` 與 `style.css` 兩檔，新增檔即 fail。
+- 品牌色與 `../../src/styles/variables.css` 同源（teal `oklch(0.45 0.15 195)`）。**改品牌色兩邊都要改**——
+  這裡是鏡射不是 import（服務獨立部署，拿不到 Astro 的 src/）。
+- 錯誤色分兩支：`--color-alert`（L=0.65，配白字只有 3.56:1，**只當邊框/圖示**）與
+  `--color-alert-strong`（L=0.52，6.08:1，錯誤文字與危險按鈕用這支）。別把文字改回 `--color-alert`。
+
+**為什麼會走到這一步**：ems-admin 不進 astro build，先前不在守門掃描範圍內，整份 `style.css`
+漂成 hex 色票（自成一套綠）＋ 11–15px 字級，被用戶當場抓到。納入守門就是為了不再漂。
+
+改字級後注意兩件實測會壞的地方：窄螢幕 topbar 三顆按鈕會折行（已用 `--text-xs` ＋小 padding 收），
+陣列列的「刪除」鈕會被擠成兩行（已 `flex: none` ＋ `white-space: nowrap`）。
+
 ## 檔案
 
 - `src/config.js` — .env 載入＋啟動檢查
@@ -114,6 +135,8 @@ pnpm test                   # schema 對所有現有院所 JSON 做回歸
 - `src/accounts.js` — 帳號載入＋登入節流
 - `src/repo.js` — 讀寫 hospital JSON、git commit/push（互斥鎖序列化）
 - `src/server.js` — HTTP 路由＋靜態
+- `public/tokens.css` — 設計 token（oklch 色票＋≥18px 字級階梯）；顏色/字級只准改這裡
+- `public/style.css` — 版面樣式，一律引用 token（禁 hex/px 字級/important，見上節）
 - `public/` — 登入＋分區導覽表單（原生 JS，無 build）
 - `public/board-map.png` / `board-map.json` — 看板對照圖素材（由下面那支腳本產生，直接 commit 進 repo）
 - `scripts/hash-password.mjs` — 產/追加院所帳號

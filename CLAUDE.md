@@ -15,10 +15,12 @@
 - 所有圖片必須有 alt text
 - CSS 設計規範 v2（`pnpm build` 前 `scripts/check-design.mjs` 自動守門，違規直接 fail）：
   1. font-size 禁用 px，一律 var(--text-*) 階梯（遞延例外：PeakShaveChart.svelte 的 SVG 座標系字級，見腳本 PX_FONT_EXEMPT TODO）
-  2. 顏色（hex/rgb/hsl）只准出現在 `src/styles/variables.css`（OKLCH 為準；favicon 除外）
+  2. 顏色（hex/rgb/hsl）只准出現在該掃描範圍的 token 檔（OKLCH 為準；favicon 除外）
   3. 禁 important 覆寫
   4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
   5. 統一 css 檔：src/ 下的 .css 只准 `src/styles/{variables,global}.css`，元件樣式寫 Astro/Svelte scoped `<style>`
+  6. 字級階梯下限 ≥18px：**目前只對 ems-admin 生效**，本站 `src/styles/variables.css` 仍是舊階梯（`--text-xs` 12px 起）＝未達團隊 v2 標準，抬高會動到全站視覺，待拍板（腳本內 `ladderFloor: false` 有 TODO）
+  - **掃描範圍有兩塊**：`src/`（token 檔＝`src/styles/variables.css`）與 `services/ems-admin/public/`（token 檔＝`public/tokens.css`，白名單只准 `tokens.css`／`style.css`）。ems-admin 不進 astro build，2026-08-06 前不在守門範圍，整份 style.css 已漂成 hex 色＋px 字級。
 - 內容守門（去 AI 味，`pnpm build` 前 `scripts/check-content.mjs` 自動守門，設計守門之後、`astro build` 之前）：掃 `src/**/*.md(x)`，強 AI 指紋單一命中即擋、軟訊號跨 ≥3 層升級擋；**預設只掃相對 `origin/main` 變動檔（grandfather 存量）**，抓不到 git base 時掃 0 檔 exit 0。自檢：`pnpm check:content`／`pnpm check:content:all`（全站盤點不擋）／`node scripts/check-content.mjs <file>`。改法見「文案去 AI 味」檢查表。
 - 中文內容用繁體中文，不用簡體或中國用語
 - 每頁只有一個 h1，標題層級不跳級
