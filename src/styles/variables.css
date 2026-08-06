@@ -6,6 +6,8 @@
  * 4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
  * 5. 統一 css 檔案：src/ 下的 .css 只准 src/styles/{variables,global}.css，
  *    元件樣式寫 Astro/Svelte scoped <style>
+ * 6. 字級階梯下限 ≥18px（1.125rem），clamp() 以最小值計；階梯定義在 global.css。
+ *    守門掃每一個檔案，元件內自建 --text-* 覆寫全站階梯同樣違規。
  * 守門：scripts/check-design.mjs（pnpm build 自動先跑，違規直接 fail）。 */
 
 :root {

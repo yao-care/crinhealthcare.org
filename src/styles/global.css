@@ -7,14 +7,17 @@
   --font-body: "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
 
-  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
-  --text-sm: clamp(0.875rem, 0.8rem + 0.3vw, 1rem);
-  --text-base: clamp(1rem, 0.9rem + 0.4vw, 1.125rem);
-  --text-lg: clamp(1.125rem, 1rem + 0.5vw, 1.25rem);
-  --text-xl: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
-  --text-2xl: clamp(1.5rem, 1.2rem + 1vw, 2rem);
-  --text-3xl: clamp(2rem, 1.5rem + 1.5vw, 2.75rem);
-  --text-hero: clamp(2.5rem, 1.8rem + 2.5vw, 4rem);
+  /* ── 字級階梯（團隊網站共用 v2；最小 18px，--text-base 為內文下限）——鎖死，勿改小 ──
+   * 2026-08-06 自舊階梯（xs 12px 起、base 16px）抬到團隊標準，與 dreamer868／credo／
+   * folk.tw／yao.care 同值。clamp 以最小值計，守門 scripts/check-design.mjs 規則 6 會擋。 */
+  --text-xs: 1.125rem;   /* 18px 標籤/徽章/註記 */
+  --text-sm: 1.25rem;    /* 20px 導覽/輔助資訊 */
+  --text-base: 1.375rem; /* 22px 內文 */
+  --text-lg: 1.625rem;   /* 26px 小標/卡片標題 */
+  --text-xl: 2rem;       /* 32px 段落標題 */
+  --text-2xl: clamp(2rem, 1.5rem + 2vw, 2.75rem);     /* 32→44px 頁面主標 */
+  --text-3xl: clamp(2.75rem, 2rem + 3.5vw, 4.5rem);   /* 44→72px 大標 */
+  --text-hero: clamp(3.25rem, 2.2rem + 4.5vw, 5.5rem);/* 52→88px Hero 裝飾大字 */
 
   --leading-tight: 1.3;
   --leading-normal: 1.7;
@@ -43,7 +46,11 @@
 
 html {
   font-family: var(--font-body);
-  font-size: var(--text-base);
+  /* 根字級維持瀏覽器預設（1rem = 16px，也尊重使用者自訂字級）。
+   * 這裡若寫成 var(--text-base)，--text-* 全部是 rem，等於整座階梯再乘一次 1.375
+   * ——2026-08-06 抬階梯時發現的舊坑：xs 名目 18px 實際渲染 24.75px。
+   * 內文字級改在 body 指定。 */
+  font-size: 100%;
   line-height: var(--leading-normal);
   color: var(--color-text);
   background-color: var(--color-paper);
@@ -56,6 +63,7 @@ html {
 
 body {
   min-height: 100dvh;
+  font-size: var(--text-base);
 }
 
 /* ─── Headings ─────────────────────────────────────────────────────────────── */

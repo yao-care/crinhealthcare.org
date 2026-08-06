@@ -166,7 +166,7 @@ import { url } from '@utils/url';
   }
 
   .page-title {
-    font-size: var(--text-4xl);
+    font-size: var(--text-3xl);
     font-family: var(--font-heading);
     font-weight: 700;
     color: var(--color-text);
@@ -336,8 +336,10 @@ import { url } from '@utils/url';
   }
 
   @media (max-width: 900px) {
+    /* minmax(0, 1fr) 而非 1fr：1fr 的下限是 min-content，表單控制項與
+       info@crinhealthcare.org 這類不可斷字串會把單欄撐得比視窗寬。 */
     .contact-layout {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

@@ -167,7 +167,7 @@ import Page from '@layouts/Page.astro';
   }
 
   .page-title {
-    font-size: var(--text-4xl);
+    font-size: var(--text-3xl);
     font-family: var(--font-heading);
     font-weight: 700;
     color: var(--color-text);
@@ -312,8 +312,9 @@ import Page from '@layouts/Page.astro';
   }
 
   @media (max-width: 900px) {
+    /* minmax(0, 1fr)：1fr 下限是 min-content，表單控制項會把單欄撐破視窗 */
     .join-layout {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

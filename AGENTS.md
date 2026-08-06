@@ -65,10 +65,13 @@ UNSPLASH_ACCESS_KEY=...
 3. 禁 important 覆寫
 4. 禁外部 CDN（字型自託管 @fontsource 或系統堆疊）
 5. 統一 css 檔：src/ 下的 .css 只准 `src/styles/{variables,global}.css`，元件樣式寫 scoped `<style>`
-6. 字級階梯下限 ≥18px（只對 ems-admin 生效；本站舊階梯待拍板，見 CLAUDE.md）
+6. 字級階梯下限 ≥18px（`clamp()` 以最小值計）——**掃每一個檔案**，元件內自建 `--text-*` 覆寫全站階梯同樣違規
 
 掃描兩塊範圍：`src/`（token＝`src/styles/variables.css`）＋ `services/ems-admin/public/`
 （token＝`public/tokens.css`，css 白名單只准 `tokens.css`／`style.css`）。
+
+- 唯一豁免 `EmsBoardV2.svelte`（kiosk 一屏看板，與 ≥18px 互斥，待產品拍板），禁再擴充。
+- `html` 的 font-size 不准寫 `var(--text-*)`：階梯是 rem，會整座再乘一次。內文字級寫在 `body`。
 
 ### 內容守門（去 AI 味，`pnpm build` 前 `scripts/check-content.mjs` 自動守門）
 

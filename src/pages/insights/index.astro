@@ -95,7 +95,7 @@ const byCategory = {
   }
 
   .page-title {
-    font-size: var(--text-4xl);
+    font-size: var(--text-3xl);
     font-family: var(--font-heading);
     font-weight: 700;
     color: var(--color-text);
@@ -259,6 +259,9 @@ const byCategory = {
     }
 
     .tab-label {
+      /* 桌機三顆分頁釘在同一列；改單欄時要解除，否則自動配置會長出隱含欄
+         把三顆排成一橫排撐破視窗（字級抬到 20px 後必然溢出）。 */
+      grid-row: auto;
       border-bottom: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
     }

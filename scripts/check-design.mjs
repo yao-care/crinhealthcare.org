@@ -20,9 +20,7 @@ const ROOTS = [
     // 舊站遷移期可暫加既有檔（凍結用，禁再擴充）；新站一律只有這兩檔。
     styleDir: join("src", "styles"),
     styleWhitelist: new Set(["variables.css", "global.css"]),
-    // TODO(待用戶拍板)：本站字級階梯仍是舊值（--text-xs 12px 起），
-    // 未達團隊 v2 第 6 條「階梯 ≥18px」。抬高會動到全站視覺，故先不強制。
-    ladderFloor: false,
+    ladderFloor: true,
   },
   {
     dir: join("services", "ems-admin", "public"),
@@ -41,6 +39,21 @@ const LADDER_MIN_REM = 1.125; // 18px
 const PX_FONT_EXEMPT = new Set([
   join("src", "components", "charts", "PeakShaveChart.svelte"),
 ]);
+
+// 規則 6 掃「全部檔案」的 --text-* 定義，不是只掃 token 檔——2026-08-06 發現的洞：
+// EmsBoardV2.svelte 在元件內自建一套 clamp(8px…14px) 的私有階梯覆寫全站 token，
+// 只查 token 檔的話完全掃不到，而那正是全站字最小的地方。
+//
+// ⚠ 下列豁免是「已知未解」，不是「已解決」，禁再擴充：
+// EmsBoardV2.svelte＝醫院 kiosk 資料牆，height:100dvh + overflow:hidden，
+// 五區塊按 65/35 比例硬切一屏。實測（2026-08-06）改吃 18px 階梯後：
+//   2560×1440 可完整呈現；1920×1080 內容需 1414px（超出 334px）；1440×900 更嚴重。
+//   放寬高度改為可捲動後，SOC 量表溢出到下一區塊、儲電櫃磁磚擠成一行一字。
+// 亦即「≥18px」與「一屏不捲動」在 1080p 互斥，要合規得重新設計看板密度
+// （減少同屏欄位／加大輪播輪替／改版面），屬產品決策，已回報待用戶決定。
+const LADDER_FLOOR_EXEMPT = new Set([
+  join("src", "components", "charts", "EmsBoardV2.svelte"),
+]);
 const violations = [];
 
 function walk(dir, root) {
@@ -51,17 +64,22 @@ function walk(dir, root) {
   }
 }
 
-// 規則 6：--text-* 階梯 token 值一律 ≥18px（clamp() 以最小值計），
-// 堵「把 token 本身開小門」的洞。
+// 規則 6：--text-* 階梯值一律 ≥18px，clamp() 以最小值計（rem 與 px 都查）。
+// 掃「每一個檔案」而非只掃 token 檔——元件內自訂 --text-* 覆寫全站階梯同樣算開小門。
 function checkLadder(rel, lines) {
+  if (LADDER_FLOOR_EXEMPT.has(rel)) return;
   lines.forEach((line, i) => {
-    const m = /^\s*(--text-[a-z0-9-]+)\s*:\s*(.+?);/i.exec(line);
+    const m = /(--text-[a-z0-9-]+)\s*:\s*([^;]+);/i.exec(line);
     if (!m) return;
     const raw = m[2].trim();
-    const first = /(-?[0-9.]+)\s*rem/.exec(raw.startsWith("clamp") ? raw.slice(6) : raw);
+    // clamp(a, b, c) 取 a；其餘取第一個長度值
+    const first = /(-?[0-9.]+)\s*(rem|px)/i.exec(raw.replace(/^clamp\s*\(/i, ""));
     if (!first) return;
-    if (Number(first[1]) < LADDER_MIN_REM)
-      violations.push(`${rel}:${i + 1} 字級階梯低於 18px：${m[1]} = ${raw}（最小 ${LADDER_MIN_REM}rem）`);
+    const px = first[2].toLowerCase() === "rem" ? Number(first[1]) * 16 : Number(first[1]);
+    if (px < LADDER_MIN_REM * 16)
+      violations.push(
+        `${rel}:${i + 1} 字級階梯低於 ${LADDER_MIN_REM * 16}px：${m[1]} = ${raw}（clamp 以最小值計）`
+      );
   });
 }
 
@@ -87,7 +105,7 @@ function scan(file, root) {
     if (/(fonts\.googleapis|fonts\.gstatic|cdnjs\.cloudflare|unpkg\.com|cdn\.jsdelivr)/.test(line))
       violations.push(`${loc} 外部 CDN（字型/資源一律自託管或系統堆疊）: ${line.trim()}`);
   });
-  if (isTokenFile && root.ladderFloor) checkLadder(rel, lines);
+  if (root.ladderFloor) checkLadder(rel, lines);
 }
 
 for (const root of ROOTS) walk(root.dir, root);
@@ -97,5 +115,5 @@ if (violations.length) {
 }
 console.log(
   `設計規範檢查通過（${ROOTS.map((r) => r.dir).join(" + ")}）：` +
-    "css 白名單、無 px 字級、無 token 外顏色、無 !important、無外部 CDN。"
+    "css 白名單、無 px 字級、階梯 ≥18px、無 token 外顏色、無 !important、無外部 CDN。"
 );
