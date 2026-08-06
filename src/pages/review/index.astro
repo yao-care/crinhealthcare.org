@@ -9,9 +9,11 @@ import Page from '@layouts/Page.astro';
 import { getCollection } from 'astro:content';
 import { url } from '@utils/url';
 
-const drafts = (await getCollection('insights', ({ data }) => data.draft)).sort(
-  (a, b) => b.data.publishDate.valueOf() - a.data.publishDate.valueOf(),
-);
+// 新聞稿放 news、深度內容放 insights，兩邊的草稿都要收進審閱清單
+const drafts = [
+  ...(await getCollection('news', ({ data }) => data.draft)).map((e) => ({ e, kind: 'news' as const })),
+  ...(await getCollection('insights', ({ data }) => data.draft)).map((e) => ({ e, kind: 'insights' as const })),
+].sort((a, b) => b.e.data.publishDate.valueOf() - a.e.data.publishDate.valueOf());
 
 const categoryLabel: Record<string, string> = {
   policy: '政策解讀',
@@ -37,14 +39,14 @@ const categoryLabel: Record<string, string> = {
           <p class="empty">目前沒有待審草稿。</p>
         ) : (
           <ul class="list">
-            {drafts.map((entry) => (
+            {drafts.map(({ e, kind }) => (
               <li class="item">
-                <a class="item__link" href={url(`/review/${entry.id}/`)}>
-                  <span class="item__cat">{categoryLabel[entry.data.category] ?? entry.data.category}</span>
-                  <h2 class="item__title">{entry.data.title}</h2>
-                  <p class="item__summary">{entry.data.summary}</p>
+                <a class="item__link" href={url(`/review/${kind}/${e.id}/`)}>
+                  <span class="item__cat">{kind === 'news' ? '新聞稿' : (categoryLabel[(e.data as { category?: string }).category ?? ''] ?? '')}</span>
+                  <h2 class="item__title">{e.data.title}</h2>
+                  <p class="item__summary">{e.data.summary}</p>
                   <span class="item__date">
-                    {entry.data.publishDate.toLocaleDateString('zh-Hant-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    {e.data.publishDate.toLocaleDateString('zh-Hant-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </span>
                 </a>
               </li>

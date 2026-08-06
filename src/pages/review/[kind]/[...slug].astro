@@ -1,30 +1,53 @@
 ---
 // 內部審閱用未公開頁（單篇）：只產出 draft:true 的文章，帶 noindex、不進 sitemap、站上無連結。
+// kind = news（新聞稿）或 insights（深度內容）。
 // 正式發布時把 frontmatter 的 draft 改成 false —— 該篇就會從 /review/ 消失、
-// 改由 /insights/<id>/ 對外呈現（同一份 markdown，不必搬檔）。
+// 改由 /news/<id>/ 或 /insights/<id>/ 對外呈現（同一份 markdown，不必搬檔）。
 import Article from '@layouts/Article.astro';
 import { getCollection, render } from 'astro:content';
 import { url } from '@utils/url';
 
 export async function getStaticPaths() {
-  const entries = await getCollection('insights');
-  return entries
-    .filter((e) => e.data.draft)
-    .map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+  const out = [];
+  for (const kind of ['news', 'insights'] as const) {
+    const entries = await getCollection(kind);
+    for (const entry of entries.filter((e) => e.data.draft)) {
+      out.push({ params: { kind, slug: entry.id }, props: { entry, kind } });
+    }
+  }
+  return out;
 }
 
-const { entry } = Astro.props;
+const { entry, kind } = Astro.props;
 const { Content } = await render(entry);
-const { title, publishDate, summary, tags, internationalBenchmark, category } = entry.data;
+// news 與 insights 的 schema 不同（news 有 source/editorComment，insights 有 category），
+// 這頁兩種都收 → 取聯集後各自以選用欄位讀取，避免在聯合型別上直接取屬性
+const d = entry.data as {
+  title: string;
+  summary: string;
+  publishDate: Date;
+  tags: string[];
+  source?: string;
+  editorComment?: string;
+  category?: string;
+  internationalBenchmark?: {
+    region: string;
+    title: string;
+    summary: string;
+    sourceUrl: string;
+    comparison: string;
+  };
+};
 
 const categoryLabel: Record<string, string> = {
   policy: '政策解讀',
   guide: '知識指南',
   benchmark: '國際標竿',
 };
+const badge = kind === 'news' ? '新聞稿' : (categoryLabel[d.category ?? ''] ?? d.category ?? '');
 ---
 
-<Article title={title} description={summary} publishDate={publishDate} tags={tags} noindex>
+<Article title={d.title} description={d.summary} publishDate={d.publishDate} tags={d.tags} noindex>
   <p class="notice">
     <strong>內部審閱用，尚未發布。</strong>
     本文標記為草稿，不在網站文章列表、RSS 與 sitemap 中，搜尋引擎不收錄。請勿轉發到協會以外。
@@ -32,24 +55,32 @@ const categoryLabel: Record<string, string> = {
   </p>
 
   <div class="insight-category">
-    <span class="category-badge">{categoryLabel[category] ?? category}</span>
+    <span class="category-badge">{badge}</span>
+    {kind === 'news' && d.source && <span class="src">來源：{d.source}</span>}
   </div>
 
   <div class="insight-summary">
-    <p>{summary}</p>
+    <p>{d.summary}</p>
   </div>
 
   <Content />
 
-  {internationalBenchmark && (
+  {d.editorComment && (
+    <aside class="editor" aria-label="編輯觀點">
+      <h3 class="editor__title">編輯觀點</h3>
+      <p>{d.editorComment}</p>
+    </aside>
+  )}
+
+  {d.internationalBenchmark && (
     <aside class="benchmark" aria-label="國際標竿資料">
-      <h3 class="benchmark__title">國際標竿：{internationalBenchmark.region}</h3>
+      <h3 class="benchmark__title">國際標竿：{d.internationalBenchmark.region}</h3>
       <div class="benchmark__body">
-        <h4 class="benchmark__subtitle">{internationalBenchmark.title}</h4>
-        <p class="benchmark__summary">{internationalBenchmark.summary}</p>
-        <p class="benchmark__comparison">{internationalBenchmark.comparison}</p>
+        <h4 class="benchmark__subtitle">{d.internationalBenchmark.title}</h4>
+        <p class="benchmark__summary">{d.internationalBenchmark.summary}</p>
+        <p class="benchmark__comparison">{d.internationalBenchmark.comparison}</p>
         <a
-          href={internationalBenchmark.sourceUrl}
+          href={d.internationalBenchmark.sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
           class="benchmark__link"
@@ -81,6 +112,10 @@ const categoryLabel: Record<string, string> = {
 
   .insight-category {
     margin-bottom: var(--space-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
   }
 
   .category-badge {
@@ -92,6 +127,11 @@ const categoryLabel: Record<string, string> = {
     border-radius: 9999px;
   }
 
+  .src {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
   .insight-summary {
     font-size: var(--text-lg);
     color: var(--color-text-secondary);
@@ -99,6 +139,20 @@ const categoryLabel: Record<string, string> = {
     border-left: 4px solid var(--color-primary);
     padding-left: var(--space-lg);
     margin-bottom: var(--space-2xl);
+  }
+
+  .editor {
+    margin-top: var(--space-2xl);
+    padding: var(--space-lg) var(--space-xl);
+    background-color: var(--color-primary-pale);
+    border-radius: var(--radius-md);
+  }
+
+  .editor__title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: var(--space-sm);
   }
 
   .benchmark {
