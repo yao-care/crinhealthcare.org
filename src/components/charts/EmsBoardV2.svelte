@@ -158,6 +158,35 @@
     const refLine = ref?.length ? ref.map((v, i) => `${i * bw + bw / 2},${H - (v / max) * H}`).join(' ') : '';
     return { bars, refLine, W, H };
   }
+
+  // ── kiosk 等比縮放（設計畫布 → 填滿 100% 寬 × 100% 高）─────────────────
+  // 鐵則：看板永遠是「一整屏、不捲動、不裁切」。做法是先在固定的設計畫布上排版，
+  // 再把整塊等比 scale 到剛好填滿視窗——版面比例在任何解析度下完全相同，
+  // 不再靠斷點換版型（2026-08-07：實機 1536×744 的電視踩到 ≤1600 斷點退回可捲版面，整片跑版）。
+  // 畫布至少 1600×1080：視窗較矮（如 1280×620、1920×920）→ 倍率 <1 整體縮小；
+  // 較大（2560×1300、4K）→ 倍率 >1 整體放大。畫布尺寸永遠 ≥ 這個下限，
+  // 所以窄版堆疊規則（@container board）在 kiosk 一律不會觸發。
+  const FIT_W = 1600;
+  const FIT_H = 1080;
+  let vw = $state(0);
+  let vh = $state(0);
+  // 只有橫向大螢幕（kiosk／桌機）走等比縮放；手機與直立面板維持既有的直向堆疊可捲頁面
+  // （把 1920 寬的畫布縮進 390px 手機＝字只剩 3.6px，那不是看板該做的事）。
+  const fitting = $derived(vw >= 1000 && vh > 0 && vw / vh >= 1.2);
+  const fitScale = $derived(fitting ? Math.min(vh / FIT_H, vw / FIT_W) : 1);
+  const fitW = $derived(fitting ? vw / fitScale : 0);
+  const fitH = $derived(fitting ? vh / fitScale : 0);
+  $effect(() => {
+    // clientWidth/clientHeight（不是 innerWidth/innerHeight）：扣掉捲軸寬，避免縮放後又長出捲軸
+    const measure = () => {
+      const de = document.documentElement;
+      vw = de.clientWidth;
+      vh = de.clientHeight;
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  });
 </script>
 
 <!-- 能源區塊（電/水/油/氣）：供給端(左上)/儲存端(左下)/使用端(右)；戰時標題列推出續航徽章 -->
@@ -299,6 +328,13 @@
   </section>
 {/snippet}
 
+<!-- stage/fit：外框釘住 100% 寬 × 100% 高並裁掉外溢，內層在設計畫布上排版後整塊等比 scale -->
+<div class="stage" class:fitting>
+<div
+  class="fit"
+  class:fitting
+  style={fitting ? `width:${fitW}px; height:${fitH}px; transform:scale(${fitScale});` : ''}
+>
 <div class="v2" class:solo={solo}>
   <header class="top">
     <!-- 盤面抬頭：全院統一「🔋 平 - 戰(災) 韌性即時看板」（2026-08-06 業主定名）；
@@ -400,8 +436,22 @@
   </div>
   {/if}
 </div>
+</div>
+</div>
 
 <style>
+  /* ── kiosk 舞台：100% 寬 × 100% 高 ───────────────────────────────
+     .stage＝視窗大小的外框（裁切）；.fit＝設計畫布（≥1600×1080）＋等比 scale；
+     .v2＝原本的看板骨架，只認畫布尺寸、不再認視窗尺寸。
+     窄版（手機／直立）不 fitting：.stage/.fit 都是普通全寬區塊，行為與過去一致。 */
+  .stage { width: 100%; }
+  .stage.fitting { height: 100dvh; overflow: hidden; }
+  /* 畫布同時是容器查詢的基準（container: board）：窄版堆疊規則改看「畫布寬」而非「視窗寬」，
+     否則 1536 寬的電視會誤判成手機、退回可捲版面。 */
+  .fit { width: 100%; container: board / inline-size; }
+  .fit.fitting { transform-origin: top left; }
+  .fit.fitting > .v2 { height: 100%; }
+
   .v2 {
     /* 2026-08-06：這裡原本覆寫一套 clamp(8px…14px) 的私有字級階梯（全站字最小之處，
        且守門只掃 token 檔時完全掃不到）。已移除，改吃全站 --text-* 階梯（18–32px）。
@@ -564,9 +614,11 @@
   .seg-h .roll { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent); margin-left: 8px; }
   /* overflow:hidden → 放不下的卡片由 use:carousel 自動換頁輪播 */
   .cards { flex: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-content: flex-start; overflow: hidden; min-height: 0; scroll-behavior: smooth; }
-  .card { width: clamp(140px, 16vw, 220px); flex: 0 0 auto; background: var(--color-paper); border: 1px solid var(--color-border); border-top: 3px solid var(--color-chart-1); border-radius: var(--radius-sm); padding: 5px 9px; display: flex; flex-direction: column; gap: 3px; }
+  /* 卡片寬用 cqw（設計畫布寬）不是 vw（視窗寬）：kiosk 等比縮放後畫布與視窗脫鉤，
+     用 vw 會讓卡片不跟著版面等比縮。窄版時畫布寬＝視窗寬，行為與過去一致。 */
+  .card { width: clamp(140px, 16cqw, 220px); flex: 0 0 auto; background: var(--color-paper); border: 1px solid var(--color-border); border-top: 3px solid var(--color-chart-1); border-radius: var(--radius-sm); padding: 5px 9px; display: flex; flex-direction: column; gap: 3px; }
   /* 設備清單型卡片（items）內容較多 → 加寬；不影響電表型卡片（其他醫院/平時） */
-  .card:has(.citems) { width: clamp(180px, 19vw, 275px); }
+  .card:has(.citems) { width: clamp(180px, 19cqw, 275px); }
   .card.crit { box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--color-alert) 35%, transparent); }
   .ch { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 6px; flex-wrap: wrap; }
   .cn { font-size: var(--text-sm); font-weight: 700; min-width: 0; }
@@ -579,7 +631,7 @@
   .cnum b i { font-style: normal; font-size: var(--text-xs); font-weight: 500; color: var(--color-text-secondary); margin-left: 2px; }
   .cnum.now b { color: var(--color-primary); }
   /* 現場影像回傳卡：照片鋪滿卡寬（4:3），紅「● 回傳」暗示即時來源；未接圖時底色佔位不破版 */
-  .card.feedcard { width: clamp(180px, 20vw, 260px); }
+  .card.feedcard { width: clamp(180px, 20cqw, 260px); }
   .feedtag { font-size: var(--text-xs); font-weight: 700; color: var(--color-alert); white-space: nowrap; }
   .feed { margin: 0; }
   .feed img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; border-radius: var(--radius-sm); background: var(--color-surface); border: 1px solid var(--color-border); }
@@ -627,12 +679,14 @@
   .carbon th, .carbon td { border: 1px solid var(--color-border); padding: 1px 5px; text-align: right; }
   .carbon thead th { background: var(--color-surface); color: var(--color-text-secondary); }
   .carbon tbody th { text-align: left; font-weight: 400; color: var(--color-text-secondary); }
-  /* 大螢幕：五區塊 % 佈局在任何寬高都維持(kiosk 等比縮放)、單屏不捲動。
-     窄螢幕(≤1600px：手機/平板/筆電，及多格排版下的窄電力格；2026-08-06 自 1200 抬高——字級改吃全站 18px 階梯後，原本 1200 才擠的版面 1600 就擠)：一屏塞不下且欄位過細會壓扁疊字
-     → 改為直向堆疊＋整頁可捲動、各區塊拿全寬。>1600 的寬桌面/kiosk 維持多格 % 佈局。 */
-  /* 註：所有堆疊規則限 .v2:not(.solo)——單一區塊全螢幕（803）不套堆疊、維持桌面雙欄，
-     kiosk 即使 ≤1600 低解析度也能完整並排呈現供給端｜使用端。多格示意院所照舊堆疊。 */
-  @media (max-width: 1600px) {
+  /* 大螢幕/kiosk：五區塊 % 佈局在任何寬高都維持、整塊等比縮放、單屏不捲動。
+     窄畫布(<1600px：手機、直立面板，及多格排版下的窄電力格)：一屏塞不下且欄位過細會壓扁疊字
+     → 改為直向堆疊＋整頁可捲動、各區塊拿全寬。
+     🔴 判準是「畫布寬」(@container board)不是「視窗寬」(@media)：kiosk 走等比縮放後
+     畫布永遠 ≥1600×1080，這段一律不觸發；否則 1536×744 的電視會被當成手機退回可捲版面
+     （2026-08-07 實機跑版的成因）。 */
+  /* 註：所有堆疊規則限 .v2:not(.solo)——單一區塊全螢幕（803）不套堆疊、維持桌面雙欄。 */
+  @container board (width < 1600px) {
     .v2:not(.solo) { height: auto; min-height: 100dvh; overflow: visible; }
     .v2:not(.solo) .grid { min-height: 0; }
     .v2:not(.solo) .r { flex-direction: column; }

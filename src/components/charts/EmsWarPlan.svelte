@@ -266,6 +266,7 @@
            不畫「占總量百分比」——設備都是滿電，用比例環圈會被讀成「只剩一點點電」。 -->
       <div class="srcs">
         <div class="srch">現場可用電量 <b>{siteKwh.toFixed(1)} kWh</b><small>以滿電計 · 儲電櫃 {usableKwh} ＋ 機動 {mobTotalKwh.toFixed(1)}</small></div>
+        <div class="slist" use:carousel>
         {#each sources as s, i}
           <div class="src" class:main={s.main}>
             <div class="srow1">
@@ -276,6 +277,7 @@
             <div class="smeta">{s.spec}{#if s.use} · 📍{s.use}{/if}{#if s.state} · <b>{s.state}</b>{/if}</div>
           </div>
         {/each}
+        </div>
       </div>
 
       <!-- 捲動區＝用電設備；放不下才自動輪播（放得下完全不動） -->
@@ -350,7 +352,7 @@
   .toboard { font-size: var(--text-xs); font-weight: 700; padding: 2px 10px; border-radius: var(--radius-sm); border: 1px solid var(--color-primary); background: var(--color-paper); color: var(--color-primary); cursor: pointer; }
   .canvasbox { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 4px 0; }
   /* 畫布：固定長寬比，等比塞進可用空間（kiosk 大螢幕與筆電都不裁切） */
-  .canvas { position: relative; aspect-ratio: 1000 / 660; width: 100%; max-height: 100%; max-width: 100%; margin: 0 auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); container-type: size; }
+  .canvas { position: relative; aspect-ratio: 1000 / 660; width: 100%; max-height: 100%; max-width: 100%; margin: 0 auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); container: plan / size; }
 
   .zone { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; text-align: center; border: 2px solid var(--color-border); border-radius: var(--radius-sm); padding: 1px 3px; overflow: hidden; }
   /* 區塊字級跟著「畫布」縮（cqw），不是跟著視窗（vw）——兩者脫鉤時，
@@ -418,35 +420,44 @@
   .sw { width: 14px; height: 10px; border-radius: 2px; border: 1px solid var(--color-border); display: inline-block; }
 
   /* ── 供電側欄 ───────────────────────────────────────── */
-  .pwr { container-type: size; width: clamp(240px, 26%, 460px); display: flex; flex-direction: column; gap: var(--space-xs); min-height: 0; border: 2px solid var(--color-accent); border-radius: var(--radius-md); padding: var(--space-xs) var(--space-sm) var(--space-sm); background: var(--color-paper); }
+  .pwr { container: pwr / size; width: clamp(240px, 30%, 560px); display: flex; flex-direction: column; gap: var(--space-xs); min-height: 0; border: 2px solid var(--color-accent); border-radius: var(--radius-md); padding: var(--space-xs) var(--space-sm) var(--space-sm); background: var(--color-paper); }
   .pwr-h { font-size: var(--text-base); font-weight: 700; color: var(--color-primary); }
-  .pwr-h small { display: block; font-size: var(--text-xs); font-weight: 400; color: var(--color-text-secondary); }
+  /* 副標（規格摘要）一行為限：折兩行會直接把下面的清單擠出側欄
+     （2026-08-07 前靠 @container 高度斷點才收起來，等比縮放後高度固定＝斷點永不觸發，故改為常態） */
+  .pwr-h small { display: block; font-size: var(--text-xs); font-weight: 400; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* 現場電源盤點（橫式）：一列一個電源，長條共用同一把尺（最大者滿格）。
      不用比例環圈——設備都是滿電，畫成「占總量 12%」會被讀成只剩一點點電。 */
-  .srcs { flex: none; display: flex; flex-direction: column; gap: 2px; }
+  /* 有界＋輪播：整段可被壓縮，列表放不下才每 5 秒換頁（不再往側欄外溢出）。
+     合計「現場可用電量」留在輪播外，任何時刻都看得到。 */
+  /* 電源盤點永遠完整（業主鐵律：有幾台就看得到幾台），所以不參與壓縮；
+     萬一未來電源多到放不下，.slist 有界＋輪播接住（放得下完全不動作）。
+     整個側欄唯一的伸縮區＝下面的「用電設備」清單，這也是原設計指定的捲動區。 */
+  .srcs { flex: 0 0 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }
+  .slist { flex: 0 1 auto; min-height: 0; overflow: hidden; }
   .srch { font-size: var(--text-sm); font-weight: 700; color: var(--color-primary); }
   .srch b { color: var(--color-text); }
   .srch small { font-weight: 400; color: var(--color-text-secondary); margin-left: 6px; font-size: var(--text-xs); }
-  .src { border-bottom: 1px solid var(--color-border); padding-bottom: 2px; }
+  .src { border-bottom: 1px solid var(--color-border); padding-bottom: 1px; }
   .src.main .sname { color: var(--color-text); }
   .srow1 { display: flex; align-items: baseline; gap: 6px; }
   .sname { flex: 1; font-size: var(--text-sm); font-weight: 700; min-width: 0; }
   .skwh { font-size: var(--text-base); font-weight: 700; white-space: nowrap; }
   .skwh small { font-size: var(--text-xs); font-weight: 400; color: var(--color-text-secondary); margin-left: 2px; }
-  .sbar { height: 10px; background: var(--color-surface); border-radius: var(--radius-sm); overflow: hidden; margin: 1px 0; }
+  .sbar { height: 7px; background: var(--color-surface); border-radius: var(--radius-sm); overflow: hidden; margin: 0; }
   .sbar i { display: block; height: 100%; border-radius: var(--radius-sm); }
   .seg { display: block; height: 100%; }
   .seg.s0 { background: var(--color-accent); }
   .seg.s1 { background: var(--color-chart-4); }
   .seg.s2 { background: var(--color-chart-5); }
   .seg.s3 { background: var(--color-energy); }
-  .smeta { font-size: var(--text-xs); color: var(--color-text-secondary); line-height: 1.25; }
+  /* 規格·部署·狀態一行為限（同上：常態化，不再依賴高度斷點） */
+  .smeta { font-size: var(--text-xs); color: var(--color-text-secondary); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .smeta b { color: var(--color-accent); font-weight: 700; }
   .tag { font-size: var(--text-xs); font-weight: 700; color: var(--color-paper); background: var(--color-accent); border-radius: var(--radius-sm); padding: 0 5px; margin-left: 5px; }
 
   /* 逐項負載：名稱/數量/kW 一列，下面接依比例的長條（前三高金銀銅），再一行組成明細 */
-  .loads { flex: 1 1 auto; min-height: 5.5em; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+  .loads { flex: 1 1 auto; min-height: 3.2em; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
   .lh { position: sticky; top: 0; z-index: 1; }
   .lh { display: flex; align-items: baseline; gap: 6px; font-size: var(--text-xs); color: var(--color-text-secondary); background: var(--color-surface); padding: 1px 4px; border-radius: var(--radius-sm); }
   .lh span:first-child { flex: 1; }
@@ -471,7 +482,7 @@
   .margin { margin-top: auto; border-top: 1px dashed var(--color-border); padding-top: var(--space-xs); }
   .mh { font-size: var(--text-sm); font-weight: 700; color: var(--color-primary); }
   .gauges { display: flex; align-items: center; gap: var(--space-sm); }
-  .donut { width: clamp(64px, 7vw, 104px); height: auto; flex: none; }
+  .donut { width: 6.5rem; max-width: 100%; height: auto; flex: none; }
   .dtrack { fill: none; stroke: var(--color-surface); stroke-width: 14; }
   .dval { fill: none; stroke: var(--color-accent); stroke-width: 14; stroke-linecap: round; }
   /* 卡片環圈色序與下方電量組成長條同一組（s0–s3），一眼對得起來 */
@@ -500,15 +511,19 @@
   /* 側欄放不下時的收合順序：先收各項組成明細，再收時間軸刻度（數字與圖形一律留著） */
   /* 側欄放不下時的收合順序：規格待補標籤 → 櫃體重複的文字規格 → 各項組成明細 → 時間軸刻度。
      被收的都是「畫面別處或環圈已經有」的資訊，數字與圖形一律留著。 */
-  @container (max-height: 900px) { .smeta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
-  @container (max-height: 860px) { .srch small { display: none; } .loads { min-height: 3.2em; } .tlrow.sub { font-size: var(--text-xs); line-height: 1.2; } .tlrow.sub em { display: none; } .mh { font-size: var(--text-xs); } .sbar { height: 7px; margin: 0; } .srcs { gap: 0; } .src { padding-bottom: 1px; } .skwh { font-size: var(--text-sm); } }
-  @container (max-height: 860px) { .ldet { display: none; } }
-  @container (max-height: 760px) { .loads { min-height: 4.5em; } .smeta { display: none; } }
-  @container (max-height: 720px) { .tlticks { display: none; } .pwr-h small { display: none; } }
+  @container pwr (max-height: 900px) { .smeta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+  @container pwr (max-height: 860px) { .srch small { display: none; } .loads { min-height: 3.2em; } .tlrow.sub { font-size: var(--text-xs); line-height: 1.2; } .tlrow.sub em { display: none; } .mh { font-size: var(--text-xs); } .sbar { height: 7px; margin: 0; } .srcs { gap: 0; } .src { padding-bottom: 1px; } .skwh { font-size: var(--text-sm); } }
+  @container pwr (max-height: 860px) { .ldet { display: none; } }
+  @container pwr (max-height: 760px) { .loads { min-height: 4.5em; } .smeta { display: none; } }
+  @container pwr (max-height: 720px) { .tlticks { display: none; } .pwr-h small { display: none; } }
 
-  @media (max-width: 900px) {
+  /* 判準是畫布寬（外層 .fit 的 container: board）不是視窗寬：kiosk 縮放後兩者脫鉤 */
+  @container board (width < 900px) {
     .warplan { flex-direction: column; }
-    .pwr { width: auto; }
+    /* 窄版側欄改成內容高度：container-type:size 會對自身套 size containment
+       （高度不看內容），在可捲的直向堆疊裡會塌成 16px、內容整片壓到下面的圖上
+       ——2026-08-07 在手機 390 寬量到（線上舊版同樣症狀）。窄版不需要高度查詢，直接關掉。 */
+    .pwr { width: auto; container-type: normal; }
     /* 手機：畫布只剩幾百 px，區塊連區名都快放不下 → 只留區名，
        說明與各區用電改看下方供電表（同一份資料，不漏內容） */
     .zs, .zkw { display: none; }

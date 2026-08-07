@@ -21,6 +21,12 @@
   5. 統一 css 檔：src/ 下的 .css 只准 `src/styles/{variables,global}.css`，元件樣式寫 Astro/Svelte scoped `<style>`
   6. **字級階梯下限 ≥18px**（2026-08-06 起全站生效）：`--text-*` 的值一律 ≥`1.125rem`，`clamp()` 以最小值計。守門**掃每一個檔案**，不是只掃 token 檔——元件裡自建一套 `--text-*` 覆寫全站階梯同樣算違規。
   - **掃描範圍有兩塊**：`src/`（token 檔＝`src/styles/variables.css`）與 `services/ems-admin/public/`（token 檔＝`public/tokens.css`，白名單只准 `tokens.css`／`style.css`）。ems-admin 不進 astro build，2026-08-06 前不在守門範圍，整份 style.css 已漂成 hex 色＋px 字級。
+  - 🔴 **kiosk 看板一律「100% 寬 × 100% 高 ＋ 等比縮放」**（2026-08-07 立）：`EmsBoardV2` 外層 `.stage/.fit`
+    先在**設計畫布**（下限 1600×1080，長寬比跟著視窗）排版，再整塊 `transform: scale()` 填滿視窗。
+    版面比例在任何解析度下完全相同——**不准再用 `@media` 視窗斷點換版型**；看板內所有斷點一律
+    `@container board (...)`（基準＝畫布寬），否則視窗與畫布脫鉤會誤判（實機 1536×744 的電視被當成手機、
+    退回可捲版面而整片跑版，就是這樣來的）。手機／直立面板（<1000px 寬或長寬比 <1.2）不縮放，維持直向堆疊可捲。
+    驗收＝各院 × 平/戰 × 多解析度自動量「頁面不可捲、`.v2` 不裁切、零 pageerror」。
   - ✅ **零豁免**：`EmsBoardV2.svelte` 曾有一套 8–26px 的私有階梯（全站字最小處），已移除。看板改以**「有界＋自動輪播」降密度**吃全站階梯——長清單（供給端來源、儲電櫃 12 項數值、大樓樓層表、碳盤查列、使用端卡片）放得下不動作、放不下才換頁（`use:carousel`）。改看板版面前先讀元件內「密度重排」註解。
   - 🔴 **`html` 的 font-size 不准寫成 `var(--text-*)`**：階梯全是 rem，根字級一旦不是預設 16px，整座階梯會再乘一次（2026-08-06 抓到的舊坑：名目 18px 實際渲染 24.75px）。內文字級寫在 `body`。
 - 內容守門（去 AI 味，`pnpm build` 前 `scripts/check-content.mjs` 自動守門，設計守門之後、`astro build` 之前）：掃 `src/**/*.md(x)`，強 AI 指紋單一命中即擋、軟訊號跨 ≥3 層升級擋；**預設只掃相對 `origin/main` 變動檔（grandfather 存量）**，抓不到 git base 時掃 0 檔 exit 0。自檢：`pnpm check:content`／`pnpm check:content:all`（全站盤點不擋）／`node scripts/check-content.mjs <file>`。改法見「文案去 AI 味」檢查表。

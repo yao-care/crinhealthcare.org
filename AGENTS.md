@@ -71,6 +71,8 @@ UNSPLASH_ACCESS_KEY=...
 （token＝`public/tokens.css`，css 白名單只准 `tokens.css`／`style.css`）。
 
 - 零豁免。kiosk 看板靠「有界＋自動輪播」降密度來吃 18px 階梯，不是靠開小門。
+- kiosk 看板一律 100% 寬 × 100% 高 ＋ 等比縮放（設計畫布 ≥1600×1080 再整塊 scale）；
+  看板內斷點只准 `@container board (...)`，禁用 `@media` 視窗斷點。
 - `html` 的 font-size 不准寫 `var(--text-*)`：階梯是 rem，會整座再乘一次。內文字級寫在 `body`。
 
 ### 內容守門（去 AI 味，`pnpm build` 前 `scripts/check-content.mjs` 自動守門）
