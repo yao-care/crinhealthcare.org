@@ -2,7 +2,8 @@
   // 戰時 B1 開設配置圖（全螢幕一頁）＋ 行動儲電櫃供電。
   // 幾何全部來自 JSON（zones 以畫布百分比定位、斜帶用 rot 旋轉），元件只負責畫與算。
   // 單一計算源：總負載／各區用電／負載率／裕度／續航 一律由 power.loads[].parts 推導，JSON 不存彙總值。
-  interface Zone { id: string; label: string; kind: string; x: number; y: number; w: number; h: number; rot?: number; sub?: string; star?: boolean; }
+  // no/demo＝場地圖上的陳展編號（紅圈＝動態、藍圈＝靜態）；圖例數量由 zones 數出來，不寫死
+  interface Zone { id: string; label: string; kind: string; x: number; y: number; w: number; h: number; rot?: number; sub?: string; star?: boolean; no?: number; demo?: 'dyn' | 'sta'; }
   interface Legend { label: string; kind: string; }
   interface Vid { id: string; label?: string; src?: string; at?: number; sec?: number; poster?: string; }
   interface Plan { title?: string; sub?: string; zones: Zone[]; legend?: Legend[]; videos?: Vid[]; }
@@ -31,6 +32,11 @@
   const hours = $derived(sum?.hours ?? 0);
 
   const kw1 = (w: number) => (w / 1000).toFixed(2);
+  // 圖例的三個數量一律現數（陳展站數、固定電源點），改 zones 不必再回頭改圖例
+  const demoN = (t: 'dyn' | 'sta') => plan.zones.filter((z) => z.demo === t).length;
+  const dynN = $derived(demoN('dyn'));
+  const staN = $derived(demoN('sta'));
+  const starN = $derived(plan.zones.filter((z) => z.star).length);
   const usablePct = $derived(power?.usablePct ?? 100);
   // 長條比例與配色（前三高金/銀/銅，與站上其他圖表同一套規則）
   const maxLoadW = $derived(Math.max(...loads.map(loadW), 1));
@@ -212,7 +218,10 @@
             class:rot={!!z.rot}
             style="left:{z.x}%; top:{z.y}%; width:{z.w}%; height:{z.h}%;{z.rot ? ` transform:rotate(${z.rot}deg);` : ''}"
           >
-            <span class="zl">{z.label}{#if z.star}<i class="star">★</i>{/if}</span>
+            <span class="zl">
+              <!-- 陳展編號跟著標題排（不貼角）：最窄的帶子只有幾個 px 高，貼角會直接壓在字上 -->
+              {#if z.no}<i class="zno d-{z.demo}">{z.no}</i>{/if}{z.label}{#if z.star}<i class="star">★</i>{/if}
+            </span>
             {#if z.sub}<span class="zs">{z.sub}</span>{/if}
             {#if zoneMobile.get(z.id)}<span class="zmob" title={zoneMobile.get(z.id)?.join(' · ')}>🔋 {zoneMobile.get(z.id)?.length === 1 ? zoneMobile.get(z.id)?.[0] : zoneMobile.get(z.id)?.join(' · ')}</span>{/if}
             {#if w > 0}<span class="zkw">⚡ {kw1(w)} kW</span>{/if}
@@ -252,7 +261,9 @@
     {#if plan.legend?.length}
       <div class="legend">
         {#each plan.legend as g}<span class="lg"><i class="sw k-{g.kind}"></i>{g.label}</span>{/each}
-        <span class="lg"><i class="star">★</i>固定電源點 ×4</span>
+        <span class="lg"><i class="star">★</i>固定電源點 ×{starN}</span>
+        {#if dynN}<span class="lg"><i class="dot d-dyn"></i>動態陳展 ×{dynN}</span>{/if}
+        {#if staN}<span class="lg"><i class="dot d-sta"></i>靜態陳展 ×{staN}</span>{/if}
       </div>
     {/if}
   </div>
@@ -357,8 +368,10 @@
   .zone { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; text-align: center; border: 2px solid var(--color-border); border-radius: var(--radius-sm); padding: 1px 3px; overflow: hidden; }
   /* 區塊字級跟著「畫布」縮（cqw），不是跟著視窗（vw）——兩者脫鉤時，
      筆電視窗下畫布變小、字沒跟著小，區塊就會爆字（1440 實測過）。 */
-  .zl { font-size: clamp(8px, 1.25cqw, 18px); font-weight: 700; line-height: 1.15; }
-  .zs { font-size: clamp(7px, 1cqw, 15px); line-height: 1.15; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+  /* max-width 不能省：column flex + align-items:center 的子元素預設吃 max-content 寬，
+     窄區塊（斜帶尤其）的文字會整行溢出被 overflow:hidden 切掉，看起來像資料缺字 */
+  .zl { max-width: 100%; font-size: clamp(8px, 1.25cqw, 18px); font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+  .zs { max-width: 100%; font-size: clamp(7px, 1cqw, 15px); line-height: 1.15; color: var(--color-text-secondary); overflow-wrap: anywhere; }
   /* 用電徽章脫離文字流（貼右下角），小區塊才不會被它擠爆 */
   .zmob { margin-top: 1px; font-size: clamp(7px, 0.95cqw, 14px); font-weight: 700; color: var(--color-text); background: color-mix(in oklab, var(--color-chart-4) 22%, var(--color-paper)); border: 1px solid var(--color-chart-4); border-radius: var(--radius-sm); padding: 0 4px; line-height: 1.2; max-width: 96%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .zkw { position: absolute; right: 2px; bottom: 1px; font-size: clamp(7px, 1cqw, 15px); font-weight: 700; color: var(--color-text); background: var(--color-paper); border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0 4px; line-height: 1.3; }
@@ -367,10 +380,16 @@
   .zone.rot .zkw { position: static; }
   .zone.rot:has(.zkw) { padding-bottom: 2px; }
   .star { font-style: normal; color: var(--color-energy); margin-left: 3px; }
+  /* 陳展編號圓圈：紅＝動態、藍＝靜態（與場地圖同一套記號），字級跟著畫布縮 */
+  .zno { font-style: normal; display: inline-flex; align-items: center; justify-content: center; margin-right: 3px; width: clamp(11px, 1.6cqw, 22px); height: clamp(11px, 1.6cqw, 22px); border-radius: 50%; font-size: clamp(7px, 1.05cqw, 15px); font-weight: 800; line-height: 1; color: var(--color-paper); }
+  .d-dyn { background: var(--color-alert); }
+  .d-sta { background: var(--color-chart-4); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 
   /* 分區配色：沿用規劃圖語彙（重傷紅／中傷黃／輕傷綠／檢傷藍／衛材粉／關懷紫／後送橘／動線綠） */
   .k-severe { background: color-mix(in oklab, var(--color-alert) 22%, var(--color-paper)); border-color: var(--color-alert); }
-  .k-moderate { background: color-mix(in oklab, var(--color-energy) 55%, var(--color-paper)); border-color: var(--color-energy); }
+  /* 中傷區＝場地圖上的黃色大區；走廊（手術/X光/後送/離院）是橘色，兩者要分得開才對得上場地圖 */
+  .k-moderate { background: color-mix(in oklab, var(--color-energy) 78%, var(--color-paper)); border-color: color-mix(in oklab, var(--color-energy) 70%, var(--color-text)); }
   .k-light { background: color-mix(in oklab, var(--color-accent) 32%, var(--color-paper)); border-color: var(--color-accent); }
   .k-triage { background: color-mix(in oklab, var(--color-chart-4) 28%, var(--color-paper)); border-color: var(--color-chart-4); }
   .k-nurse { background: color-mix(in oklab, var(--color-chart-4) 14%, var(--color-paper)); border-color: var(--color-chart-4); }
@@ -379,7 +398,7 @@
   .k-care { background: color-mix(in oklab, var(--color-chart-5) 12%, var(--color-paper)); border-color: var(--color-chart-5); }
   /* 備援電力系統＝這頁的供電源頭（儲電櫃 ×2），加粗框讓它跳出來 */
   .k-backup { background: color-mix(in oklab, var(--color-accent) 34%, var(--color-paper)); border-color: var(--color-accent); border-width: 3px; }
-  .k-flow { background: color-mix(in oklab, var(--color-energy) 38%, var(--color-alert) 12%); border-color: var(--color-energy); }
+  .k-flow { background: color-mix(in oklab, color-mix(in oklab, var(--color-energy), var(--color-alert) 40%) 48%, var(--color-paper)); border-color: color-mix(in oklab, var(--color-energy), var(--color-alert) 40%); }
   .k-road { background: color-mix(in oklab, var(--color-accent) 18%, var(--color-paper)); border-color: var(--color-accent); color: var(--color-text-secondary); }
   .k-muster { background: transparent; border-style: dashed; border-color: var(--color-alert); color: var(--color-text-secondary); }
   .k-context { background: color-mix(in oklab, var(--color-text-secondary) 10%, var(--color-paper)); border-color: var(--color-border); color: var(--color-text-secondary); }

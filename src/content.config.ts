@@ -209,6 +209,10 @@ const emsScenario = z.object({
       rot: z.number().default(0),           // 旋轉角（度，繞中心）
       sub: z.string().default(''),
       star: z.boolean().default(false),     // ★ 固定電源點
+      // 場地圖上的陳展編號：no＝圈內數字，demo＝dyn 動態（紅圈）／sta 靜態（藍圈）。
+      // 圖例的「動態 ×N／靜態 ×N」由元件數 zones 得出，不另存數量。
+      no: z.number().optional(),
+      demo: z.enum(['dyn', 'sta']).optional(),
     })).default([]),
     legend: z.array(z.object({ label: z.string(), kind: z.string() })).default([]),
     // 現場影片輪播（右下佇列 → 閃爍 → zoom 到中央播放 → 淡出）。src 空＝佔位方塊，動畫照跑
