@@ -1116,11 +1116,11 @@
           "videos": [
             {
               "id": "v1",
-              "label": "XBE-50 桃園國軍醫院支援",
-              "src": "/videos/XBE-50-桃園國軍醫院支援.mp4",
+              "label": "XBE-50 醫療韌性",
+              "src": "/videos/XBE-50-醫療韌性-中英字幕.mp4",
               "at": 30,
               "sec": 0,
-              "poster": "/videos/poster/XBE-50-桃園國軍醫院支援.jpg"
+              "poster": "/videos/poster/XBE-50-醫療韌性-中英字幕.jpg"
             }
           ]
         },
