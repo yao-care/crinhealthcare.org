@@ -167,6 +167,8 @@ const P = {
   'resources[].@.plan.zones[].rot': { label: '旋轉角度', hint: '度，繞方塊中心；0＝不旋轉' },
   'resources[].@.plan.zones[].sub': { label: '分區說明' },
   'resources[].@.plan.zones[].star': { label: '標示為固定電源 ★' },
+  'resources[].@.plan.zones[].no': { label: '陳展編號', t: 1, hint: '配置圖上的圓框數字；留空＝該區不編號', where: '戰時配置圖分區左上角的圓框數字' },
+  'resources[].@.plan.zones[].demo': { label: '陳展型態', t: 1, hint: '留空＝不列入陳展計數', where: '戰時配置圖下方圖例的「動態陳展 ×N／靜態陳展 ×N」' },
   'resources[].@.plan.legend': { label: '圖例' },
   'resources[].@.plan.legend[].label': { label: '圖例文字' },
   'resources[].@.plan.legend[].kind': { label: '對應分區型別' },
@@ -294,6 +296,7 @@ export const ENUM_LABELS = {
   kind: { trend: 'trend（走勢圖）', status: 'status（狀態清單）' },
   layout: { stack: 'stack（舊版堆疊）', split: 'split（舊版左右）', v2: 'v2（現行）' },
   show: { power: '電力', water: '水', oil: '油', gas: '氣', env: '環境參數' },
+  demo: { dyn: '動態陳展', sta: '靜態陳展' },
 };
 
 export function metaFor(path, key) {

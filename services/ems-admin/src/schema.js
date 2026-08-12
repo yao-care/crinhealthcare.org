@@ -90,6 +90,10 @@ const emsScenario = z.object({
       rot: z.number().default(0),
       sub: z.string().default(''),
       star: z.boolean().default(false),
+      // 陳展編號（配置圖上的圓框數字，1799b3c 起 804 在用）。不是每區都有，故 optional 而非 default。
+      no: z.number().optional(),
+      // 陳展型態：dyn 動態／sta 靜態（圖例會分別計數）。同樣不是每區都有。
+      demo: z.enum(['dyn', 'sta']).optional(),
     })).default([]),
     legend: z.array(z.object({ label: z.string(), kind: z.string() })).default([]),
     videos: z.array(z.object({
