@@ -1116,19 +1116,11 @@
           "videos": [
             {
               "id": "v1",
-              "label": "針刺防爆實驗",
-              "src": "/videos/針刺防爆實驗.mp4",
-              "at": 3,
+              "label": "XBE-50 桃園國軍醫院支援",
+              "src": "/videos/XBE-50-桃園國軍醫院支援.mp4",
+              "at": 30,
               "sec": 0,
-              "poster": "/videos/poster/針刺防爆實驗.jpg"
-            },
-            {
-              "id": "v2",
-              "label": "救災情境示意",
-              "src": "/videos/救災情境示意.mp4",
-              "at": 5,
-              "sec": 0,
-              "poster": "/videos/poster/救災情境示意.jpg"
+              "poster": "/videos/poster/XBE-50-桃園國軍醫院支援.jpg"
             }
           ]
         },
