@@ -223,9 +223,13 @@ export function readWorkbook(buf) {
 }
 
 // ── 把值寫回「原範本」的指定儲存格 ──
-// patches: Map<工作表名, Map<A1, 字串值>>。空字串＝清空該格。
-// 一律寫成 inlineStr，理由：不必動 sharedStrings 的索引與計數（動了極易讓 Excel 判定檔案毀損），
-// 而且問卷欄位本來就是文字/數字混填，交差時 Excel 仍會照儲存格格式顯示。
+// patches: Map<工作表名, Map<A1, 值>>。值為 number → 寫成數值格；string → 寫成 inlineStr；'' → 清空。
+//
+// ⚠️ 數值一定要寫成數值格，不能圖方便全寫 inlineStr：
+//    表P 的合計欄是 =SUM(I8:L8)／=MAX(D8:G8)，文字在 SUM 裡會被當 0，
+//    整份交差報表的月合計、年合計會全部變空（踩過一次，靠 SUM 迴歸測試擋住）。
+// 用 inlineStr 而非 sharedStrings 是刻意的：不必動 sharedStrings 的索引與 count，
+// 那個動了極容易讓 Excel 判定檔案毀損。
 // 有公式的格（<f>）一律跳過——那些是「自動帶出」欄位，值該由 Excel 自己算。
 export function patchWorkbook(buf, patches) {
   const { files, sheets } = readWorkbook(buf);
@@ -245,7 +249,12 @@ export function patchWorkbook(buf, patches) {
       if (hit && /<f[\s>]/.test(hit[2] ?? '')) { skippedFormula.push(`${sheetName}!${ref}`); continue; }
 
       const attrs = (hit?.[1] ?? ` r="${ref}"`).replace(/\s*t="[^"]*"/, '');
-      const cell = value === '' ? `<c${attrs}/>` : `<c${attrs} t="inlineStr"><is><t xml:space="preserve">${esc(value)}</t></is></c>`;
+      const cell =
+        value === '' || value === null || value === undefined
+          ? `<c${attrs}/>`
+          : typeof value === 'number'
+            ? `<c${attrs}><v>${value}</v></c>`
+            : `<c${attrs} t="inlineStr"><is><t xml:space="preserve">${esc(value)}</t></is></c>`;
 
       if (hit) { xml = xml.slice(0, hit.index) + cell + xml.slice(hit.index + hit[0].length); continue; }
 
