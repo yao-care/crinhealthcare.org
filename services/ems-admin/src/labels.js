@@ -41,7 +41,7 @@ const tierOf = (key) => (TIER1_KEYS.has(key) ? 1 : TIER3_KEYS.has(key) ? 3 : 2);
 const P = {
   // ── 基本資料 ──
   name: { label: '院所名稱' },
-  boardTitle: { label: '看板抬頭', hint: '留空＝自動用「🔋 韌性電網決策支援系統」' },
+  boardTitle: { label: '看板抬頭', hint: '留空＝自動用「院名 🔋 韌性電網決策支援系統」' },
   location: { label: '地點', hint: '例：臺中市太平區' },
   updated: { label: '資料更新日', hint: '西元 YYYY-MM-DD' },
   version: { label: '版本標記', hint: '顯示在看板頁尾，例：v1' },
