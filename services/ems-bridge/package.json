@@ -1,7 +1,7 @@
 {
   "name": "ems-bridge",
   "version": "1.0.0",
-  "description": "儲能櫃 Modbus TCP → HTTPS JSON 橋接服務（crinhealthcare.org 803 平戰轉 EMS）",
+  "description": "儲能櫃 Modbus TCP → HTTPS JSON 橋接服務（crinhealthcare.org 803 韌性電網決策支援系統）",
   "type": "module",
   "private": true,
   "scripts": {

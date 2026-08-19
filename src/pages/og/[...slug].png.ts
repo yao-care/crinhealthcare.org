@@ -32,7 +32,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
   for (const h of hospitals) {
     paths.push({
       params: { slug: `h/${h.id}` },
-      props: { title: `${(h.data as { name: string }).name} · 平戰轉EMS`, collection: 'website' },
+      props: { title: `${(h.data as { name: string }).name} · 韌性電網決策支援系統`, collection: 'website' },
     });
   }
 

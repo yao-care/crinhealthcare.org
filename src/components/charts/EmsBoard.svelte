@@ -101,7 +101,7 @@
 
 <div class="board-page" class:split={hospital.layout === 'split'}>
   <header class="topbar">
-    <h1 class="ttl">🔋 平戰轉EMS · {hospital.name}</h1>
+    <h1 class="ttl">🔋 韌性電網決策支援系統 · {hospital.name}</h1>
     <div class="legend" aria-hidden="true">
       <span><i style="background:var(--color-accent)"></i>再生</span>
       <span><i style="background:var(--color-text-secondary)"></i>市電</span>

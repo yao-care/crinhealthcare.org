@@ -296,7 +296,7 @@ const hospitals = defineCollection({
   loader: glob({ base: 'src/content/hospitals', pattern: '**/*.json' }),
   schema: z.object({
     name: z.string(),
-    // v2 盤面抬頭自訂（未設＝「🔋 平 - 戰(災) EMS · <院名>」）；只影響設了的那一家
+    // v2 盤面抬頭自訂（未設＝「🔋 韌性電網決策支援系統」）；只影響設了的那一家
     boardTitle: z.string().default(''),
     location: z.string().default(''),
     updated: z.string().default(''),

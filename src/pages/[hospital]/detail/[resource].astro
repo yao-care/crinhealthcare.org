@@ -25,7 +25,7 @@ const r = hospital.resources.find((x) => x.id === resourceId);
 
 <Base
   title={`${r?.name ?? ''} 詳情 · ${hospital.name}`}
-  description={`${hospital.name} ${r?.name ?? ''} 平戰轉 EMS 詳情：供 → 儲 → 用、設備清單與權責窗口。`}
+  description={`${hospital.name} ${r?.name ?? ''} 韌性電網決策支援系統詳情：供 → 儲 → 用、設備清單與權責窗口。`}
 >
   <EmsDetail hospital={hospital} resourceId={resourceId} backHref={url(`/${hid}/`)} client:visible />
 </Base>
