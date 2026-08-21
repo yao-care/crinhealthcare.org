@@ -16,14 +16,19 @@ import { importAudit } from './audit-io.js';
 const extractable = (block) => fieldsOf(block).filter((f) => !f.computed);
 
 // ── 結構化輸出的 JSON schema ──
-// 值一律收「字串或 null」再用 coerce() 正規化：解析器常回「1,234.5 kWh」「NT$3,872,510」
+// 值一律收字串再用 coerce() 正規化：解析器常回「1,234.5 kWh」「NT$3,872,510」
 // 這種帶千分位與單位的寫法，直接宣告成 number 只會換來一堆型別錯誤與重試。
+//
+// 🔴 **不可以用 union 型別（['string','null']）**：結構化輸出對「帶 union 的參數」有
+// 上限 16 個，電費單 25 欄 ×（值＋頁碼）＝ 50 個，直接 400
+// （"Schemas contains too many parameters with union types"）。
+// 所以改用同型別的哨兵值：值缺漏用空字串、頁碼不確定用 0，回來再轉成 undefined／null。
 function outputSchema(block) {
   const cols = extractable(block);
   const values = {}, pages = {};
   for (const c of cols) {
-    values[c.key] = { type: ['string', 'null'], description: `${c.label}${c.unit ? `（${c.unit}）` : ''}${c.hint ? ` — ${c.hint}` : ''}` };
-    pages[c.key] = { type: ['integer', 'null'], description: `${c.label} 出現在文件的第幾頁（1 起算）` };
+    values[c.key] = { type: 'string', description: `${c.label}${c.unit ? `（${c.unit}）` : ''}${c.hint ? ` — ${c.hint}` : ''}；文件上沒有就填空字串` };
+    pages[c.key] = { type: 'integer', description: `${c.label} 出現在文件的第幾頁（1 起算）；沒有或不確定填 0` };
   }
   const keys = cols.map((c) => c.key);
   return {
@@ -62,9 +67,9 @@ function systemPrompt(block) {
     block.intro || '',
     '',
     '規則：',
-    '- 只抄文件上真的看得到的數字與文字，看不到就回 null。**絕對不要推算、不要補值、不要從其他欄位反推。**',
+    '- 只抄文件上真的看得到的數字與文字，看不到就填空字串。**絕對不要推算、不要補值、不要從其他欄位反推。**',
     '- 金額與度數保留原始數字，可以帶千分位；單位不用寫進值裡。',
-    '- 台灣的民國年要換算成西元年（例如 114 年 3 月 → 2026-03；民國年＋1911）。',
+    '- 台灣的民國年要換算成西元年：民國年＋1911（例如 114 年 3 月 → 2025-03、115 年 1 月 → 2026-01）。',
     '- 只要是模糊、被遮住、手寫、或你不確定自己讀對的欄位，就把它的鍵名放進 lowConfidence。寧可多列。',
     '- pages 要填該欄位實際出現的頁碼，讓院方能翻回原文核對。',
     block.kind === 'table'
@@ -176,9 +181,11 @@ export async function extractFile(blockId, file, buf) {
       if (v === undefined) continue;
       values[c.key] = v;
       const isLow = Array.isArray(raw.lowConfidence) && raw.lowConfidence.includes(c.key);
+      const page = Number(raw.pages?.[c.key]);
       meta[c.key] = {
         state: isLow ? 'low' : 'todo',
-        source: { file: file.id, name: file.displayName, page: raw.pages?.[c.key] ?? null },
+        // 頁碼 0 是「不確定」的哨兵（見 outputSchema 的註解），對外一律轉回 null
+        source: { file: file.id, name: file.displayName, page: Number.isFinite(page) && page > 0 ? page : null },
       };
       if (isLow) low++; else todo++;
     }

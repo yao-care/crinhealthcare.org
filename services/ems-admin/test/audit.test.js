@@ -269,3 +269,12 @@ test('空白填報的 selfCheck 是 null，不是空陣列', () => {
   assert.equal(typeof [].at, 'function');
   assert.equal(typeof blankAudit().selfCheck?.at, 'undefined');
 });
+
+test('費用可為減項的欄位不擋負數（台電的功因調整費真的會是負的）', () => {
+  const a = blankAudit();
+  a.blocks.bills.rows = [{ values: { period: '2025-03', feePowerFactor: -24530, feeOther: -100 }, meta: {} }];
+  assert.equal(validateAudit(a).errors.filter((e) => e.includes('不可為負數')).length, 0);
+  // 沒開放的費用欄仍然要擋
+  a.blocks.bills.rows[0].values.feeBasic = -1;
+  assert.ok(validateAudit(a).errors.some((e) => e.includes('基本費') && e.includes('不可為負數')));
+});

@@ -107,8 +107,10 @@ const BILL_COLUMNS = [
   { key: 'feeBasic', label: '基本費', unit: '元', type: 'number', required: true, group: '費用', total: 'sum' },
   { key: 'feeFlow', label: '流動費', unit: '元', type: 'number', required: true, group: '費用', total: 'sum' },
   { key: 'feeOver', label: '超約附加費', unit: '元', type: 'number', group: '費用', total: 'sum' },
-  { key: 'feePowerFactor', label: '功因調整費', unit: '元', type: 'number', group: '費用', total: 'sum' },
-  { key: 'feeOther', label: '其他費用', unit: '元', type: 'number', group: '費用', total: 'sum' },
+  // 這兩項在台電電費單上可以是**減項**（實測：功率因數調整費 -24,530）。
+  // 擋負數會讓院方照實填反而送不出去，所以明確開放；其餘費用欄仍不准為負。
+  { key: 'feePowerFactor', label: '功因調整費', unit: '元', type: 'number', group: '費用', total: 'sum', allowNegative: true, hint: '功率因數高於標準時為減項（負數）' },
+  { key: 'feeOther', label: '其他費用', unit: '元', type: 'number', group: '費用', total: 'sum', allowNegative: true, hint: '各項調整；可為負數' },
   { key: 'feeTotal', label: '應繳總額', unit: '元', type: 'number', required: true, group: '費用', total: 'sum' },
 
   { key: 'note', label: '異常說明', type: 'text', group: '備註', width: 'xl', hint: '該月用電突升突降的原因' },
@@ -293,7 +295,7 @@ function checkValue(field, v, where, errors, warnings) {
   }
   if (field.type === 'number' || field.type === 'percent') {
     if (typeof v !== 'number' || !Number.isFinite(v)) { errors.push(`${where}「${field.label}」必須是數字`); return; }
-    if (v < 0) errors.push(`${where}「${field.label}」不可為負數`);
+    if (v < 0 && !field.allowNegative) errors.push(`${where}「${field.label}」不可為負數`);
     if (field.type === 'percent' && v > 100) warnings.push(`${where}「${field.label}」超過 100%，請確認`);
     return;
   }
