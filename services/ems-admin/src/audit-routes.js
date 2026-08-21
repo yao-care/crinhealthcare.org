@@ -16,7 +16,7 @@ function stageState(audit, history) {
   const st = blockStats(audit);
   // 「已送出」的判準是自我檢核簽章，不是 git 有沒有 commit——
   // 上傳一個檔案也會產生 commit，用 history.length 會把「系統填報」提早點亮。
-  const submitted = Boolean(audit.selfCheck?.at);
+  const submitted = typeof audit.selfCheck?.at === 'string';
   const done = {
     notice: true,
     account: true,                                    // 人已經登入了

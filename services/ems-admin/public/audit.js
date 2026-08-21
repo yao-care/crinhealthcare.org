@@ -581,7 +581,12 @@
   // 「全部確認」故意要捲到底才啟用：沒看過就整批按下去，這道閘門等於沒有。
   function renderVerifyBar(b) {
     const list = pending().filter((p) => p.block === b.id);
-    if (!list.length) return el('div', { class: 'a-verify ok' }, [el('b', { text: '✅ 這一區已全部複驗' })]);
+    if (!list.length) {
+      // 一格都還沒填的區塊不要報「已全部複驗」——那是真的，但讀起來像「這區做完了」
+      const st = liveStats()[b.id] || {};
+      if (!st.filled) return el('p', { class: 'note', text: '這一區還沒有任何內容。上傳佐證檔案自動帶入，或直接手動填寫。' });
+      return el('div', { class: 'a-verify ok' }, [el('b', { text: '✅ 這一區已全部複驗' })]);
+    }
 
     const todo = list.filter((p) => p.state === 'todo').length;
     const low = list.filter((p) => p.state === 'low').length;

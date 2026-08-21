@@ -238,7 +238,10 @@ export const auditSpec = {
 
 // ── 空白骨架 ──
 export function blankAudit() {
-  const out = { version: 1, updated: null, selfCheck: [], blocks: {} };
+  // selfCheck 是「送出時的自我檢核簽章」物件或 null——**不要用空陣列**：
+  // stageState 判斷已送出用的是 selfCheck?.at，而 [] 會命中 Array.prototype.at（函式，truthy），
+  // 一開燈就把「系統填報」點亮。
+  const out = { version: 1, updated: null, selfCheck: null, blocks: {} };
   for (const b of BLOCKS) out.blocks[b.id] = b.kind === 'table' ? { rows: [] } : { values: {}, meta: {} };
   return out;
 }

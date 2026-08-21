@@ -260,3 +260,12 @@ test('沒有對應工作表的區塊，匯入 xlsx 要給看得懂的錯誤', as
     /沒有對應的 Excel 範本工作表/,
   );
 });
+
+test('空白填報的 selfCheck 是 null，不是空陣列', () => {
+  // 為什麼要釘住：階段判定用 `audit.selfCheck?.at` 判斷「已送出」，
+  // 而 [].at 是 Array.prototype.at（函式，truthy）——用空陣列會讓「系統填報」
+  // 在院方還沒送出任何東西時就亮燈。實測踩過。
+  assert.equal(blankAudit().selfCheck, null);
+  assert.equal(typeof [].at, 'function');
+  assert.equal(typeof blankAudit().selfCheck?.at, 'undefined');
+});
