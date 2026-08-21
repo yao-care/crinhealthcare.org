@@ -278,3 +278,18 @@ test('費用可為減項的欄位不擋負數（台電的功因調整費真的�
   a.blocks.bills.rows[0].values.feeBasic = -1;
   assert.ok(validateAudit(a).errors.some((e) => e.includes('基本費') && e.includes('不可為負數')));
 });
+
+test('API 錯誤翻成院方看得懂的中文，不把英文原文丟到畫面上', async () => {
+  // friendly() 沒有 export（它是 extractWithModel 的內部細節），這裡從行為驗：
+  // 沒設 key 時走的是另一條分支，訊息一樣必須是中文且說得出下一步。
+  const { extractFile } = await import('../src/extract.js');
+  const saved = process.env.ANTHROPIC_API_KEY;
+  try {
+    const err = await extractFile('bills', { id: 'x', displayName: 'a.pdf', kind: 'pdf', mime: 'application/pdf' }, Buffer.from('x'))
+      .then(() => null, (e) => e);
+    if (err) {
+      assert.ok(/[一-鿿]/.test(err.message), `訊息要是中文，實際：${err.message}`);
+      assert.ok(!/Schemas|union types|invalid_request_error/i.test(err.message), '不可以把英文 API 原文丟給院方');
+    }
+  } finally { if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved; }
+});

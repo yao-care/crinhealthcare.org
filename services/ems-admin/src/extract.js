@@ -81,6 +81,22 @@ function systemPrompt(block) {
 let client = null;
 const getClient = () => (client ||= new Anthropic({ apiKey: config.anthropicApiKey }));
 
+// API 錯誤 → 院方看得懂、而且知道下一步該做什麼的中文訊息
+function friendly(e) {
+  const status = e?.status;
+  const raw = String(e?.message || e);
+  let msg;
+  if (status === 401 || status === 403) msg = '文件解析服務的憑證有問題，請聯絡維護窗口。這個區塊可以先手動填寫。';
+  else if (status === 429) msg = '文件解析服務忙碌中（額度已滿），請過幾分鐘再試一次，或先手動填寫。';
+  else if (status === 400 && /too large|exceeds|max_tokens|too many pages/i.test(raw)) msg = '這個檔案太大或頁數太多，請拆成單月、單份後再上傳。';
+  else if (status === 400) msg = '文件解析服務不接受這次的請求，已記錄在伺服器日誌。請聯絡維護窗口，這個區塊可以先手動填寫。';
+  else if (status >= 500) msg = '文件解析服務暫時無法使用，請稍後再試一次，或先手動填寫。';
+  else msg = '文件解析失敗，請稍後再試一次，或先手動填寫。';
+  const err = new Error(msg);
+  err.code = 'extract_failed';
+  return err;
+}
+
 export const extractionEnabled = () => Boolean(config.anthropicApiKey);
 
 // ── PDF／影像 ──
@@ -91,17 +107,26 @@ async function extractWithModel(block, file, buf) {
     : { type: 'image', source: { type: 'base64', media_type: file.mime, data: b64 } };
 
   // 串流：掃描件是長輸入、Opus 5 預設開思考，非串流容易撞 HTTP timeout
-  const stream = getClient().messages.stream({
-    model: config.extractModel,
-    max_tokens: 32000,
-    system: systemPrompt(block),
-    output_config: { format: { type: 'json_schema', schema: outputSchema(block) }, effort: 'high' },
-    messages: [{
-      role: 'user',
-      content: [source, { type: 'text', text: `請把這份文件裡屬於「${block.label}」的資料抽出來。` }],
-    }],
-  });
-  const msg = await stream.finalMessage();
+  let msg;
+  try {
+    const stream = getClient().messages.stream({
+      model: config.extractModel,
+      max_tokens: 32000,
+      system: systemPrompt(block),
+      output_config: { format: { type: 'json_schema', schema: outputSchema(block) }, effort: 'high' },
+      messages: [{
+        role: 'user',
+        content: [source, { type: 'text', text: `請把這份文件裡屬於「${block.label}」的資料抽出來。` }],
+      }],
+    });
+    msg = await stream.finalMessage();
+  } catch (e) {
+    // 院方看到的是這句話。原始英文錯誤只進伺服器日誌——
+    // 「Schemas contains too many parameters with union types」對承辦人員毫無意義，
+    // 而且會讓人以為是自己的檔案有問題。
+    console.error('[ems-admin] 文件解析失敗', block.id, file.displayName, String(e?.message || e));
+    throw friendly(e);
+  }
 
   if (msg.stop_reason === 'refusal') {
     const e = new Error('模型拒絕處理這份文件，請改用人工填寫或聯絡維護窗口');
