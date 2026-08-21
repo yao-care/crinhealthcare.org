@@ -26,10 +26,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, { credentials: 'same-origin', headers: { 'X-Requested-With': 'ems-admin' }, ...opts });
+  const headers = { 'X-Requested-With': 'ems-admin', ...(opts.headers || {}) };
+  // FormData 的 Content-Type 必須讓瀏覽器自己帶（要含 boundary），不能手動指定
+  const res = await fetch(path, { credentials: 'same-origin', ...opts, headers });
   let body = null; try { body = await res.json(); } catch {}
   return { status: res.status, body };
 }
+
+// audit.js（電力健檢填報）是另一支 classic script，共用這裡的 UI 小工具。
+// 兩邊資料模型不同、儲存位置不同、送出門檻也不同，只共用外觀與對話框。
+window.EMSUI = {
+  el, api, sleep,
+  toast: (...a) => toast(...a),
+  toastHide: () => toastHide(),
+  confirmModal: (...a) => confirmModal(...a),
+  closeModal: (...a) => closeModal(...a),
+  gotoAuditCell: (p) => gotoAuditCell(p),
+};
 
 // ─────────────────────────────── 狀態 ───────────────────────────────
 let SPEC = null;      // 由 /api/schema 取得的欄位樹
@@ -66,9 +79,28 @@ function dataAt(segs) {
 const pathKey = (segs) => segs.join('.');
 
 // ─────────────────────────────── 分區定義 ───────────────────────────────
+const TASKS = {
+  contact: '📇 聯絡人與帳號',
+  audit: '🔌 電力健檢填報',
+  board: '🖥 看板維護',
+};
+const sectionById = (id) => SECTIONS.find((s) => s.id === id) || null;
+const currentTask = () => sectionById(activeId)?.task || 'board';
+
 function buildSections() {
   const S = [];
-  S.push({
+
+  // ── 電力健檢填報（公文附件一／三）──
+  // 這些區塊的資料存在主機本地、不進公開 repo，由 audit.js 負責渲染與送出。
+  for (const b of window.EMSAudit?.spec()?.blocks || []) {
+    S.push({ id: `a-${b.id}`, task: b.task === 'contact' ? 'contact' : 'audit', group: '',
+      label: `${b.icon} ${b.label}`, audit: b.id });
+  }
+
+  // ── 看板維護 ──
+  // 2026-08-21 改版：原本這一整組是整個畫面的骨幹，現在降成與上面兩支任務平行的一支。
+  // 「常用／全部欄位」與「看板對照圖」也只在這支任務裡出現（見 applyTaskChrome）。
+  S.push({ task: 'board',
     id: 'basic', group: '📋 院所', label: '基本資料', base: [],
     keys: ['name', 'boardTitle', 'location', 'updated', 'version', 'layout', 'show', 'hideMeta', 'liveData', 'peakShave', 'peakShaveHide', 'scenarios'],
   });
@@ -78,23 +110,23 @@ function buildSections() {
   const CORE = ['perf', 'endur', 'supply', 'supplySum', 'detailLabel', 'detail', 'store', 'use'];
   (DATA.resources || []).forEach((r, i) => {
     const g = `${r.icon || '📦'} ${r.name || r.id || `資源 ${i + 1}`}`;
-    S.push({ id: `r${i}m`, group: g, label: '區塊設定', base: ['resources', i], keys: ['id', 'icon', 'name'], resourceIndex: i });
+    S.push({ task: 'board', id: `r${i}m`, group: g, label: '區塊設定', base: ['resources', i], keys: ['id', 'icon', 'name'], resourceIndex: i });
     for (const [sc, zh] of [['peace', '平時'], ['war', '戰時/救災']]) {
       const big = ['plan', 'power'].filter((k) => r[sc]?.[k] != null);
       const small = ['plan', 'power'].filter((k) => r[sc]?.[k] == null);
-      S.push({ id: `r${i}${sc[0]}`, group: g, label: zh, base: ['resources', i, sc], keys: [...CORE, ...small] });
-      if (big.length) S.push({ id: `r${i}${sc[0]}x`, group: g, label: `${zh}·配置與供電`, base: ['resources', i, sc], keys: big });
+      S.push({ task: 'board', id: `r${i}${sc[0]}`, group: g, label: zh, base: ['resources', i, sc], keys: [...CORE, ...small] });
+      if (big.length) S.push({ task: 'board', id: `r${i}${sc[0]}x`, group: g, label: `${zh}·配置與供電`, base: ['resources', i, sc], keys: big });
     }
-    S.push({ id: `r${i}d`, group: g, label: `設備清單（${(r.devices || []).length}）`, base: ['resources', i], keys: ['devices'] });
+    S.push({ task: 'board', id: `r${i}d`, group: g, label: `設備清單（${(r.devices || []).length}）`, base: ['resources', i], keys: ['devices'] });
   });
 
-  S.push({ id: 'envp', group: '🌡 環境參數', label: '平時樓層', base: ['env'], keys: ['peace'] });
-  S.push({ id: 'envw', group: '🌡 環境參數', label: '戰時樓層', base: ['env'], keys: ['war'] });
-  S.push({ id: 'envt', group: '🌡 環境參數', label: '門檻與關鍵樓層', base: ['env'], keys: ['thresholds', 'criticalFloors'] });
-  S.push({ id: 'envc', group: '🌡 環境參數', label: '碳盤查表', base: ['env'], keys: ['carbon'] });
+  S.push({ task: 'board', id: 'envp', group: '🌡 環境參數', label: '平時樓層', base: ['env'], keys: ['peace'] });
+  S.push({ task: 'board', id: 'envw', group: '🌡 環境參數', label: '戰時樓層', base: ['env'], keys: ['war'] });
+  S.push({ task: 'board', id: 'envt', group: '🌡 環境參數', label: '門檻與關鍵樓層', base: ['env'], keys: ['thresholds', 'criticalFloors'] });
+  S.push({ task: 'board', id: 'envc', group: '🌡 環境參數', label: '碳盤查表', base: ['env'], keys: ['carbon'] });
 
-  S.push({ id: 'rep', group: '📊 報表與 ESG', label: '匯出報表', base: [], keys: ['report'] });
-  S.push({ id: 'esg', group: '📊 報表與 ESG', label: 'ESG 面板', base: [], keys: ['esgPanels'] });
+  S.push({ task: 'board', id: 'rep', group: '📊 報表與 ESG', label: '匯出報表', base: [], keys: ['report'] });
+  S.push({ task: 'board', id: 'esg', group: '📊 報表與 ESG', label: 'ESG 面板', base: [], keys: ['esgPanels'] });
   return S;
 }
 
@@ -228,6 +260,20 @@ function markChanged() {
   renderNav();
   updateDirtyBadge();
   saveDraft();
+}
+
+// 從「未複驗清單」跳到那一格。健檢的格子用 data-acell 定位（看板那套用 data-path）。
+function gotoAuditCell(p) {
+  goSection(`a-${p.block}`);
+  requestAnimationFrame(() => {
+    const sel = `[data-acell="${CSS.escape(`${p.block}/${p.row === null ? '' : p.row}/${p.key}`)}"]`;
+    const alt = `[data-acell="${CSS.escape(`${p.block}//${p.key}`)}"]`;
+    const node = document.querySelector(sel) || document.querySelector(alt);
+    if (!node) return;
+    node.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    node.classList.add('flash');
+    setTimeout(() => node.classList.remove('flash'), 1600);
+  });
 }
 
 function fieldRow(spec, segs, control, opts = {}) {
@@ -528,15 +574,23 @@ function sectionHasCommon(s) {
 
 function renderNav() {
   const counts = sectionChangeCounts();
+  const stats = window.EMSAudit?.stats?.() || {};
   const list = $('navList');
   list.textContent = '';
-  let lastGroup = null;
-  const shown = MODE === 'all' ? SECTIONS : SECTIONS.filter((s) => sectionHasCommon(s) || counts.get(s.id));
+  let lastGroup = null, lastTask = null;
+  // 「常用欄位」的過濾只對看板維護有意義：健檢填報沒有色票與座標那種欄位
+  const shown = SECTIONS.filter((s) => s.task !== 'board' || MODE === 'all' || sectionHasCommon(s) || counts.get(s.id));
   for (const s of shown) {
-    if (s.group !== lastGroup) { list.append(el('div', { class: 'navgroup', text: s.group })); lastGroup = s.group; }
+    if (s.task !== lastTask) {
+      list.append(el('div', { class: 'navtask' + (s.task === 'board' ? ' demoted' : ''), text: TASKS[s.task] || '' }));
+      lastTask = s.task; lastGroup = null;
+    }
+    if (s.group && s.group !== lastGroup) { list.append(el('div', { class: 'navgroup', text: s.group })); lastGroup = s.group; }
     const n = counts.get(s.id) || 0;
+    const st = s.audit ? stats[s.audit] : null;
     const btn = el('button', { type: 'button', class: 'navitem' + (s.id === activeId ? ' active' : ''), 'data-sec': s.id }, [
       el('span', { text: s.label }),
+      auditBadge(st),
       n ? el('i', { class: 'dot', title: `${n} 項未送出的修改` }) : null,
     ]);
     btn.addEventListener('click', () => goSection(s.id));
@@ -556,11 +610,39 @@ function renderNav() {
   }
 }
 
+// 健檢區塊的導覽徽章：待複驗最優先（那是擋住送出的東西），其次是必填缺漏、筆數
+function auditBadge(st) {
+  if (!st) return null;
+  const p = (st.todo || 0) + (st.low || 0);
+  if (p) return el('i', { class: 'navn todo', text: `待複驗 ${p}` });
+  if (st.missing) return el('i', { class: 'navn todo', text: `缺 ${st.missing}` });
+  if (st.rows) return el('i', { class: 'navn ok', text: `${st.rows} 筆` });
+  return null;
+}
+
+// 頂列的「常用／全部欄位」與「看板對照圖」只在看板維護時有意義，其他任務淡出停用
+function applyTaskChrome() {
+  const board = currentTask() === 'board';
+  $('editor').classList.toggle('task-board', board);
+  for (const id of ['modeCommon', 'modeAll', 'mapBtn']) {
+    const n = $(id);
+    n.disabled = !board;
+    n.title = board ? '' : '只有「看板維護」用得到';
+  }
+  const save = $('saveBtn');
+  save.textContent = board ? '送出並上線' : '送出填報';
+  save.title = board ? '送出後直接更新正式看板' : '送出填報，其中的彙總數字會自動同步到看板';
+}
+
 function rerenderPane() {
   const s = SECTIONS.find((x) => x.id === activeId) || SECTIONS[0];
   const root = $('formRoot');
   root.textContent = '';
-  $('crumb').textContent = `${s.group} › ${s.label}`;
+  $('crumb').textContent = [TASKS[s.task], s.group, s.label].filter(Boolean).join(' › ');
+  applyTaskChrome();
+
+  // 電力健檢填報：欄位樹、表格、上傳與複驗全部由 audit.js 負責
+  if (s.audit) { window.EMSAudit.renderSection(s.audit, root); return; }
 
   // 分區基底可能落在尚未存在的 optional 區塊上（例：整個 env 不存在）
   const parentSegs = s.base.slice(0, -1);
@@ -669,12 +751,18 @@ function jumpTo(segs) {
 }
 
 // ─────────────────────────────── 未送出提示 / 草稿 ───────────────────────────────
+// 兩支任務各自有未送出的修改，送出按鈕也各送各的，所以徽章顯示「目前這支任務」的數量，
+// 另一支若也有未送出的東西，用 title 提示，避免院方以為按一次就全部送出了。
 function updateDirtyBadge() {
-  const n = changes().length;
+  const board = changes().length;
+  const audit = window.EMSAudit?.dirtyCount?.() || 0;
+  const here = currentTask() === 'board' ? board : audit;
+  const other = currentTask() === 'board' ? audit : board;
   const b = $('dirtyBadge');
-  b.classList.toggle('hidden', n === 0);
-  b.querySelector('b').textContent = String(n);
-  $('reloadBtn').textContent = n ? '捨棄修改' : '重新載入';
+  b.classList.toggle('hidden', here === 0);
+  b.querySelector('b').textContent = String(here);
+  b.title = other ? `另有「${currentTask() === 'board' ? TASKS.audit : TASKS.board}」的 ${other} 項修改尚未送出（要切過去才能送）` : '';
+  $('reloadBtn').textContent = (board + audit) ? '捨棄修改' : '重新載入';
 }
 
 const draftKey = () => `ems-admin-draft:${ME?.hid}`;
@@ -893,8 +981,21 @@ async function loadSpec() {
   return true;
 }
 
+// 健檢填報：規格＋資料。載入失敗不擋住看板維護（那是兩套獨立的東西），
+// 只是導覽上不會出現健檢那兩支任務。
+async function loadAudit() {
+  try {
+    const ok = await window.EMSAudit.load();
+    if (!ok) { toast('健檢填報載入失敗，看板維護仍可使用', 'warn'); return false; }
+    window.EMSAudit.onChange(() => { markChanged(); rerenderPane(); });
+    window.EMSAudit.renderStages($('stagesBar'));
+    return true;
+  } catch { return false; }
+}
+
 async function loadHospital(opts = {}) {
   if (!(await loadSpec())) return false;
+  await loadAudit();
   const { status, body } = await api('/api/hospital');
   if (status === 401) { showLogin('登入逾時，請重新登入'); return false; }
   if (!body?.ok) { toast('載入失敗：' + (body?.error || status), 'err'); return false; }
@@ -905,7 +1006,7 @@ async function loadHospital(opts = {}) {
   if (!opts.skipDraft) await maybeRestoreDraft();   // 草稿會換掉 DATA，所以要先於分區計算
 
   SECTIONS = buildSections();
-  activeId = SECTIONS.some((s) => s.id === activeId) ? activeId : 'basic';
+  if (!SECTIONS.some((s) => s.id === activeId)) activeId = SECTIONS[0]?.id || 'basic';
 
   // 搜尋索引改在使用搜尋時才建（見 runSearch）
   renderNav(); rerenderPane(); updateDirtyBadge();
@@ -955,6 +1056,9 @@ function endSave() { busy = false; $('saveBtn').disabled = false; $('reloadBtn')
 
 async function save() {
   if (busy) return;
+  // 送出的是「目前這支任務」：健檢填報走 /api/audit（存主機、自動同步看板彙總），
+  // 看板維護走 /api/hospital（直接 push 公開 repo）。兩者門檻不同，不可合併。
+  if (currentTask() !== 'board') return window.EMSAudit.submit();
   const list = changes();
   if (!list.length) { toast('目前沒有任何修改，不需要送出', 'ok'); return; }
   if (!(await confirmModal({ title: '確認送出', node: changeListNode(list), okText: '送出並上線' }))) return;
@@ -1016,9 +1120,10 @@ $('loginForm').addEventListener('submit', async (e) => {
 
 $('reloadBtn').addEventListener('click', async () => {
   if (busy) return;
-  const n = changes().length;
+  const n = changes().length + (window.EMSAudit?.dirtyCount?.() || 0);
   if (n && !(await confirmModal({ title: `捨棄 ${n} 項未送出的修改？`, body: '畫面會重新載入線上目前的內容，這些修改將無法復原。', okText: '捨棄並重新載入', danger: true }))) return;
   dropDraft(); toastHide();
+  window.EMSAudit?.discard?.();
   await loadHospital({ notify: true, skipDraft: true });
 });
 
@@ -1026,7 +1131,7 @@ $('saveBtn').addEventListener('click', save);
 
 $('logoutBtn').addEventListener('click', async () => {
   if (busy) return;
-  const n = changes().length;
+  const n = changes().length + (window.EMSAudit?.dirtyCount?.() || 0);
   if (n && !(await confirmModal({ title: `還有 ${n} 項修改未送出`, body: '登出後這些修改會留在本機草稿，下次登入可接續，但不會出現在看板上。', okText: '仍要登出', danger: true }))) return;
   await api('/api/logout', { method: 'POST', headers: { 'X-Requested-With': 'ems-admin' } });
   location.reload();
@@ -1054,7 +1159,7 @@ $('searchBox').addEventListener('input', (e) => runSearch(e.target.value));
 $('searchBox').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.target.value = ''; runSearch(''); } });
 
 window.addEventListener('beforeunload', (e) => {
-  if (!busy && !changes().length) return;
+  if (!busy && !changes().length && !(window.EMSAudit?.dirtyCount?.() || 0)) return;
   e.preventDefault(); e.returnValue = '';
 });
 

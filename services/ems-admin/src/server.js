@@ -10,6 +10,7 @@ import { validateHospital } from './schema.js';
 import { readHospital, saveHospital, hospitalExists, historyFor } from './repo.js';
 import { deployStatus } from './deploy.js';
 import { hospitalSpec } from './spec.js';
+import { handleAudit } from './audit-routes.js';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const MIME = {
@@ -22,6 +23,7 @@ const json = (res, code, obj) => {
   const body = JSON.stringify(obj);
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(body) });
   res.end(body);
+  return true;   // 給路由分派判斷「這條已經處理掉了」（見 /api/audit 那一段）
 };
 
 function readBody(req, limit = 1024 * 1024) {
@@ -83,6 +85,13 @@ const server = createServer(async (req, res) => {
 
       if (req.method === 'GET' && pathname === '/api/me') {
         return json(res, 200, { ok: true, username: sess.sub, hid: sess.hid, name: sess.name });
+      }
+
+      // ── 電力健檢填報（公文附件一／三）──
+      // 這一整組走的是主機本地儲存（audit-store），與下面看板那組的 REPO_DIR 完全分開。
+      if (pathname.startsWith('/api/audit')) {
+        const handled = await handleAudit({ req, res, sess, pathname, json, readBody, originOk });
+        if (handled) return handled;
       }
 
       // 部署狀態：輪詢某 commit 的 GitHub Pages 部署是否完成、看板頁是否活著

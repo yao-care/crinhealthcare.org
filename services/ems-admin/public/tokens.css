@@ -64,6 +64,12 @@
   --color-warn-border: oklch(0.88 0.09 85);
   --color-flash: oklch(0.95 0.09 95);          /* 跳轉後閃爍highlight */
 
+  /* 電力健檢填報：每一格的複驗狀態（4 態，定義見 src/audit-schema.js）。
+   * todo 待複驗＝解析出來還沒人看過；low 信心低沿用 warn 那組（更搶眼）；
+   * ok 已複驗用品牌 pale；manual 人工填寫維持一般底色，不特別上色。 */
+  --color-todo-pale: oklch(0.975 0.045 100);
+  --color-todo-border: oklch(0.89 0.075 100);
+
   --color-info: oklch(0.45 0.12 250);          /* 進行中/看板位置說明 */
   --color-info-pale: oklch(0.955 0.02 250);
   --color-info-dark: oklch(0.30 0.09 250);

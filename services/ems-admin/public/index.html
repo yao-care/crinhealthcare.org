@@ -4,15 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>EMS 看板維護</title>
+  <title>電力健檢填報｜EMS 維護系統</title>
   <link rel="stylesheet" href="/tokens.css" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <!-- 登入 -->
   <section id="login" class="card login hidden">
-    <h1>🔋 EMS 看板維護</h1>
-    <p class="muted">請以院所帳號登入。登入後只能編輯貴院看板。</p>
+    <h1>🔋 電力健檢填報｜EMS 維護系統</h1>
+    <p class="muted">請以院所帳號登入。登入後只能填報與編輯貴院資料。<br>
+      帳號密碼限本案承辦使用，首次登入後請立即變更密碼。</p>
     <form id="loginForm">
       <label>帳號<input name="username" autocomplete="username" autofocus required /></label>
       <label>密碼<input name="password" type="password" autocomplete="current-password" required /></label>
@@ -40,6 +41,9 @@
         <button id="logoutBtn" type="button" class="ghost">登出</button>
       </div>
     </header>
+
+    <!-- 附件二：作業流程九階段。哪一階段完成由實際資料推導，不讓人手動勾 -->
+    <div id="stagesBar" class="stagesbar"></div>
 
     <!-- 常駐送出狀態：關掉分頁再回來也看得到上次送出的結果 -->
     <div id="statusBar" class="statusbar hidden"></div>
@@ -76,6 +80,9 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="boot" class="card"><p class="muted">載入中…</p></div>
 
+  <!-- 順序有意義：audit-compute 先掛上共用計算，app.js 定義 window.EMSUI，audit.js 才用得到 -->
+  <script src="/audit-compute.js"></script>
   <script src="/app.js"></script>
+  <script src="/audit.js"></script>
 </body>
 </html>

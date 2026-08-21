@@ -15,6 +15,21 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || '',
   accountsFile: abs(process.env.ACCOUNTS_FILE || './accounts.json', root),
   repoDir: process.env.REPO_DIR || '',
+
+  // ── 電力健檢填報：資料一律落在主機本地，不進公開 repo ──
+  // 為什麼分開：REPO_DIR 指向的是公開的 crinhealthcare.org，
+  // 聯絡人個資、電費單、逐筆排放源清單推上去就等於公開。
+  // 填報資料只走下面兩個路徑：dataDir 自己是一個「沒有 remote」的 git 倉庫
+  // （留稽核軌跡但推不出去），uploadsDir 存佐證檔案本體
+  // （二進位，刻意不進 git，避免倉庫膨脹）。
+  dataDir: process.env.AUDIT_DATA_DIR || '/opt/ems-admin/data',
+  uploadsDir: process.env.AUDIT_UPLOADS_DIR || '/opt/ems-admin/uploads',
+  uploadMaxBytes: Number(process.env.AUDIT_UPLOAD_MAX_BYTES || 25 * 1024 * 1024),
+
+  // 佐證檔案自動解析（PDF／掃描件／照片）。沒設 key 也能用，
+  // 只是解析功能會停用、改請院方自行填寫——不因為缺 key 就讓整個填報流程停擺。
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+  extractModel: process.env.AUDIT_EXTRACT_MODEL || 'claude-opus-5',
   gitBranch: process.env.GIT_BRANCH || 'main',
   gitAuthorName: process.env.GIT_AUTHOR_NAME || 'EMS Admin',
   gitAuthorEmail: process.env.GIT_AUTHOR_EMAIL || 'ems-admin@crinhealthcare.org',

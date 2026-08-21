@@ -1,6 +1,15 @@
-# ems-admin — EMS 看板維護表單
+# ems-admin — 電力健檢填報 ＋ EMS 看板維護
 
-院所人員以帳密登入，載入自家 `src/content/hospitals/<id>.json`，用**結構化表單**（不必懂 JSON）修改，送出後由**伺服器端** `git commit + push`，觸發 GitHub Actions 自動部署，看板約 1–2 分鐘後更新。獨立 pm2 部署於主機，**不隨 astro build**。
+院所人員以帳密登入後，畫面分成**兩支平行的任務**（2026-08-21 改版）：
+
+| 任務 | 在做什麼 | 資料存哪 | 送出的門檻 |
+|------|---------|---------|-----------|
+| 📇 聯絡人與帳號＋🔌 電力健檢填報 | 依「軍醫院電力健檢」公文附件一／三填報：聯絡人、基本資料、電費單 12 個月、排放源清單、重大設備與負載、冰水主機、營運與異常事件；上傳佐證檔案自動解析 | **主機本地**（`AUDIT_DATA_DIR`，沒有 remote 的 git 倉庫）＋ `AUDIT_UPLOADS_DIR` | 每一格都複驗完 ＋ 六條自我檢核勾滿 |
+| 🖥 看板維護 | 原本的整套看板欄位編輯（院所／各資源平戰時／環境參數／報表 ESG） | `REPO_DIR`（**公開的** crinhealthcare.org 工作副本） | zod schema 驗證 |
+
+送出健檢填報時，**其中的彙總數字會自動同步到看板**（見下面「看板同步」）。獨立 pm2 部署於主機，**不隨 astro build**。
+
+> ⚠️ **兩套儲存不可以合併。** `REPO_DIR` 指向的 repo 是 public。附件一那張表上有姓名、電話、電子郵件；電費單與逐筆排放源清單也不是該公開的東西。它們只能走 `AUDIT_DATA_DIR`。
 
 ## 特性
 
@@ -14,6 +23,59 @@
 - **送出前驗證**：用與 Astro 建置同一套 zod schema 驗證，不合規回 422，錯誤翻成中文並可點擊跳回該欄位。
 - **安全**：scrypt 密碼雜湊、HMAC 簽章 session cookie（HttpOnly/SameSite=Strict/Secure）、POST 加 Origin 檢查（CSRF）、登入失敗節流。推送金鑰只在伺服器端。
 
+## 電力健檢填報（公文附件一／三）
+
+### 欄位怎麼來的
+
+`src/audit-schema.js` 是**唯一真實來源**：七個區塊的欄位表推導出前端表單／表格、驗證、xlsx 匯入對照、看板同步彙總。新增欄位只改那一支，`pnpm test` 會擋下沒有中文標籤、型別不合法、或計算欄位被標成必填的情況。
+
+對應關係（別自己重新發明，範本的座標已經量好了）：
+
+| 本系統區塊 | 公文 | V2 範本工作表 |
+|-----------|------|--------------|
+| `bills` 電費單 | 附件三 | 表P｜用電統計（表頭的電號/電價種類匯入時複製到每一列） |
+| `majorLoads` 重大設備與負載 | 附件三 | 表E｜能源設備盤查 |
+| `chillers` 冰水主機 | 附件三 | 表A 冰水主機（範本每台一欄，匯入時轉置成每台一列） |
+| `basic` 基本資料 | 附件三 | 表Z｜基本資料（原註明不在範圍，本次公文要求納入） |
+| `emissions` 排放源清單 / `events` 營運與異常事件 | 附件三 | 範本沒有，本系統新增 |
+| `contact` 聯絡人 | 附件一 | 個資，`private: true`，永不同步 |
+
+### 複驗閘門（這是整個功能的安全底線，不要拆）
+
+上傳佐證檔案 → 解析 → **每一格標成 `todo`（待複驗）或 `low`（信心低）** → 院方逐格確認變 `ok` → 才准送出。人親手改過的格子直接算複驗過（有來源的變 `ok`，沒來源的是 `manual` 人工填寫）。
+
+- 前後端各有一份判準（`audit-schema.pendingCells` 與 `audit.js` 的 `pending()`），**伺服器那份才算數**——前端擋不住的送出，後端回 409。
+- 「全部確認」刻意要**捲到表格底部**才啟用。沒看過就整批按下去，這道閘門等於沒有。
+- 掃描影本的辨識率不可能一直是 100%。任何「讓解析結果直接生效」的優化提案，先想清楚誰要為錯誤的度數負責。
+
+### 兩條解析路徑
+
+| 檔案 | 走哪裡 | 需要 API key |
+|------|--------|-------------|
+| xlsx／csv | `audit-io.js` 的逐格對照（V2 範本座標）。確定性、零成本、可重現 | 否 |
+| PDF／掃描件／照片 | Claude 文件理解（`src/extract.js`）：結構化輸出綁 JSON schema，同時回每個值的頁碼供複驗對照 | 是（`ANTHROPIC_API_KEY`） |
+
+**沒設 key 不會讓功能停擺**：xlsx 照樣解析，PDF 上傳仍會保存檔案，只是回一句「尚未開通自動解析，請手動填寫」。
+
+兩個實作上的坑，改的時候別踩回去：
+
+- **結構化輸出與 citations 不能併用**（API 會回 400）。所以頁碼是**放進 schema 自己收**（`pages` 欄），不是走 citations。
+- 值一律宣告成「字串或 null」再用 `coerce()` 正規化。解析器常回「1,234.5 kWh」「NT$3,872,510」，直接宣告 number 只會換來一堆型別錯誤與重試。`coerce` 另外處理民國年（114 年 3 月 → 2025-03）。
+- `coerce` 的數字分支**一定要先確認清乾淨後還有數字**：`Number('')` 是 0，不擋的話「未提供」「無」這種字會被靜靜寫成 0 度、0 元，比留白危險得多。
+
+### 看板同步
+
+送出填報即同步（業主 2026-08-21 指示：不要獨立的「發布」動作）。`src/board-sync.js`：
+
+- 只寫 `esgPanels` 裡 id 以 `power-audit` 開頭的面板，整批換掉。
+- **其他面板、`report`、`env.carbon` 一律不碰**——那些是人寫的內容，覆蓋掉就回不來了。
+- 同步的只有彙總（月數、總用電、總電費、最高需量、契約容量與利用率、排放量、重大設備推估年用電、月別趨勢）。原始電費單、聯絡人個資、逐筆排放源清單、營運事件內文都不上去。
+- 同步失敗**不推翻已存好的填報**——填報是主要動作，同步是衍生動作。
+
+### 計算欄位為什麼放在 `public/`
+
+`public/audit-compute.js` 由**伺服器與瀏覽器共用同一份**（瀏覽器當一般腳本載入、伺服器 `import` 只求副作用後讀 `globalThis.EMSAuditCompute`）。合計度數、最高需量、推估年用電量不可能一邊算一種。它沒有 DOM 依賴也沒有 import，動它之前先確認兩邊都還能跑。
+
 ## API
 
 - `POST /api/login` `{username,password}` → 設 cookie，回 `{ok,hid,name}`
@@ -24,6 +86,16 @@
 - `POST /api/hospital` `{data}` → 驗證 → 寫檔 → commit+push → `{ok,commit,unchanged}`
 - `GET /api/deploy?commit=<完整40碼sha>` → 該 commit 的部署狀態
 - `GET /healthz`
+
+電力健檢填報（以下皆需登入，且只能存取自家院所）：
+
+- `GET /api/audit/spec` → `{ spec, extraction, maxBytes }` 欄位表＋九階段＋六條自我檢核
+- `GET /api/audit` → `{ audit, history, stats, pending, stages }`
+- `POST /api/audit` `{ audit, selfCheck:[0..5] }` → 驗證 → 複驗閘門（409）→ 自我檢核閘門（409）→ 寫檔 → 同步看板
+- `POST /api/audit/upload`（multipart：`block`、`period`、`file`）→ 存檔＋解析，回 `{ file, rows, notes, stats, parseError }`；**rows 只是提案，不會自動寫入**
+- `POST /api/audit/file/delete` `{ id }`
+- `GET /api/audit/file?id=` → 佐證檔案本體（`Content-Disposition` 用中文的 displayName）
+- `GET /api/audit/history`
 
 ## 表單為什麼要 schema 驅動（勿改回「照資料長」）
 
@@ -80,19 +152,27 @@ pnpm test                   # schema 對所有現有院所 JSON 做回歸
    # 設定可 push 的 origin：deploy key（SSH）或 https + 細粒度 PAT（僅該 repo、Contents:write）
    git config user.name "EMS Admin"; git config user.email "ems-admin@crinhealthcare.org"
    ```
-3. `cp .env.example .env`，填：
+3. **準備健檢填報的本地儲存**（與 `REPO_DIR` 完全分開，這兩個路徑不可以指到同一個地方）：
+   ```bash
+   mkdir -p /opt/ems-admin/data /opt/ems-admin/uploads
+   chmod 700 /opt/ems-admin/data /opt/ems-admin/uploads   # 內含個資
+   ```
+   `data/` 會在服務第一次使用時自動 `git init`（**刻意不設 remote**，推不出去）；佐證檔案本體放 `uploads/`，不進 git。
+4. `cp .env.example .env`，填：
    - `JWT_SECRET`（`openssl rand -hex 32`）
    - `REPO_DIR=/opt/ems-admin/repo`
    - `ACCOUNTS_FILE`（預設 `./accounts.json`）
-4. **建帳號**（每院一組，密碼走環境變數不落 argv）：
+   - `ANTHROPIC_API_KEY`（PDF／掃描件自動解析用；不填則只有 xlsx 會解析）
+   - `AUDIT_DATA_DIR` / `AUDIT_UPLOADS_DIR`（預設就是上一步那兩個路徑）
+5. **建帳號**（每院一組，密碼走環境變數不落 argv）：
    ```bash
    EMS_PW='院方密碼' node scripts/hash-password.mjs hosp-802 802 "國軍高雄總醫院"
    # 每家一組：hosp-803/803、hosp-804/804 …
    ```
-5. `pm2 start ecosystem.config.cjs && pm2 save`（**必 pm2 save**）
-6. UFW：`ufw allow from 172.18.0.0/16 to any port 8470`（僅 NPM 可達，公網不開）
-7. NPM Proxy Host：`ems-admin.crinhealthcare.org` → `http://172.18.0.1:8470`（**Forward 用 172.18.0.1**），Let's Encrypt + Force SSL
-8. 驗證：`curl https://ems-admin.crinhealthcare.org/healthz` → `{ok:true}`；瀏覽器登入 → 改值 → 送出 → 看 GitHub Actions 部署 → 看板更新
+6. `pm2 start ecosystem.config.cjs && pm2 save`（**必 pm2 save**）
+7. UFW：`ufw allow from 172.18.0.0/16 to any port 8470`（僅 NPM 可達，公網不開）
+8. NPM Proxy Host：`ems-admin.crinhealthcare.org` → `http://172.18.0.1:8470`（**Forward 用 172.18.0.1**），Let's Encrypt + Force SSL
+9. 驗證：`curl https://ems-admin.crinhealthcare.org/healthz` → `{ok:true}`；瀏覽器登入 → 改值 → 送出 → 看 GitHub Actions 部署 → 看板更新
 
 > ⚠️ **推送金鑰安全**：`REPO_DIR` 的 origin 具 push 權限，等同可改正式站。金鑰只存主機（deploy key 私鑰 / PAT），**絕不進前端、不進 repo**。`.env`、`accounts.json` 已於 `.gitignore` 排除。
 
@@ -141,6 +221,16 @@ pnpm test                   # schema 對所有現有院所 JSON 做回歸
 - `public/board-map.png` / `board-map.json` — 看板對照圖素材（由下面那支腳本產生，直接 commit 進 repo）
 - `scripts/hash-password.mjs` — 產/追加院所帳號
 - `scripts/make-board-map.mjs` — 重新產生看板對照圖（一次性，不進 CI；看板改版才需要跑）
+- `src/audit-schema.js` — 電力健檢七個區塊的欄位表（唯一真實來源）＋九階段＋六條自我檢核＋驗證＋複驗狀態
+- `src/audit-store.js` — 健檢填報資料的落地（主機本地、**無 remote** 的 git 倉庫）
+- `src/upload-io.js` — multipart 解析、佐證檔案落地、檔名正規化
+- `src/extract.js` — 佐證檔案 → 結構化欄位值（xlsx 走逐格對照；PDF／影像走 Claude）
+- `src/audit-io.js` / `src/audit-fields.js` / `src/xlsx.js` — V2 範本的逐格匯入匯出引擎
+- `src/board-sync.js` — 填報彙總 → 看板 `esgPanels`（只碰 `power-audit*`）
+- `src/audit-routes.js` — 健檢的 API 路由（server.js 只負責分派）
+- `public/audit-compute.js` — **伺服器與瀏覽器共用**的計算欄位求值器與看板彙總
+- `public/audit.js` — 健檢填報前端（三段式版面、表格編輯器、複驗標記、送出檢核）
 - `test/spec.test.js` — A1–A5 的回歸測試＋schema 對齊檢查
+- `test/audit.test.js` — 健檢的回歸測試（計算、複驗閘門、看板同步不越界、xlsx 對照）
 
 > 改 `src/*` 後要 `pm2 restart ems-admin`；`public/*` 是靜態檔、存檔即生效（伺服器對靜態檔送 `no-store`）。
