@@ -293,3 +293,13 @@ test('API 錯誤翻成院方看得懂的中文，不把英文原文丟到畫面�
     }
   } finally { if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved; }
 });
+
+test('附件二每個階段都有院方／執行單位／完成條件（缺了流程表會出現空格）', async () => {
+  const { STAGES: ST, REPORT_CONTENT } = await import('../src/audit-schema.js');
+  const owners = new Set(['hospital', 'org', 'both']);
+  for (const s of ST) {
+    assert.ok(s.hospital && s.org && s.done, `階段「${s.label}」缺少 hospital/org/done`);
+    assert.ok(owners.has(s.owner), `階段「${s.label}」的 owner 不合法：${s.owner}`);
+  }
+  assert.equal(REPORT_CONTENT.length, 6, '公文的「電力健檢報告建議內容」是 6 條');
+});

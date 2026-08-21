@@ -18,17 +18,39 @@
 //
 // 每一格的複驗狀態存在 meta 裡，不在這份表：'todo' 待複驗 / 'low' 信心低 / 'ok' 已複驗 / 'manual' 人工填寫。
 
-// ── 附件二：作業流程九階段 ──
+// ── 附件二：作業流程與權責（九階段）──
+// hospital／org 兩欄照公文原文，讓院方一眼看出「這一步是誰的事」；
+// done 是公文的「產出／完成條件」。完成與否由實際資料推導（見 audit-routes.stageState），
+// 不讓人手動勾——手動勾的進度一定會漂。
 export const STAGES = [
-  { id: 'notice', label: '啟動通知', owner: 'org', done: '院內承辦人確認' },
-  { id: 'contact', label: '聯絡人回復', owner: 'hospital', done: '聯絡資料完整可用', block: 'contact' },
-  { id: 'account', label: '帳號開通', owner: 'org', done: '帳號可登入且密碼已更新' },
-  { id: 'prepare', label: '資料準備', owner: 'hospital', done: '資料期間與單位一致' },
-  { id: 'fill', label: '系統填報', owner: 'hospital', done: '系統狀態顯示已送出' },
-  { id: 'review', label: '檢核補正', owner: 'both', done: '缺漏與疑義完成閉環' },
-  { id: 'analyze', label: '分析診斷', owner: 'org', done: '形成初步診斷結論' },
-  { id: 'report', label: '報告交付', owner: 'org', done: '報告完成交付' },
-  { id: 'followup', label: '後續追蹤', owner: 'both', done: '建立節電行動清單' },
+  { id: 'notice', label: '啟動通知', owner: 'org',
+    hospital: '收文並指派承辦窗口', org: '發文通知目的、時程與資料範圍', done: '院內承辦人確認' },
+  { id: 'contact', label: '聯絡人回復', owner: 'hospital', block: 'contact',
+    hospital: '回寄主要／備援聯絡資料', org: '彙整與確認名單', done: '聯絡資料完整可用' },
+  { id: 'account', label: '帳號開通', owner: 'org',
+    hospital: '查收通知並首次登入、變更密碼', org: '建立帳號並寄送初始密碼及操作說明', done: '帳號可登入且密碼已更新' },
+  { id: 'prepare', label: '資料準備', owner: 'hospital',
+    hospital: '彙整電費單、契約容量、用電量、費用及排放源清單', org: '提供欄位定義與常見問題', done: '資料期間與單位一致' },
+  { id: 'fill', label: '系統填報', owner: 'hospital',
+    hospital: '輸入資料、上傳佐證、院內確認後送出', org: '提供操作與口徑諮詢', done: '系統狀態顯示已送出' },
+  { id: 'review', label: '檢核補正', owner: 'both',
+    hospital: '依通知補充或修正', org: '檢查完整性、時間序列、單位及異常值', done: '缺漏與疑義完成閉環' },
+  { id: 'analyze', label: '分析診斷', owner: 'org',
+    hospital: '必要時說明營運、設備或用電異常', org: '分析用電結構、需量、費率、趨勢與節電機會', done: '形成初步診斷結論' },
+  { id: 'report', label: '報告交付', owner: 'org',
+    hospital: '收受報告並納入院內節電策略研議', org: '提供各院電力健檢報告與改善建議', done: '報告完成交付' },
+  { id: 'followup', label: '後續追蹤（建議）', owner: 'both',
+    hospital: '評估優先改善項目與年度成效', org: '視需求提供說明或成效追蹤', done: '建立節電行動清單' },
+];
+
+// 公文的「電力健檢報告建議內容」——報告還沒交付前，先讓院方知道會拿到什麼
+export const REPORT_CONTENT = [
+  '醫院與資料範圍說明；資料完整性及限制。',
+  '月別用電量、需量、費用及單位指標之趨勢與異常分析。',
+  '契約容量、超約、功率因數與時間電價之管理檢視。',
+  '主要排放源與電力使用關聯；高耗能設備或場域辨識。',
+  '節電機會清單：零／低成本管理、操作優化、設備改善及中長期投資。',
+  '建議優先順序、預期效益評估方式、執行注意事項與後續追蹤指標。',
 ];
 
 // ── 附件三：送出前自我檢核 ──
@@ -229,6 +251,7 @@ export const fieldsOf = (block) => (block.kind === 'table' ? block.columns : blo
 export const auditSpec = {
   blocks: BLOCKS,
   stages: STAGES,
+  reportContent: REPORT_CONTENT,
   selfCheck: SELF_CHECK,
   states: {
     todo: { label: '待複驗', hint: '解析出來的值，還沒有人確認' },

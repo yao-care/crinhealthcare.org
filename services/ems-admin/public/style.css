@@ -817,3 +817,13 @@ details.machine .field { padding-left: var(--space-md); padding-right: var(--spa
 /* 非「看板維護」任務時，那兩顆只對看板有意義的按鈕淡出（disabled 已擋住點擊） */
 .editor:not(.task-board) .modeswitch,
 .editor:not(.task-board) #mapBtn { opacity: 0.4; }
+
+/* 進度與交付：附件二的流程與權責表（多為長句，要換行不要橫向撐爆） */
+.a-flow td, .a-flow th { vertical-align: top; }
+/* 階段名稱那一欄不給它被擠到換行（「啟動通知」斷成兩行很難讀） */
+.a-flow tbody td:first-of-type { min-width: 8.5rem; }
+.a-flow tbody td:first-of-type b { white-space: nowrap; }
+.a-wrapcell { white-space: normal; min-width: 14rem; max-width: 22rem; }
+.a-rownow { background: var(--color-primary-pale); }
+.a-reportlist { font-size: var(--text-sm); padding-left: var(--space-xl); }
+.a-reportlist li { margin-bottom: var(--space-2xs); }

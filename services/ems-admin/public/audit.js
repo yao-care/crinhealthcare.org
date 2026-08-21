@@ -59,7 +59,7 @@
     },
     pendingCount() { return pending().length; },
     onChange(fn) { onChange = fn; },
-    renderSection, submit, renderStages, discard,
+    renderSection, renderProgress, submit, renderStages, discard,
   };
   window.EMSAudit = API;
 
@@ -622,6 +622,75 @@
       unlock();
     });
     return bar;
+  }
+
+  // ── 「進度與交付」分區：附件二的完整流程與權責表 ＋ 送出紀錄 ＋ 報告交付 ──
+  // 頂部那條進度列只看得到「走到哪」，這一頁回答的是「這一步是誰的事、完成條件是什麼」。
+  function renderProgress(root) {
+    const OWNER = { hospital: '院方', org: '專案執行單位', both: '雙方' };
+    root.append(el('p', { class: 'a-intro' }, [
+      el('span', { class: 'a-tag', text: '附件二' }),
+      el('span', { text: '電力健檢作業流程與權責。完成與否由系統依實際資料判定，不需要手動勾選。' }),
+    ]));
+
+    root.append(el('h3', { class: 'a-step' }, [el('i', { text: '1' }), el('span', { text: '流程與權責' })]));
+    const wrap = el('div', { class: 'a-tablewrap' });
+    const t = el('table', { class: 'a-table a-flow' });
+    t.append(el('thead', {}, [el('tr', {}, [
+      el('th', { class: 'a-th-idx', text: '' }),
+      el('th', { text: '階段' }), el('th', { text: '各軍醫院' }),
+      el('th', { text: '專案執行單位' }), el('th', { text: '產出／完成條件' }),
+      el('th', { text: '狀態' }),
+    ])]));
+    const tb = el('tbody');
+    SPEC.stages.forEach((st, i) => {
+      const done = STAGES?.done?.[st.id];
+      const now = STAGES?.current === st.id;
+      const state = done ? el('span', { class: 'a-pill ok', text: '✅ 已完成' })
+        : now ? el('span', { class: 'a-pill busy', text: '● 進行中' })
+          : el('span', { class: 'a-pill', text: '未開始' });
+      tb.append(el('tr', { class: now ? 'a-rownow' : '' }, [
+        el('th', { class: 'a-th-idx', text: String(i + 1) }),
+        el('td', {}, [el('b', { text: st.label }), el('span', { class: 'a-cellsrc', text: `負責：${OWNER[st.owner]}` })]),
+        el('td', { class: 'a-wrapcell', text: st.hospital }),
+        el('td', { class: 'a-wrapcell', text: st.org }),
+        el('td', { class: 'a-wrapcell', text: st.done }),
+        el('td', {}, [state]),
+      ]));
+    });
+    t.append(tb);
+    wrap.append(t);
+    root.append(wrap);
+
+    // 送出紀錄：健檢填報自己的 git log（與頂部那條看板送出狀態是兩回事）
+    root.append(el('h3', { class: 'a-step' }, [el('i', { text: '2' }), el('span', { text: '填報送出紀錄' })]));
+    if (!HISTORY.length) {
+      root.append(el('p', { class: 'note', text: '這個院所還沒有透過本系統送出過填報。' }));
+    } else {
+      const list = el('div', { class: 'histlist' });
+      for (const h of HISTORY.slice(0, 20)) {
+        list.append(el('div', { class: 'histrow' }, [
+          el('span', { class: 'hist-t', text: new Date(h.at).toLocaleString('zh-TW', { hour12: false }) }),
+          el('span', { class: 'hist-s', text: h.shortSha }),
+          el('span', { class: 'hist-m', text: h.subject }),
+        ]));
+      }
+      root.append(list);
+    }
+
+    // 報告交付（階段 8）：報告由專案執行單位產出，本系統只負責告知與收受
+    root.append(el('h3', { class: 'a-step' }, [el('i', { text: '3' }), el('span', { text: '電力健檢報告' })]));
+    const done = STAGES?.done?.report;
+    root.append(el('div', { class: 'a-privacy' }, [
+      el('b', { text: done ? '📄 報告已交付' : '📄 報告尚未交付' }),
+      el('span', { text: done
+        ? '請由院內權責單位收受並納入節電策略研議。'
+        : '報告由專案執行單位依貴院送出的資料製作，完成後會在這裡提供下載，並另行通知承辦聯絡人。' }),
+    ]));
+    root.append(el('p', { class: 'note', text: '報告將包含（依公文「電力健檢報告建議內容」）：' }));
+    const ol = el('ol', { class: 'a-reportlist' });
+    for (const line of SPEC.reportContent || []) ol.append(el('li', { text: line }));
+    root.append(ol);
   }
 
   // ── 附件二：九階段進度 ──

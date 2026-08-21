@@ -83,6 +83,7 @@ const TASKS = {
   contact: '📇 聯絡人與帳號',
   audit: '🔌 電力健檢填報',
   board: '🖥 看板維護',
+  progress: '📄 進度與交付',
 };
 const sectionById = (id) => SECTIONS.find((s) => s.id === id) || null;
 const currentTask = () => sectionById(activeId)?.task || 'board';
@@ -127,6 +128,9 @@ function buildSections() {
 
   S.push({ task: 'board', id: 'rep', group: '📊 報表與 ESG', label: '匯出報表', base: [], keys: ['report'] });
   S.push({ task: 'board', id: 'esg', group: '📊 報表與 ESG', label: 'ESG 面板', base: [], keys: ['esgPanels'] });
+
+  // 附件二：流程與權責 ＋ 填報送出紀錄 ＋ 報告交付。放最後，因為它是「看進度」不是「填東西」。
+  if (window.EMSAudit?.spec()) S.push({ task: 'progress', id: 'a-progress', group: '', label: '📄 流程與權責', progress: true });
   return S;
 }
 
@@ -643,6 +647,7 @@ function rerenderPane() {
 
   // 電力健檢填報：欄位樹、表格、上傳與複驗全部由 audit.js 負責
   if (s.audit) { window.EMSAudit.renderSection(s.audit, root); return; }
+  if (s.progress) { window.EMSAudit.renderProgress(root); return; }
 
   // 分區基底可能落在尚未存在的 optional 區塊上（例：整個 env 不存在）
   const parentSegs = s.base.slice(0, -1);
