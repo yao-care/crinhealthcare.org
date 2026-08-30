@@ -72,16 +72,6 @@ const HOSPITALS: HospitalDef[] = [
     certs: ['ISO 14064-1 114年度第三方認證'],
   },
   {
-    slug: 'ndmc-zuoying',
-    name: '國軍左營總醫院',
-    location: '高雄市',
-    system: 'military',
-    services: ['ems'],
-    energySavingPercent: 17.5,
-    subsidyWan: 40,
-    certs: [],
-  },
-  {
     slug: 'ndmc-taichung',
     name: '國軍臺中總醫院',
     location: '台中市',
