@@ -106,7 +106,7 @@ const HOSPITALS: HospitalDef[] = [
     name: '國軍左營總醫院岡山分院',
     location: '高雄市',
     system: 'military',
-    services: ['ems'],
+    services: ['carbon-audit', 'ems'],
     energySavingPercent: 15,
     subsidyWan: 0,
     certs: [],
