@@ -59,8 +59,14 @@ const faqPageSchema = {
         <section class="faq-section">
           <h2 class="faq-section__heading">{cat.label}</h2>
           <div class="faq-list">
+            {/*
+              open：預設展開。FAQ rich result 已於 2026-05-07 完全退場，問答要被 featured
+              snippet／PAA／AI Overviews 取用，官方要求「內容對人類立即可見，不可藏在展開區
+              或分頁介面」（https://developers.google.com/search/docs/appearance/snippet ）。
+              保留 <details> 與 chevron 讓使用者仍可收合。
+            */}
             {byCategory[cat.id].map((item) => (
-              <details class="faq-item">
+              <details class="faq-item" open>
                 <summary class="faq-item__question">
                   <span class="faq-item__q-icon" aria-hidden="true">Q</span>
                   <span class="faq-item__q-text">{item.data.question}</span>

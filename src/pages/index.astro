@@ -32,16 +32,14 @@ const orgSchema = {
   description: '協助醫療院所達成淨零排放的非營利組織',
 };
 
+// 🔴 2026-09-27 移除 potentialAction/SearchAction：sitelinks 搜尋框這個搜尋結果功能
+//    Google 已於 2024-11 停止使用，標記留著不會有任何效果。站內搜尋本身不受影響。
+//    判準來源：seo-ops rules/jsonld-rules.json（structuredData.deprecated）。
 const webSiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: '國際醫療減碳協會',
   url: 'https://crinhealthcare.org',
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: 'https://crinhealthcare.org/search/?q={search_term_string}',
-    'query-input': 'required name=search_term_string',
-  },
 };
 ---
 
