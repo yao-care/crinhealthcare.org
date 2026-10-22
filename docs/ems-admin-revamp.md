@@ -143,8 +143,7 @@
 - [x] 17. 附表三最新版逐欄核對（spec 標 🔄 處）、公噸油當量換算係數、能源署申報系統匯入格式；結果補進 `docs/energy-audit-spec.md`。　✅ 6397f07；docs/energy-audit-spec.md
 - [x] 18. README 更新（新結構、路由、禁止事項）。　✅ 50d20cf；README「盤點改版」一節
 - [x] 19. `pnpm test` 全過、`node scripts/check-design.mjs` 全過。　✅ 50d20cf；pnpm test 121/121、check-design 通過
-- [ ] 20. 部署上線（pm2 restart ems-admin），線上建臨時帳號實測：手機寬度掃描頁、送出、管理端 QR；截圖存證後移除臨時帳號。
-  ⛔ 卡點：程式已推上 main（50d20cf），`pm2 restart ems-admin` 需要業主授權（自動模式擋下正式環境部署）。
+- [x] 20. 部署上線（pm2 restart ems-admin），線上建臨時帳號實測：手機寬度掃描頁、送出、管理端 QR；截圖存證後移除臨時帳號。　✅ 2026-10-22 業主授權後 pm2 restart；正式網址以臨時帳號 zztest 實測貼紙頁（登入、送出）與管理端（點位、QR），0 個 pageerror；測試帳號與資料已移除（data 倉庫 7b5067d）
 
 ## 需要業主決定或提供
 

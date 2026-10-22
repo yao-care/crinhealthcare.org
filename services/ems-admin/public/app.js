@@ -1070,10 +1070,13 @@ async function loadHospital(opts = {}) {
   await loadInventory();
   const { status, body } = await api('/api/hospital');
   if (status === 401) { showLogin('登入逾時，請重新登入'); return false; }
-  if (!body?.ok) { toast('載入失敗：' + (body?.error || status), 'err'); return false; }
+  // 還沒建看板的院所照樣可以用盤點（兩套資料獨立），看板維護那幾區只是空的
+  const noBoard = status === 404 && body?.error === 'hospital_not_found' && INV_ON;
+  if (!body?.ok && !noBoard) { toast('載入失敗：' + (body?.error || status), 'err'); return false; }
+  if (noBoard) toast('貴院尚未建立看板，看板維護暫不可用；盤點功能照常', 'warn');
 
-  DATA = body.data;
-  ORIG = clone(body.data);
+  DATA = noBoard ? {} : body.data;
+  ORIG = clone(DATA);
   collapsed.clear();
   if (!opts.skipDraft) await maybeRestoreDraft();   // 草稿會換掉 DATA，所以要先於分區計算
 
