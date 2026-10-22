@@ -52,6 +52,26 @@
 | GET／POST | `/api/inv/changes` | 異動登錄 |
 | GET | `/api/inv/report/:kind` | 申報表與報告產出（kind：`annex3`、`diagnosis`、`plan`） |
 | POST | `/api/login` | 新增 `remember: true` → session 30 天（貼紙頁用） |
+| POST | `/api/inv/anomalies/:id/close` | 未結異常結案 `{note}` → `{anomaly}`；已結案 409（後端實作時新增） |
+| GET | `/api/inv/photo/:id` | 讀回已上傳的照片（後端實作時新增） |
+
+**後端實作補充（2026-10-22，`src/inventory-routes.js`）**——前端與報表照這份接：
+
+- 路徑帶點位代碼的，代碼切出的 hid ≠ session.hid 一律 403 `forbidden_hospital`；代碼格式錯 400 `bad_code`。改變狀態的請求 Origin 不符 403 `bad_origin`。點位停用 410 `point_inactive`。
+- `GET /api/inv/point/:code` → `{ hid, hospitalName, point:{code,domain,name,location,active,url,items[ …item, options(狀態型已補預設), equipmentName, last:{value,usage,at,period}|null ]}, lastRecord, period, nextPeriod, recordedThisPeriod, source:{doc,law?,text} }`。
+- `POST /api/inv/point/:code/record` body `{ values:{itemId:值}, period?='本月(台灣時間)', note?, photos?:[photoId], confirmDecrease?:[itemId] }` → `{ record, usage, warnings, period, nextPeriod, commit }`。
+  - 422 `validation`（`details[]`）／422 `reading_decreased`（`details:[{itemId,label,prev,prevAt,value,message}]`；把該 itemId 放進 `confirmDecrease` 重送＝確認換表或歸零，本次用量記 null）／409 `unverified`（電費單有 todo/low 格子，`pending[]`）／422 `photo_missing`。
+  - 值的形狀：reading/number 數字；status 選項字串（值為「異常」→ 開一筆 anomaly）；text 字串；photo 為 photoId 陣列；bill 為 `{ values:{電費單欄位(同 audit bills)}, meta:{欄位:{state,source}} }`。
+  - record 比上面的資料結構多一個 `usage:{itemId: 數字|null}`（第一次抄表為 null）。anomaly 形狀 `{ id, itemId, label, value, equipmentId, equipmentName, note, openedAt, closedAt, closedBy, closeNote }`。
+- `POST /api/inv/point/:code/photo` multipart：`file`（jpg/png/webp/pdf）、`itemId?`。回 `{ photo:{id,…} }`；itemId 是 bill 型時另回 `{ rows, notes, stats, parseError }`（extract.js 解析，**只是提案**）。
+- `GET /api/inv/progress` → `{ period, nextPeriod, points:[{code,name,location,domain,recorded,records,lastAt,lastBy}], total, done, openAnomalies:[…anomaly, recordId, pointCode, pointName, period, reportedBy] }`（只算 active 點位）。
+- `PUT /api/inv/site/:block` body `{ value, reason? }`：form 區塊是物件、table 區塊是陣列；**table 每筆自帶 `id`**（沒給就自動配），點位項目的 `meterId`、設備的 `building` 都用這個 id 連結。區塊原本有資料時才自動寫一筆 change（staff → `staff`，其他 → `site`）。
+- `POST /api/inv/equipment` body `{ equipment:{ building?(buildings[].id), category, kind, fields, pointCode?, status? }, reason? }`：初始建檔不記異動，帶 `reason` 才記 `equipment.add`。`PUT /api/inv/equipment/:id` body `{ equipment:{部分欄位；fields 為整包取代}, reason?, changeKind?('equipment.correct' 等) }`：有變動就寫 change（status→replaced 記 `equipment.replace`、→removed 記 `equipment.remove`），沒變動回 `unchanged:true`。
+- `POST /api/inv/points` body `{ point:{ domain, name, location?, items, active?, code? } }`：不給 code 自動配下一號（停用的號碼不重發）；`PUT /api/inv/points/:code` 只能改 name／location／items／active，改 code 或 domain 回 422；有變動記一筆 `point` change。
+- `GET /api/inv/changes` → `{ items(新的在前), kinds }`；`POST /api/inv/changes` body `{ change:{ kind, target?, before?, after?, reason(必填) } }`，kind 見 spec.changeKinds。
+- `GET /api/inv/points/:code/qr.png?size=512&download=1`：網址前綴取 `config.publicBaseUrl`（環境變數 `PUBLIC_BASE_URL`，預設 `https://ems-admin.crinhealthcare.org`）。
+- `GET /api/inv/spec` → `{ spec:{ fieldTypes, site[], equipment:{categories,status}, itemTypes, statusDefaults, anomalyValue, domains, changeKinds, billColumns, exemptionCodes, chillerGroupMonth, measureCodes }, extraction, maxBytes, baseUrl }`；區塊、欄位群（`groups[]`）、設備類別、項目類型、部分欄位都帶 `source:{doc,ref,law,spec?,note?}`。
+- `/api/inv/report/:kind` 分派到 `src/report-routes.js`：`export async function handleReport({ req, res, sess, kind, json, readBody, originOk, readInventory })`，回 truthy 表示已處理；檔案不存在時回 501。
 
 **前後端共用計算**：`public/inventory-compute.js`（同 `audit-compute.js` 的掛法：瀏覽器一般腳本、伺服器 import 後讀 `globalThis.EMSInventoryCompute`），放 R1–R9、用量、EUI、kW/RT、回收年限、機齡、期限。
 
@@ -76,7 +96,7 @@
 - [ ] 8. 本期進度：各點位本期是否已記錄、未結異常清單（可結案）。
 - [ ] 9. 初始建檔：基本資料（表三）、電號、建築（表七）、變壓器與發電機（表八）、能管人員（一、二）、查核組織與政策（表四）、能源用戶判定與排除條件（R1／R2）；設備主檔依表九三類欄位，表單由 `/api/inv/spec` 動態產生；建完預設唯讀。
 - [ ] 10. 異動登錄：設備新增／汰換／移除／規格更正、人員異動、措施完工、計畫變更；每筆記時間、人、前後差異、原因。
-- [ ] 11. 院區主檔：軍醫局令 18 個單位與現有 15 個帳號對照表（含尚無帳號的單位），寫進 docs。
+- [ ] 11. 院區主檔＝現有 16 個客戶（看板 id／帳號），寫進 `docs/ems-admin-units.md`。軍醫局令名單中非客戶的單位不納入（業主 2026-10-22）。
 
 ### 三、自動產出
 
