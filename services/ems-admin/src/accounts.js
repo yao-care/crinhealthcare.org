@@ -2,7 +2,7 @@
 // accounts.json 由 `pnpm hash` 產生/追加，不 commit（見 .gitignore）。
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { config } from './config.js';
-import { verifyPassword } from './auth.js';
+import { verifyPassword, ttlFor } from './auth.js';
 
 let cache = null;
 let cacheMtime = 0;
@@ -28,7 +28,8 @@ const fails = new Map(); // username -> { n, until }
 const MAX_FAILS = 8;
 const LOCK_MS = 5 * 60 * 1000;
 
-export function login(username, password) {
+// remember：使用者勾了「這支手機記住 30 天」→ 回 ttlMs 給 server.js 簽長效 token
+export function login(username, password, { remember = false } = {}) {
   const now = Date.now();
   const f = fails.get(username);
   if (f && f.until > now) return { ok: false, code: 'locked', retryMs: f.until - now };
@@ -41,5 +42,5 @@ export function login(username, password) {
     return { ok: false, code: 'bad_credentials' };
   }
   fails.delete(username);
-  return { ok: true, session: { sub: acc.username, hid: acc.hospitalId, name: acc.displayName || acc.hospitalId } };
+  return { ok: true, ttlMs: ttlFor(remember), session: { sub: acc.username, hid: acc.hospitalId, name: acc.displayName || acc.hospitalId } };
 }

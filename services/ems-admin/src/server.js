@@ -11,6 +11,7 @@ import { readHospital, saveHospital, hospitalExists, historyFor } from './repo.j
 import { deployStatus } from './deploy.js';
 import { hospitalSpec } from './spec.js';
 import { handleAudit } from './audit-routes.js';
+import { handleInventory } from './inventory-routes.js';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const MIME = {
@@ -48,6 +49,15 @@ async function serveStatic(req, res) {
   } catch { res.writeHead(404); res.end('not found'); }
 }
 
+async function serveFile(res, full) {
+  try {
+    const buf = await readFile(full);
+    res.writeHead(200, { 'Content-Type': MIME[extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+    res.end(buf);
+  } catch { res.writeHead(404); res.end('not found'); }
+  return true;
+}
+
 // 對「改變狀態」的請求做同源/Origin 檢查（SameSite=Strict 之外再加一層 CSRF 防護）
 function originOk(req) {
   const o = req.headers.origin;
@@ -65,18 +75,21 @@ const server = createServer(async (req, res) => {
     // ── 登入 ──
     if (req.method === 'POST' && pathname === '/api/login') {
       if (!originOk(req)) return json(res, 403, { ok: false, error: 'bad_origin' });
-      const { username, password } = await readBody(req);
+      const { username, password, remember } = await readBody(req);
       if (!username || !password) return json(res, 400, { ok: false, error: 'missing' });
-      const r = login(String(username), String(password));
+      const r = login(String(username), String(password), { remember: remember === true });
       if (!r.ok) return json(res, 401, { ok: false, error: r.code, retryMs: r.retryMs });
-      setSessionCookie(res, signToken(r.session));
-      return json(res, 200, { ok: true, hid: r.session.hid, name: r.session.name });
+      setSessionCookie(res, signToken(r.session, { ttlMs: r.ttlMs }), { ttlMs: r.ttlMs });
+      return json(res, 200, { ok: true, hid: r.session.hid, name: r.session.name, expiresAt: Date.now() + r.ttlMs });
     }
 
     if (req.method === 'POST' && pathname === '/api/logout') {
       clearSessionCookie(res);
       return json(res, 200, { ok: true });
     }
+
+    // ── 貼紙落地頁：不需登入即可載入頁面（頁面自己再打 API，未登入時顯示登入框）──
+    if (req.method === 'GET' && /^\/s\/[^/]+\/?$/.test(pathname)) return serveFile(res, join(PUB, 's.html'));
 
     // ── 以下皆需登入 ──
     const sess = readSession(req);
@@ -91,6 +104,12 @@ const server = createServer(async (req, res) => {
       // 這一整組走的是主機本地儲存（audit-store），與下面看板那組的 REPO_DIR 完全分開。
       if (pathname.startsWith('/api/audit')) {
         const handled = await handleAudit({ req, res, sess, pathname, json, readBody, originOk });
+        if (handled) return handled;
+      }
+
+      // ── 能源盤點（貼紙點位＋三類填報），同樣走主機本地儲存 ──
+      if (pathname === '/api/inv' || pathname.startsWith('/api/inv/')) {
+        const handled = await handleInventory({ req, res, sess, pathname, json, readBody, originOk });
         if (handled) return handled;
       }
 

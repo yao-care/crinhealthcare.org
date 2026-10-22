@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>點位填報</title>
+<link rel="stylesheet" href="/tokens.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<!-- 暫時的落地頁：正式版由前端負責（工作清單第 3 項）。這裡只確認 /s/<代碼> 路由與點位 API 接得通。 -->
+<main>
+  <h1 id="title">點位填報</h1>
+  <p id="msg">載入中…</p>
+</main>
+<script>
+(async () => {
+  const code = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] || '');
+  const msg = document.getElementById('msg');
+  const r = await fetch('/api/inv/point/' + encodeURIComponent(code), { credentials: 'same-origin' });
+  if (r.status === 401) { msg.textContent = '請先登入（登入頁面建置中）。'; return; }
+  const b = await r.json().catch(() => ({}));
+  if (!r.ok) { msg.textContent = b.message || '無法載入這個點位。'; return; }
+  document.getElementById('title').textContent = b.point.name;
+  msg.textContent = b.point.location + '｜本期 ' + b.period + (b.recordedThisPeriod ? '（已記錄）' : '（尚未記錄）');
+})();
+</script>
+</body>
+</html>

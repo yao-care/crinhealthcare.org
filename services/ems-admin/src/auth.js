@@ -3,6 +3,10 @@ import { scryptSync, randomBytes, timingSafeEqual, createHmac } from 'node:crypt
 import { config } from './config.js';
 
 const TOKEN_TTL_MS = 8 * 60 * 60 * 1000; // 8 小時
+// 「這支手機記住 30 天」：貼紙頁是在機房、走廊用手機掃的，每次都要打帳密沒人會抄表。
+// 只有使用者明確勾選才給長效 session；管理端預設仍是 8 小時。
+export const REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const ttlFor = (remember) => (remember ? REMEMBER_TTL_MS : TOKEN_TTL_MS);
 
 // ── 密碼雜湊（scrypt）──
 export function hashPassword(password) {
@@ -24,8 +28,8 @@ export function verifyPassword(password, stored) {
 // ── session token：base64url(payload).hmac ──
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
 
-export function signToken(payload) {
-  const body = { ...payload, exp: Date.now() + TOKEN_TTL_MS };
+export function signToken(payload, { ttlMs = TOKEN_TTL_MS } = {}) {
+  const body = { ...payload, exp: Date.now() + ttlMs };
   const p = b64url(JSON.stringify(body));
   const sig = createHmac('sha256', config.jwtSecret).update(p).digest('base64url');
   return `${p}.${sig}`;
@@ -47,13 +51,13 @@ export function verifyToken(token) {
 // ── cookie ──
 const COOKIE = 'ems_admin_session';
 
-export function setSessionCookie(res, token) {
+export function setSessionCookie(res, token, { ttlMs = TOKEN_TTL_MS } = {}) {
   const bits = [
     `${COOKIE}=${token}`,
     'HttpOnly',
     'Path=/',
     'SameSite=Strict',
-    `Max-Age=${Math.floor(TOKEN_TTL_MS / 1000)}`,
+    `Max-Age=${Math.floor(ttlMs / 1000)}`,
   ];
   if (config.cookieSecure) bits.push('Secure');
   res.setHeader('Set-Cookie', bits.join('; '));

@@ -33,6 +33,8 @@ export const config = {
   gitBranch: process.env.GIT_BRANCH || 'main',
   gitAuthorName: process.env.GIT_AUTHOR_NAME || 'EMS Admin',
   gitAuthorEmail: process.env.GIT_AUTHOR_EMAIL || 'ems-admin@crinhealthcare.org',
+  // 貼紙 QR／NFC 寫進去的網址前綴。貼紙印出去就改不了，網域換掉前先想清楚舊貼紙怎麼辦。
+  publicBaseUrl: (process.env.PUBLIC_BASE_URL || 'https://ems-admin.crinhealthcare.org').replace(/\/+$/, ''),
   allowOrigins: (process.env.ALLOW_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
   cookieSecure: process.env.COOKIE_SECURE !== '0',
 };

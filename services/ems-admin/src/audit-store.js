@@ -32,7 +32,7 @@ async function git(args, cwd = config.dataDir) {
 
 let inited = null;
 // dataDir 第一次使用時建目錄並 git init。刻意不設 origin：這個倉庫推不出去才是它的重點。
-async function ensureInit() {
+export async function ensureInit() {
   if (inited) return inited;
   inited = (async () => {
     await mkdir(config.dataDir, { recursive: true });
@@ -49,7 +49,7 @@ async function ensureInit() {
   return inited;
 }
 
-async function gitCommit(files, msg) {
+export async function gitCommit(files, msg) {
   await git(['add', '--', ...files]);
   const status = await git(['status', '--porcelain', '--', ...files]);
   if (!status) return null;
@@ -59,8 +59,9 @@ async function gitCommit(files, msg) {
 }
 
 // ── 互斥鎖：同院所同時送出時序列化（與 repo.js 同樣的理由） ──
+// inventory-store 也共用這把鎖與 gitCommit：兩者寫同一個 dataDir 倉庫，各用一把鎖會撞 .git/index.lock。
 let chain = Promise.resolve();
-function withLock(fn) {
+export function withLock(fn) {
   const run = chain.then(fn, fn);
   chain = run.catch(() => {});
   return run;
