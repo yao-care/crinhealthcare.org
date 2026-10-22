@@ -114,36 +114,37 @@
 
 ### 一、貼紙點位（定期更新）
 
-- [ ] 1. 點位資料與項目類型：`inventory-schema.js` 定義點位、六種項目類型與驗證；`inventory-store.js` 讀寫（互斥鎖、git commit、無 remote）。
-- [ ] 2. 每個點位固定網址 `/s/<代碼>`；QR 圖檔端點（QR 與 NFC 寫同一網址）。
-- [ ] 3. 貼紙落地頁（手機）：依點位設定動態長表單——讀數、設備狀態、電費單拍照帶入＋逐格確認、備註、照片；設備只顯示名稱。
-- [ ] 4. 自動算用量（本次讀數 − 上次），跟上次用量差超過 `warnPct` 時提示；讀數小於上次時擋下並請確認。
-- [ ] 5. 送出後畫面：成功與否、本次用量、下次填寫期間；設備回報異常列入「未結異常」。
-- [ ] 6. 登入：貼紙頁未登入先登入，可選「這支手機記住 30 天」。
+- [x] 1. 點位資料與項目類型：`inventory-schema.js` 定義點位、六種項目類型與驗證；`inventory-store.js` 讀寫（互斥鎖、git commit、無 remote）。　✅ cd7e73e；test/inventory.test.js
+- [x] 2. 每個點位固定網址 `/s/<代碼>`；QR 圖檔端點（QR 與 NFC 寫同一網址）。　✅ cd7e73e；test/inventory.test.js（qr.png）
+- [x] 3. 貼紙落地頁（手機）：依點位設定動態長表單——讀數、設備狀態、電費單拍照帶入＋逐格確認、備註、照片；設備只顯示名稱。　✅ 50d20cf；public/s.html、sticker.js；390px 截圖實測（scratch 8472/8475）
+- [x] 4. 自動算用量（本次讀數 − 上次），跟上次用量差超過 `warnPct` 時提示；讀數小於上次時擋下並請確認。　✅ 50d20cf；test/inventory.test.js（reading_decreased）、inventory-compute.test.js
+- [x] 5. 送出後畫面：成功與否、本次用量、下次填寫期間；設備回報異常列入「未結異常」。　✅ 50d20cf；test/inventory.test.js（異常進未結清單與結案）
+- [x] 6. 登入：貼紙頁未登入先登入，可選「這支手機記住 30 天」。　✅ cd7e73e；test/inventory.test.js（remember TTL 30 天）
 
 ### 二、管理端
 
-- [ ] 7. 點位管理：新增／修改／停用點位、設定項目、連結設備與電號；列出每個點位網址；下載單張與全部 QR。點位改名或搬家網址不變。
-- [ ] 8. 本期進度：各點位本期是否已記錄、未結異常清單（可結案）。
-- [ ] 9. 初始建檔：基本資料（表三）、電號、建築（表七）、變壓器與發電機（表八）、能管人員（一、二）、查核組織與政策（表四）、能源用戶判定與排除條件（R1／R2）；設備主檔依表九三類欄位，表單由 `/api/inv/spec` 動態產生；建完預設唯讀。
-- [ ] 10. 異動登錄：設備新增／汰換／移除／規格更正、人員異動、措施完工、計畫變更；每筆記時間、人、前後差異、原因。
-- [ ] 11. 院區主檔＝現有 16 個客戶（看板 id／帳號），寫進 `docs/ems-admin-units.md`。軍醫局令名單中非客戶的單位不納入（業主 2026-10-22）。
+- [x] 7. 點位管理：新增／修改／停用點位、設定項目、連結設備與電號；列出每個點位網址；下載單張與全部 QR。點位改名或搬家網址不變。　✅ 50d20cf；public/inventory.js；playwright 功能測試（scratch 8473）
+- [x] 8. 本期進度：各點位本期是否已記錄、未結異常清單（可結案）。　✅ 50d20cf；public/inventory.js；playwright 功能測試（scratch 8473）
+- [x] 9. 初始建檔：基本資料（表三）、電號、建築（表七）、變壓器與發電機（表八）、能管人員（一、二）、查核組織與政策（表四）、能源用戶判定與排除條件（R1／R2）；設備主檔依表九三類欄位，表單由 `/api/inv/spec` 動態產生；建完預設唯讀。　✅ 50d20cf；public/inventory.js、src/inventory-schema.js；test/inventory.test.js（reason_required）
+- [x] 10. 異動登錄：設備新增／汰換／移除／規格更正、人員異動、措施完工、計畫變更；每筆記時間、人、前後差異、原因。　✅ 50d20cf；test/inventory.test.js（replacedBy 改指向、changes）
+- [x] 11. 院區主檔＝現有 16 個客戶（看板 id／帳號），寫進 `docs/ems-admin-units.md`。軍醫局令名單中非客戶的單位不納入（業主 2026-10-22）。　✅ eb57b4c；docs/ems-admin-units.md
 
 ### 三、自動產出
 
-- [ ] 12. 診斷措施與節能計畫的資料輸入（附件一 3.2／3.3／3.4、附件二），措施 ID 貫穿到計畫。
-- [ ] 13. 產出附表三年度申報、節能診斷報告（附件一）、節能計畫（附件二）為 xlsx；只留系統推不出的欄位給院方補。
-- [ ] 14. 規則自動化：R1、R2 到期、R5 回收年限、R6 機齡強制列入、R7 回收 < 10 年強制納入與備註必填、R9 各項提示、EUI／kW/RT／PUE 計算。
-- [ ] 21. 引用條款上畫面：每個區塊、欄位群、規則提示、期限提醒都標出依據（公文文號、法條、附件／附表與表號、註記），例如「附表三 表九之一（三）」「附件一 註 2」「經能字第 11558001660 號」。依據寫在 schema 與計算庫的 `source` 欄位（單一來源），畫面與產出報表都從那裡讀；點一下可展開原文摘錄。貼紙頁只在頁尾放一行依據。
-- [ ] 15. 期限提醒：每年 1 月底、3/31、第一期 117-03-31、ISO 50001 證書與技師執照到期。
+- [x] 12. 診斷措施與節能計畫的資料輸入（附件一 3.2／3.3／3.4、附件二），措施 ID 貫穿到計畫。　✅ 50d20cf；test/report.test.js（R6/R7 自動帶入、計畫版本）
+- [x] 13. 產出附表三年度申報、節能診斷報告（附件一）、節能計畫（附件二）為 xlsx；只留系統推不出的欄位給院方補。　✅ 50d20cf；test/report.test.js（三種 xlsx 產出可讀回）
+- [x] 14. 規則自動化：R1、R2 到期、R5 回收年限、R6 機齡強制列入、R7 回收 < 10 年強制納入與備註必填、R9 各項提示、EUI／kW/RT／PUE 計算。　✅ cd7e73e、50d20cf；test/inventory-compute.test.js
+- [x] 21. 引用條款上畫面：每個區塊、欄位群、規則提示、期限提醒都標出依據（公文文號、法條、附件／附表與表號、註記），例如「附表三 表九之一（三）」「附件一 註 2」「經能字第 11558001660 號」。依據寫在 schema 與計算庫的 `source` 欄位（單一來源），畫面與產出報表都從那裡讀；點一下可展開原文摘錄。貼紙頁只在頁尾放一行依據。　✅ cd7e73e、50d20cf；schema 與計算庫 source 欄位，test/inventory-compute.test.js（每條規則有 source）
+- [x] 15. 期限提醒：每年 1 月底、3/31、第一期 117-03-31、ISO 50001 證書與技師執照到期。　✅ 50d20cf；/api/inv/report/deadlines，test/inventory-compute.test.js
 
 ### 四、資料與收尾
 
-- [ ] 16. 舊資料轉移：現有健檢填報（bills／majorLoads／chillers／basic／contact）轉進新結構，原檔保留不刪。
-- [ ] 17. 附表三最新版逐欄核對（spec 標 🔄 處）、公噸油當量換算係數、能源署申報系統匯入格式；結果補進 `docs/energy-audit-spec.md`。
-- [ ] 18. README 更新（新結構、路由、禁止事項）。
-- [ ] 19. `pnpm test` 全過、`node scripts/check-design.mjs` 全過。
+- [x] 16. 舊資料轉移：現有健檢填報（bills／majorLoads／chillers／basic／contact）轉進新結構，原檔保留不刪。　✅ 50d20cf；test/migrate.test.js；production 副本 dry-run：0 家可轉
+- [x] 17. 附表三最新版逐欄核對（spec 標 🔄 處）、公噸油當量換算係數、能源署申報系統匯入格式；結果補進 `docs/energy-audit-spec.md`。　✅ 6397f07；docs/energy-audit-spec.md
+- [x] 18. README 更新（新結構、路由、禁止事項）。　✅ 50d20cf；README「盤點改版」一節
+- [x] 19. `pnpm test` 全過、`node scripts/check-design.mjs` 全過。　✅ 50d20cf；pnpm test 121/121、check-design 通過
 - [ ] 20. 部署上線（pm2 restart ems-admin），線上建臨時帳號實測：手機寬度掃描頁、送出、管理端 QR；截圖存證後移除臨時帳號。
+  ⛔ 卡點：程式已推上 main（50d20cf），`pm2 restart ems-admin` 需要業主授權（自動模式擋下正式環境部署）。
 
 ## 需要業主決定或提供
 
