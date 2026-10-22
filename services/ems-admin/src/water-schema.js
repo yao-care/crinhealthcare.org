@@ -1,13 +1,16 @@
 // 水足跡盤查（工作清單第 23 項）：初始建檔的水區塊、點位項目的水屬性、用水點位範本。
 //
 // 依據：ISO 14046:2014（水足跡：原則、要求與指引）與 ISO 46001:2019（用水效率管理系統），
-// 條號與取得程度見 docs/water-footprint-spec.md。本系統只做 ISO 14046 的「盤查」（5.3），
-// 不做衝擊評估（5.4）——依 3.3.1 註 1，報表一律稱「水足跡盤查」。
+// 條號與取得程度見 docs/water-footprint-spec.md。做 ISO 14046 的盤查（5.3）與缺水足跡衝擊評估（5.4，AWARE；第 26 項）；
+// 依 3.3.1 註 1，衝擊結果一律稱「缺水足跡」，不單稱「水足跡」。
 //
 // 這支只放純資料與小檢查；inventory-schema.js 把 WATER_SITE_BLOCKS 接到 SITE_BLOCKS 後面、
 // 把 WATER_SPEC 放進 /api/inv/spec，前端表單照樣由 spec 動態長出來（不改前端就有新區塊）。
 // 不 import inventory-schema.js（避免循環相依）。
 
+import '../public/inventory-compute.js';   // 係數常數（AWARE、發電用水、放流水預設組）放在計算庫，前後端同一份
+
+const CX = globalThis.EMSInventoryCompute;
 const ISO14046 = 'ISO 14046:2014';
 const ISO46001 = 'ISO 46001:2019';
 const SPEC_DOC = 'docs/water-footprint-spec.md';
@@ -25,7 +28,12 @@ export const REPLACE_SOURCE_TYPES = ['雨水回收', '再生水（外購）', '�
 export const WATER_UNIT_KINDS = ['冷卻水塔', '洗衣房', '廚房餐廳', '消毒供應（滅菌）', '血液透析', '空調加濕', '景觀灌溉', '病房與一般衛生', '純水（RO）製造', '鍋爐補水', '檢驗實驗室', '消防', '其他'];
 export const WATER_USE_FORMS = ['蒸發', '併入產品或廢棄物', '排到其他流域或海', '幾乎全數排入污水（非消耗）'];
 export const DISCHARGE_DESTINATIONS = ['公共污水下水道', '自設污水處理設施後放流', '回收再利用', '委外清運', '其他'];
-export const QUALITY_PARAMS = ['pH', '水溫', 'BOD', 'COD', 'SS', '大腸桿菌群', '氨氮', '總磷', '油脂', '餘氯', '導電度', '其他'];
+// 前 8 項＝放流水標準 醫院、醫事機構的檢測項目（檢測申報管理辦法 附表一（五十三））；「餘氯」保留給舊資料
+export const QUALITY_PARAMS = ['pH', '水溫', 'BOD', 'COD', 'SS', '大腸桿菌群', '自由有效餘氯', '氨氮', '硝酸鹽氮', '正磷酸鹽', '總磷', '油脂', '氟鹽', '酚類', '陰離子界面活性劑', '餘氯', '導電度', '其他'];
+export const QUALITY_FREQUENCIES = ['每月', '每季', '每半年', '每年', '其他'];
+export const UPSTREAM_CATEGORIES = ['外購蒸汽', '藥品耗材', '化學品', '食材與餐飲外包', '洗衣外包', '其他'];
+export const AWARE_USES = ['非農業用水（建議）', '不分用途（unspecified）'];
+export const TARGET_INDICATORS = ['總取水量', ...['每床日', '每人次（門急診＋住院）', '每平方公尺樓地板', '每員工（FTE）']];
 export const REPORTING_UNITS = [
   { id: 'bedDay', label: '每床日', unit: 'L/床日' },
   { id: 'visit', label: '每人次（門急診＋住院）', unit: 'L/人次' },
@@ -37,7 +45,8 @@ export const REPORTING_UNITS = [
 const SCOPE_FIELDS = [
   { key: 'goal', label: '盤查目的', type: 'text', required: true, group: '目的與範疇', hint: '例：掌握院區取水、用水、排水，作為節水改善依據' },
   { key: 'boundary', label: '系統邊界', type: 'select', required: true, group: '目的與範疇',
-    options: ['院區直接用水（取水→院內用水→排放）', '院區直接用水＋間接用水（另行估算）'], default: '院區直接用水（取水→院內用水→排放）' },
+    options: ['院區直接用水（取水→院內用水→排放）', '院區直接用水＋間接用水（另行估算）'], default: '院區直接用水（取水→院內用水→排放）',
+    hint: '選「＋間接用水」時，外購電力的發電用水以係數估算並計入合計；外購蒸汽、藥品耗材等其他上游在「間接用水·其他上游」登錄，不量化' },
   { key: 'boundaryNote', label: '邊界說明', type: 'text', group: '目的與範疇', hint: '納入哪些建築、院區；外包廚房、洗衣是否納入' },
   { key: 'cutoff', label: '排除項目與截斷準則', type: 'text', group: '目的與範疇', hint: '例：未設水表的零星用水（< 1%）不另計' },
   { key: 'reportingUnits', label: '報告單位', type: 'multiselect', required: true, group: '報告單位', options: REPORTING_UNITS.map((u) => u.label), hint: '組織的水足跡評估以「報告單位」取代功能單位' },
@@ -49,11 +58,19 @@ const SCOPE_FIELDS = [
   { key: 'baselineNote', label: '基線選定理由與重設條件', type: 'text', group: '基線與目標', hint: '例：擴床、新建大樓啟用時重設' },
   { key: 'targetPct', label: '用水效率目標（較基線降低）', type: 'percent', unit: '%', group: '基線與目標' },
   { key: 'targetYear', label: '目標年', type: 'year', group: '基線與目標' },
+  { key: 'targetIndicator', label: '目標所指的指標', type: 'select', group: '基線與目標', options: TARGET_INDICATORS, hint: '空白＝總取水量與各報告單位指標都算達成度' },
+  { key: 'elecWaterFactor', label: '外購電力用水係數（自訂）', type: 'number', unit: 'L/kWh', group: '間接用水',
+    hint: `空白用系統預設：耗水 ${CX.WATER_ELEC.consumption}、取水 ${CX.WATER_ELEC.withdrawal} L/kWh（${CX.WATER_ELEC.source.doc}，${CX.WATER_ELEC.dataYear} 年火力電廠淡水）` },
+  { key: 'elecWaterFactorNote', label: '自訂係數來源', type: 'text', group: '間接用水', hint: '有填自訂係數時必寫出處與年份' },
+  { key: 'awareRegion', label: '缺水特徵化因子地區（AWARE）', type: 'select', group: '衝擊評估（缺水足跡）',
+    options: CX.WATER_AWARE.regions.map((r) => r.id), optionLabels: Object.fromEntries(CX.WATER_AWARE.regions.map((r) => [r.id, r.label])), default: CX.WATER_AWARE.regions[0].id,
+    hint: '院區所在流域對應的 AWARE 地區；沒有流域層級因子時用全國平均' },
+  { key: 'awareUse', label: '特徵化因子用途別', type: 'select', group: '衝擊評估（缺水足跡）', options: AWARE_USES, default: AWARE_USES[0], hint: '醫院屬非農業用水' },
 ];
 
 const ACTIVITY_FIELDS = [
   { key: 'year', label: '年度', type: 'year', required: true, hint: '民國或西元皆可' },
-  { key: 'bedDays', label: '住院人日', type: 'number', unit: '床日', hint: '每床日用水的分母' },
+  { key: 'bedDays', label: '住院人日', type: 'number', unit: '床日', hint: '每床日用水的分母；有按月填（申報與報告 › 報表資料輸入）時以月資料為準' },
   { key: 'outpatientVisits', label: '門診人次', type: 'number', unit: '人次' },
   { key: 'erVisits', label: '急診人次', type: 'number', unit: '人次' },
   { key: 'admissions', label: '住院人次', type: 'number', unit: '人次' },
@@ -90,8 +107,28 @@ const DISCHARGE_FIELDS = [
   { key: 'receivingBody', label: '承受水體或下水道系統', type: 'text' },
   { key: 'permitNo', label: '排放許可或納管文號', type: 'text' },
   { key: 'treatment', label: '處理方式', type: 'text' },
-  { key: 'qualityParams', label: '水質檢測項目', type: 'multiselect', options: QUALITY_PARAMS, hint: '依各院放流水許可' },
+  { key: 'qualityParams', label: '水質檢測項目', type: 'multiselect', options: QUALITY_PARAMS, hint: '依各院放流水許可；空白且去向為「自設污水處理設施後放流」時套用醫院預設項目組' },
+  { key: 'defaultFrequency', label: '預設項目組檢測頻率', type: 'select', options: ['每季', '每半年'], hint: '須設專責單位或甲級專責人員者每季，乙級或免設者每半年（預設）' },
   { key: 'note', label: '備註', type: 'text' },
+];
+
+// 水質檢測項目與頻率（依排放許可覆寫預設項目組）：某排放口只要有一列，就整組以這裡為準
+const QPLAN_FIELDS = [
+  { key: 'dischargeId', label: '排放口', type: 'ref', ref: 'waterDischarges', required: true },
+  { key: 'param', label: '檢測項目', type: 'select', required: true, options: QUALITY_PARAMS },
+  { key: 'unit', label: '單位', type: 'text', hint: '空白沿用預設（mg/L 等）' },
+  { key: 'limitMin', label: '下限', type: 'number', hint: '只有 pH 這類範圍值要填' },
+  { key: 'limitMax', label: '上限', type: 'number' },
+  { key: 'frequency', label: '檢測頻率', type: 'select', options: QUALITY_FREQUENCIES },
+  { key: 'basis', label: '依據', type: 'text', hint: '例：排放許可證字號、下水道機構納管標準' },
+  { key: 'note', label: '備註', type: 'text' },
+];
+const UPSTREAM_FIELDS = [
+  { key: 'category', label: '類別', type: 'select', required: true, options: UPSTREAM_CATEGORIES },
+  { key: 'name', label: '名稱', type: 'text', required: true, hint: '例：外購蒸汽（○○能源）' },
+  { key: 'annualQty', label: '年用量', type: 'number' },
+  { key: 'unit', label: '單位', type: 'text', hint: '例：公噸、箱' },
+  { key: 'note', label: '備註', type: 'text', hint: '係數與來源取得後再量化' },
 ];
 
 const groupsOf = (fields, map) => [...new Set(fields.map((f) => f.group || ''))].map((name) => ({ name, source: map[name] || null }));
@@ -104,6 +141,8 @@ export const WATER_SITE_BLOCKS = [
       報告單位: W14('3.5.7 功能單位 註 1', '§2.1', '組織的評估可用「報告單位」；指標定義依 ISO 46001 3.4'),
       地理與時間代表性: W14('4.12 地理相關性；3.1.8 流域；3.2.1 註 2；5.2.4 資料品質要求', '§2.1'),
       基線與目標: W46('3.2 基線用水效率指標；6.2.7；6.3', '§2.1'),
+      間接用水: W14('5.2.3 系統邊界', '§9', '外購電力以發電用水係數估算'),
+      '衝擊評估（缺水足跡）': W14('5.4 水足跡衝擊評估；4.12 地理相關性', '§10', `特徵化模型 ${CX.WATER_AWARE.name} ${CX.WATER_AWARE.version}`),
     }) },
   { id: 'waterActivity', label: '營運活動資料', navGroup: WATER_NAV_GROUP, kind: 'table', rowLabel: '年度', fields: ACTIVITY_FIELDS,
     source: W46('3.4 營運活動指標；3.11 全時當量；6.2.5', '§2.2', '用水績效指標的分母，一年一筆') },
@@ -113,6 +152,11 @@ export const WATER_SITE_BLOCKS = [
     source: W46('6.2.4 用水審查；附錄 C 水平衡', '§2.4', `用水型態與消耗依 ISO 14046 3.2.1 註 2。6.2.4 ${SECONDHAND}`) },
   { id: 'waterDischarges', label: '排放與回收', navGroup: WATER_NAV_GROUP, kind: 'table', rowLabel: '排放口', fields: DISCHARGE_FIELDS,
     source: W14('3.1.9 基本水流；3.2.4 水質；5.3.2', '§2.5', `排放量、去向與水質。5.3.2 ${SECONDHAND}`) },
+  { id: 'waterQualityPlan', label: '水質檢測項目與頻率', navGroup: WATER_NAV_GROUP, kind: 'table', rowLabel: '檢測項目', fields: QPLAN_FIELDS,
+    source: { doc: '放流水標準', ref: '第 2 條 附表八（醫院、醫事機構）', law: '環部水字第 1131081975 號令', date: '113-12-18', spec: '§11', specDoc: SPEC_DOC,
+      note: '留白＝去向「自設污水處理設施後放流」的排放口套用醫院預設項目組；依排放許可或納管標準不同時，在這裡逐項覆寫（某排放口有任一列即整組以此為準）。頻率依水污染防治措施及檢測申報管理辦法第 83 條、附表一' } },
+  { id: 'waterUpstream', label: '間接用水·其他上游', navGroup: WATER_NAV_GROUP, kind: 'table', rowLabel: '上游項目', fields: UPSTREAM_FIELDS,
+    source: W14('5.2.3 系統邊界', '§9', '外購蒸汽、藥品耗材等上游用水先登錄不量化；外購電力由電費單自動計算') },
 ];
 
 // ── 點位項目的水屬性 ──
@@ -177,10 +221,9 @@ export const WATER_POINT_TEMPLATES = [
   { id: 'quality', label: '水質抽測', purpose: '水足跡登錄', name: '放流水水質抽測', hint: '項目依各院放流水許可增減；連結排放口',
     source: WATER_FLOWS.quality.source,
     items: [
-      { id: 'ph', label: 'pH', type: 'number', waterFlow: 'quality', waterParam: 'pH' },
-      { id: 'cod', label: 'COD', type: 'number', unit: 'mg/L', waterFlow: 'quality', waterParam: 'COD' },
-      { id: 'ss', label: 'SS', type: 'number', unit: 'mg/L', waterFlow: 'quality', waterParam: 'SS' },
-      { id: 'coliform', label: '大腸桿菌群', type: 'number', unit: 'CFU/100mL', waterFlow: 'quality', waterParam: '大腸桿菌群' },
+      // 醫院預設項目組（放流水標準 附表八；檢測申報管理辦法 附表一（五十三））
+      ...CX.WATER_EFFLUENT.items.map((x) => ({ id: { pH: 'ph', 水溫: 'temp', BOD: 'bod', COD: 'cod', SS: 'ss', 大腸桿菌群: 'coliform', 自由有效餘氯: 'chlorine', 氨氮: 'nh3n' }[x.param] || x.param,
+        label: x.param === x.label ? x.label : `${x.param}（${x.label}）`, type: 'number', ...(x.unit ? { unit: x.unit } : {}), waterFlow: 'quality', waterParam: x.param })),
       { id: 'report', label: '檢驗報告', type: 'photo' },
     ] },
   { id: 'saving', label: '節水改善回報', purpose: '節水改善回報', name: '節水改善回報', hint: '改善完成時回報一次；可連結用水單元',
@@ -199,7 +242,11 @@ export const WATER_SPEC = {
   replaceSourceTypes: REPLACE_SOURCE_TYPES,
   reportingUnits: REPORTING_UNITS,
   qualityParams: QUALITY_PARAMS,
+  qualityFrequencies: QUALITY_FREQUENCIES,
+  effluent: CX.WATER_EFFLUENT,
+  aware: { name: CX.WATER_AWARE.name, version: CX.WATER_AWARE.version, file: CX.WATER_AWARE.file, url: CX.WATER_AWARE.url, published: CX.WATER_AWARE.published, regions: CX.WATER_AWARE.regions.map(({ id, label }) => ({ id, label })), source: CX.WATER_AWARE.source },
+  electricity: CX.WATER_ELEC,
   pointTemplates: WATER_POINT_TEMPLATES,
   itemKeys: WATER_KEYS,
-  source: W14('5.3 水足跡盤查分析', '§2', '只做盤查，不做 5.4 衝擊評估；依 3.3.1 註 1 稱「水足跡盤查」'),
+  source: W14('5.3 水足跡盤查分析；5.4 水足跡衝擊評估（缺水足跡）', '§2', '盤查＋缺水足跡（AWARE）；依 3.3.1 註 1，結果一律加修飾語（缺水足跡），不單稱「水足跡」'),
 };

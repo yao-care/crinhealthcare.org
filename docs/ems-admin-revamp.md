@@ -20,13 +20,14 @@
 {
   version: 1,
   site:      { basic, meters[], buildings[], transformers[], generators[], staff[], org[], policy, exemption,       // 初始建檔：附表三 一～四、七、八；R1/R2
-               waterScope, waterActivity[], waterSources[], waterUnits[], waterDischarges[] },                  // 水足跡盤查（ISO 14046／46001，第 23 項）
+               waterScope, waterActivity[], waterSources[], waterUnits[], waterDischarges[],                    // 水足跡盤查（ISO 14046／46001，第 23 項）
+               waterQualityPlan[], waterUpstream[] },                                                          // 水質檢測項目覆寫、間接用水其他上游（第 26 項）
   equipment: [ { id, pointCode, building, category: 'ac'|'lighting'|'other', kind, fields{…表九欄位}, status: 'active'|'replaced'|'removed', replacedBy?, createdAt, updatedAt } ],
   points:    [ { code, domain: 'power'|'water', name, location, items[], active } ],
   records:   [ { id, pointCode, period: 'YYYY-MM', at, who, values{itemId: value}, note, photos[], anomalies[] } ],   // 定期更新
   changes:   [ { id, at, who, reporter, kind, target, before, after, reason, links? } ],                            // 異動登錄
   measures:  [ … ],  plans: [ … ]                                                                                  // 診斷措施、節能計畫（附件一、二）
-  annual:        { [N]: { [blockId]: 物件|陣列, _meta:{ [blockId]:{at,who,reporter} } } },                         // 年度報表資料（資料年 N，第 24 項）
+  annual:        { [N]: { [blockId]: 物件|陣列, _meta:{ [blockId]:{at,who,reporter} } } },                         // 年度報表資料（資料年 N，第 24 項）；含 waterMonthly（第 26 項）
   snapshots:     { [N]: { at, site:{ [blockId]: 值 }, equipment:[…] } },                                         // N 年沿用確認當下的主檔快照
   confirmations: { [N]: { [unitId]: { at, who, reporter, hash, diffCount, copied? } } }                          // 年度沿用逐區塊確認
 }
@@ -74,9 +75,11 @@
 | GET | `/api/inv/report/bundle?year=N` | 整包 zip：每張表一個 CSV＋三本 xlsx＋節能計畫匯出檔 |
 | GET | `/api/inv/report/filing?year=N` | 申報對照頁資料：依附表三章節順序的欄位：值、待補與填寫處 |
 | GET | `/api/inv/report/plan-export?format=xlsx\|csv` | 節能計畫匯出檔（＝`table/a2-export`） |
+| GET | `/api/inv/report/table/a1-equip`、`/api/inv/report/table/a1-equip-due`（`?format=xlsx\|csv`） | 節能診斷設備清單：全部設備／僅使用年限達應辦理節能診斷（第 28 項） |
 | GET／PUT | `/api/inv/report/annual?year=N`、`/api/inv/report/annual/:block?year=N` | 年度報表資料（N 與 N-1）／存一個年度區塊 `{ value }` |
 | GET／POST | `/api/inv/report/carryover?year=N`、`/api/inv/report/carryover/:unit?year=N` | 年度沿用：差異與確認狀態／確認 `{ expectHash?, copy? }` |
 | GET | `/api/inv/report/water?year=N` | 水足跡盤查清冊 xlsx（N＝民國資料年，4 位數視為西元；`format=json` 另回 `summary`）；待補清單用 `missing?kind=water` |
+| GET | `/api/inv/report/water-verification?year=N` | 水足跡第三方查證資料包 zip（ISO 14046 第 7 章；第 26 項，`src/report-water-verify.js`）；年格式錯 400 `bad_year` |
 | POST | `/api/login` | 新增 `remember: true` → session 30 天（貼紙頁用） |
 | POST | `/api/inv/anomalies/:id/close` | 未結異常結案 `{note}` → `{anomaly}`；已結案 409（後端實作時新增） |
 | GET | `/api/inv/photo/:id` | 讀回已上傳的照片（後端實作時新增） |
@@ -126,13 +129,23 @@
 
 **水足跡盤查（2026-10-22，第 23 項；規格 `docs/water-footprint-spec.md`）**：
 
-- 只做 ISO 14046 的盤查（5.3），不做衝擊評估（5.4）；報表一律稱「水足跡盤查」。條號依據寫在 `src/water-schema.js` 與計算庫的 `source`（`specDoc` 指向水足跡規格）。
+- 盤查（ISO 14046 5.3）＋缺水足跡衝擊評估（5.4，AWARE2.0；第 26 項）；依 3.3.1 註 1，衝擊結果一律稱「缺水足跡」，清冊名稱維持「水足跡盤查清冊」。條號依據寫在 `src/water-schema.js` 與計算庫的 `source`（`specDoc` 指向水足跡規格）。
 - 初始建檔新增 5 個區塊（`src/water-schema.js` 的 `WATER_SITE_BLOCKS`，接在 `SITE_BLOCKS` 後面，`navGroup` 讓管理端另成「水足跡盤查」一組）：`waterScope`（form：目的、系統邊界、截斷準則、報告單位、流域、時間代表性、資料品質、基線年、目標）、`waterActivity`（table，一年一筆：住院人日、門急診與住院人次、員工 FTE、樓地板面積）、`waterSources`（水源類型、水號、水質類別、取水水體）、`waterUnits`（用水單元、建築 ref、用水型態、消耗比例、主要用水、估計占比）、`waterDischarges`（去向、承受水體、許可文號、水質檢測項目）。
 - 點位項目新增選填屬性（只限 `domain:'water'`，舊點位不受影響）：`waterFlow: 'intake'|'use'|'discharge'|'reuse'|'quality'|'saving'`（只限 reading／number；quality、saving 只限 number）、`waterSourceId`、`waterUnitId`、`waterDischargeId`（連到上面三個 table 的 id，須存在）、`waterParam`（水質項目）。檢查在 `waterItemErrors()`。
 - `GET /api/inv/spec` 多回 `spec.water`：`flows`、`pointTemplates`（9 個用水點位範本：自來水總表、地下水、雨水回收、院內回收水、冷卻水塔補水、用水單元分表、污水排放、水質抽測、節水改善回報）、`reportingUnits`、`qualityParams`。前端沒有 `spec.water`（舊後端）就不顯示範本、水屬性欄與報表卡片。
 - 計算在 `public/inventory-compute.js` 檔尾另一段 IIFE（不動既有函式）：`waterFlows`、`waterActivityOf`、`waterPerformance`、`waterBaselineCompare`、`waterCompleteness`、`waterInventory`。單位 m³，公升自動 ÷1,000；整院沒有任何項目標 `intake` 時，水類點位的讀數推定為取水（`inferred`）。
 - 報表 `src/report-water.js` 的 `buildWater()`，由 `report-routes.js` 的 `BUILDERS.water` 分派；工作表：目的與範疇、取水、主要用水單元、排放與回收、水平衡、水質、績效指標與基線、資料品質、節水改善回報、待補欄位。
 - 貼紙頁頁尾依據（水類點位）：ISO 14046 5.3、ISO 46001 9.1。
+
+**水足跡延伸（2026-10-22，第 26、27 項；規格 `docs/water-footprint-spec.md` §9～§13）**：
+
+- 係數常數全部在 `public/inventory-compute.js` 第三段 IIFE（前後端同一份，帶版本與來源）：`WATER_AWARE`（AWARE2.0：全國、7 個縣市、18 個流域）、`WATER_ELEC`（台電 2025 永續報告書：耗水 0.0605、取水 0.0651 L/kWh）、`WATER_EFFLUENT`（放流水標準 附表八 醫院預設 8 項、預設頻率每半年）。函式：`waterElectricityKwh`、`waterIndirect`、`waterScarcity`、`waterQualityRules／Check／LimitText／Warnings／Assess`、`waterTargets`，整合成 `waterFootprint(inv,{year})`（＝`waterInventory`＋indirect、scarcity、quality、targets，完整度多 3 項檢查）。報表與管理端只呼叫 `waterFootprint`。
+- `site.waterScope` 新增 `targetIndicator`、`elecWaterFactor`、`elecWaterFactorNote`、`awareRegion`（AWARE 地區 id，預設 `TWN`）、`awareUse`。系統邊界選「＋間接用水」＝外購電力的發電用水計入合計（`boundary` 含「間接」）。
+- 新 site 區塊（`water-schema.js`）：`waterQualityPlan`（`{ dischargeId(ref waterDischarges), param, unit, limitMin, limitMax, frequency, basis, note }`；某排放口有任一列即整組覆寫，沒有列且去向「自設污水處理設施後放流」才套預設組）、`waterUpstream`（外購蒸汽、藥品耗材等，只登錄不量化）。`waterDischarges` 多 `defaultFrequency`（每季／每半年）。
+- 每月營運活動：年度區塊 `annual[N].waterMonthly`（`report-annual.js`，kind months，`water:true`＝不屬附表三、不進欄位盤點）；`waterActivityOf` 有月資料的項目以月合計為準，`waterPerformance` 只拿取水與分母同月都有的月份相除。院方在「申報與報告 › 報表資料輸入」填（`PUT /api/inv/report/annual/waterMonthly?year=N`）。
+- 貼紙送出：水質項目超出限值 → `warnings` 提示（不擋；`inventory-routes.js` 呼叫 `waterQualityWarnings`）。
+- 管理端：水足跡卡片（申報與報告 › 措施與計畫）顯示間接用水、缺水足跡、水質超標、目標達成度（`<progress class="r-progress">`）、下載查證資料包；初始建檔「水質檢測項目與頻率」上方列目前生效的項目。第 26 項的畫面元素只在 `spec.water.aware` 存在（新後端）時出現。
+- 第 27 項：水足跡工作表進 `TABLES`（`w-01`～`w-11`，kind `water`，chapter「水足跡」，排在附件二之後）→ 單表匯出、整包（`水足跡盤查_N年資料/`）、申報對照頁最後的「水足跡」章節。年度沿用的單位本來就是「每個 site 區塊」，水的 7 個區塊都在內、逐一確認（`annual.waterMonthly` 每年重填，不是沿用單位）。已完工的節能計畫不受 R7「預計完工年度須在提報年度～+4」範圍限制（`report-routes.js` 計畫 PUT 對 `status:'已完工'` 濾掉範圍檢核；其餘 R7、R8 照舊）。
 
 **匯出與年度沿用（2026-10-22，第 24 項；`src/report-export.js`／`report-export-routes.js`／`report-annual.js`／`annex3-fields.js`，前端 `public/inventory-report.js` 的分頁）**：
 
@@ -141,10 +154,12 @@
 - 工作表列可帶 `meta.fill`（`report-xlsx.js` 的 `FILL`）：`{ section:'i-site-<block>'|'i-eq-<cat>'|'i-points' }`＝管理端分區，`{ tab:'annual', block }`／`{ tab:'work', anchor:'plans'|'measures'|'diagnosis' }`＝申報與報告的分頁；`meta.cells[i]` 可逐格覆寫。申報對照頁的「去填」照這個跳。xlsx 產檔不看 meta。
 - CSV：UTF-8 BOM、CRLF、與 xlsx 同一份列（含抬頭三列）。zip 用 `src/xlsx.js` 的 `zip()`（`Map` 輸入，零相依）。
 - **年度報表資料 `annual[N]`**（`report-annual.js` 的 `ANNUAL_BLOCKS`）：附表三每年重填、系統原本沒有來源的欄位——表五之一燃料帳單（months）＋供應商、表五之三夏季最大運轉噸數、表五之四／五之五 EUI 差異原因與 N-1 年面積覆寫、表六熱能用途、表九之一（二）備註、表九之四年平均運轉容量、表九之七蒸汽鍋爐自我檢測、表九之八 PUE、表十之三 需量反應／再生能源、表十之四可扣除用電量、表十一之三、表十一之四、附錄二。kind：form／table（每筆自帶 id）／months（1–12 月）。電號、建築、人員、鍋爐一律存 site／設備主檔的 id（`ref`），不重打。存檔不寫 changes，只記 `_meta`（時間、操作人）與 git commit。
-- **節能計畫新增欄位**（`PLAN_FIELDS` 的 group「申報表十／十一」）：改善前／後狀況、執行計畫期間起迄（`month` 型，存西元 YYYY-MM）、數值來源、節能量計算方式＋說明、實際總節能量、實際投資金額、抑低尖峰需量、所需人力。表十與表十一共用同一筆計畫，不另存。表十措施來源：N-1 年完工＝跨年度成效；效益計算期間＝完工（或執行迄月）次月起 12 個月、截在該年。狀態「已完工」且這次沒動到完工年度／備註的計畫，PUT 不再被 R7 完工年度範圍擋（舊計畫要能補表十資料）。
+- **節能計畫新增欄位**（`PLAN_FIELDS` 的 group「申報表十／十一」）：改善前／後狀況、執行計畫期間起迄（`month` 型，存西元 YYYY-MM）、數值來源、節能量計算方式＋說明、實際總節能量、實際投資金額、抑低尖峰需量、所需人力。表十與表十一共用同一筆計畫，不另存。表十措施來源：N-1 年完工＝跨年度成效；效益計算期間＝完工（或執行迄月）次月起 12 個月、截在該年。狀態「已完工」的計畫不受 R7 完工年度範圍限制（第 27 項起，改完工年度也不擋；R8 原因照舊）。
 - **設備主檔新增欄**（其他系統·鍋爐）：`opManagement` 操作管理現況、`maintenance` 維護現況（表九之五，跟著設備存一次）。ISO 50001 證書效期以表四之二為準，排除條件 EX10 留白即沿用；兩處不同列待補。
 - **年度沿用**：單位＝每個 site 區塊（`site.<id>`，含之後新增的區塊）、`equipment`（整份設備主檔；比對忽略 pointCode 與時間戳）、stable 的年度區塊（`annual.fuelMeta|pue|renewables|app2`）。site／設備比的是 N-1 年快照 vs 目前主檔；年度區塊比 N-1 vs N，N 空時可 `copy`（`carryClear` 欄位清空，例：再生能源發電量）。確認存 `confirmations[N][unit]`（含 `hash`）與 `snapshots[N]`；目前值的 hash 對不上＝`stale`（需重新確認）。POST 帶 `expectHash` 而內容已變 → 409 `changed`。全部 confirmed 才 `complete`；未完成會列在附表三「待補欄位」。表五之四／五之五的 N-1 年面積取 `snapshots[N-1].site.basic`。
-- **節能計畫匯出檔**：`PLAN_EXPORT_MAP`（`report-export.js`）是表頭↔欄位對照（含 `importable` 欄與對回用的 `key: measureId`），`readPlanExport(buf, map)` 用同一份對照讀回。拿到能源署匯出檔後只改這份對照。
+- **節能計畫匯出檔**：`PLAN_EXPORT_MAP`（`report-export.js`）是表頭↔欄位對照（含 `importable` 欄與對回用的 `key: measureId`），`readPlanExport(buf, map)` 用同一份對照讀回。前 8 欄（`official: true`）照能源署公開的節能計畫範例：編號｜設備/措施名稱｜年節能量預估｜單位｜投資金額(元)｜回收年限(年)｜預計完工年度｜備註（第 28 項，來源見 `docs/energy-plan-import-format.md`）；其後是系統附加欄。設備/措施名稱由 `officialPlanName()` 組（設備汰換＝「設備種類/措施名稱」），`dash: true` 的欄空值或 0 寫「-」。讀回時沒有措施 ID 欄（能源署原檔）就改用 `altKey: 'no'`（編號）對列，回傳 `keyField`；「-」讀成空。能源署申報系統的 xlsx 原檔要登入才拿得到，拿到後只改這份對照。
+- **節能診斷設備清單**（第 28 項）：`EQUIP_LIST_MAP`／`equipListRows()`／`buildEquipListExport()`，對應申報系統「2.設備清單下載」。前 11 欄照能源署範例（編號｜設備名稱｜廠牌｜型式｜製造年份｜容量｜容量單位｜數量｜運轉時數(小時)｜年耗能量｜年耗能量單位），其後附系統別、設備種類、建築、R6 類別、機齡、是否應辦理診斷、設備 ID。來源＝設備主檔 ac／lighting／other 中使用中的設備；`a1-equip-due` 只列 R6 判定為「是」的。製造年份一律西元（範例如此），年耗能量只有連到設備汰換措施且已填時才帶。
+- **匯出檔類表**：`TABLES` 裡 kind 在 `RAW_EXPORTS`（`planExport`、`equipList`）的表自己產檔，不從整本 xlsx 挑工作表，不進申報對照頁，單表 xlsx 不附待補欄位頁；整包 zip 另放（節能計畫匯出 xlsx＋CSV、設備清單兩種 xlsx）。新增這類檔案時在 `RAW_EXPORTS` 登記。
 - **欄位覆蓋盤點**：`src/annex3-fields.js` → `docs/annex3-field-map.md`（`node services/ems-admin/scripts/field-map.mjs` 產生；測試比對兩者一致、每個 ref 指到真的欄位）。
 
 **部署**：production（pm2 `ems-admin`，port 8470）的工作目錄就是 `services/ems-admin`，`public/` 存檔即上線、`src/` 要重啟才生效，前端改動必須在舊後端上也不壞（`/api/inv` 拿不到時 `app.js` 維持舊版；新回應欄位缺了要有退路）。

@@ -378,11 +378,13 @@
       missBox);
   }
 
-  // ── 水足跡盤查清冊（工作清單 23；ISO 14046 盤查、ISO 46001 指標）──
-  // 只在新後端（/api/inv/spec 有 water）時出現；摘要在瀏覽器用 inventory-compute.js 的 waterInventory 算（與報表同一份）
+  // ── 水足跡盤查清冊（工作清單 23、26；ISO 14046 盤查與缺水足跡、ISO 46001 指標與目標）──
+  // 只在新後端（/api/inv/spec 有 water）時出現；摘要在瀏覽器用 inventory-compute.js 的 waterFootprint 算（與報表同一份）。
+  // 第 26 項的功能（缺水足跡、間接用水、水質限值、目標達成度、查證資料包、每月營運活動）要 spec.water.aware 才顯示（舊後端沒有）。
   function waterCard() {
     const WS = CTX.spec?.water;
     if (!WS) return null;
+    const ext = !!WS.aware;
     const nowRoc = new Date().getFullYear() - 1911;
     const year = el('input', { type: 'number', value: nowRoc - 1, min: 100, max: 200, class: 'r-year' });
     const sum = el('div');
@@ -391,18 +393,37 @@
       sum.textContent = '';
       const inv = CTX.inventory ? CTX.inventory() : null;
       if (!inv || !C?.waterInventory) return;
-      const w = C.waterInventory(inv, { year: Number(year.value) + 1911 });
+      const Y = Number(year.value) + 1911;
+      const w = ext && C.waterFootprint ? C.waterFootprint(inv, { year: Y }) : C.waterInventory(inv, { year: Y });
       const F = w.flows;
       const li = (level, text, src) => el('li', { class: levelClass(level) }, el('span', { text }), srcNode(src));
       sum.append(el('ul', { class: 'r-dl' },
         li(F.intake.total === undefined ? 'na' : F.intake.inferred ? 'warn' : 'ok', `取水 ${fmtN(F.intake.total)} m³${F.intake.inferred ? '（點位未標流向，推定）' : ''}${F.intake.replace ? `，其中替代水源 ${fmtN(F.intake.replace)} m³` : ''}`, F.intake.source),
         li(F.discharge.measured ? 'ok' : 'na', `排放 ${fmtN(F.discharge.total)} m³${F.reuse.total !== undefined ? `；回收再利用 ${fmtN(F.reuse.total)} m³` : ''}`, F.discharge.source),
         li(F.consumption.level, F.consumption.msg, F.consumption.source),
+        w.indirect ? li(w.indirect.electricity.kwh === undefined ? 'na' : 'ok', `間接用水（外購電力）：${w.indirect.electricity.msg}｜${w.indirect.included ? '計入系統邊界' : '未納入系統邊界（僅參考）'}`, w.indirect.electricity.source) : null,
+        w.scarcity ? li(w.scarcity.level, `缺水足跡 ${fmtN(w.scarcity.total)} m³ world-eq（${w.scarcity.region.label}，${w.scarcity.model.name} ${w.scarcity.model.version}）：${w.scarcity.msg}`, w.scarcity.source) : null,
         ...w.performance.map((p) => {
           const c = w.baseline?.compare.find((x) => x.id === p.id);
           return li(c && c.level !== 'na' ? c.level : p.level, `${p.msg}${c && c.diffPct !== undefined ? `；${c.msg}` : ''}`, c?.source || p.source);
         }),
+        w.quality ? li(w.quality.level, `水質：${w.quality.msg}${w.quality.rules.length ? `（${w.quality.rules.length} 個檢測項目）` : ''}`, w.quality.source) : null,
         li(w.completeness.pct >= 80 ? 'ok' : 'warn', `資料完整度 ${w.completeness.pct}%（${w.completeness.passed}/${w.completeness.total} 項）`, w.completeness.source)));
+      // 節水目標達成度
+      if (w.targets) {
+        const T = w.targets;
+        const box = el('div', { class: 'r-target' }, el('h4', { text: T.targetPct === undefined ? '節水目標達成度（尚未設定目標）' : `節水目標：較基線 ${rocY(T.baselineYear)} 年降低 ${T.targetPct}%${T.targetYear ? `（${rocY(T.targetYear)} 年）` : ''}` }));
+        for (const t of T.rows) {
+          box.append(el('div', { class: `r-check ${levelClass(t.level)}` },
+            el('span', { text: t.msg }),
+            t.progressPct !== undefined ? el('progress', { class: 'r-progress', max: '100', value: String(Math.max(0, Math.min(100, t.progressPct))), 'aria-label': `${t.label}達成度 ${t.progressPct}%` }) : null));
+        }
+        box.append(srcNode(T.source));
+        sum.append(box);
+      }
+      // 水質超標
+      if (w.quality?.exceedances.length) sum.append(el('details', { class: 'r-misssheet', open: true }, el('summary', { text: `水質超標（${w.quality.exceedances.length} 筆）` }),
+        el('ul', {}, w.quality.exceedances.map((x) => el('li', { class: 'r-bad' }, el('b', { text: `${x.period} ${x.dischargeName}` }), `：${x.msg}｜${x.who}`)))));
       const bad = w.completeness.checks.filter((x) => !x.ok);
       if (bad.length) sum.append(el('details', { class: 'r-misssheet' }, el('summary', { text: `未通過的資料品質檢查（${bad.length}）` }),
         el('ul', {}, bad.map((x) => el('li', {}, el('b', { text: x.label }), `：${x.msg}`)))));
@@ -421,13 +442,17 @@
       for (const [sheet, items] of bySheet) missBox.append(el('details', { class: 'r-misssheet' }, el('summary', { text: `${sheet}（${items.length}）` }),
         el('ul', {}, items.map((m) => el('li', {}, el('b', { text: m.field }), m.why ? `：${m.why}` : '')))));
     };
-    const card = el('section', { class: 'r-card' },
-      el('h3', { text: '水足跡盤查清冊（xlsx）' }),
-      el('p', { class: 'note', text: '依 ISO 14046 盤查結構：目的與範疇、取水（依水源別）、主要用水單元、排放與回收、水平衡、水質、用水績效指標與基線、資料品質、節水改善回報。只做盤查，不做衝擊評估。' }),
+    const card = el('section', { class: 'r-card', id: 'r-card-water' },
+      el('h3', { text: ext ? '水足跡盤查清冊與缺水足跡（xlsx）' : '水足跡盤查清冊（xlsx）' }),
+      el('p', { class: 'note', text: ext
+        ? '依 ISO 14046：目的與範疇、取水、主要用水單元、排放與回收、水平衡、間接用水（外購電力）、水質（放流水標準）、用水績效指標與目標達成度、衝擊評估（缺水足跡，AWARE）、資料品質、節水改善回報。'
+        : '依 ISO 14046 盤查結構：目的與範疇、取水（依水源別）、主要用水單元、排放與回收、水平衡、水質、用水績效指標與基線、資料品質、節水改善回報。只做盤查，不做衝擊評估。' }),
       el('label', { class: 'r-field' }, el('span', { class: 'r-flabel', text: '資料年（民國）' }), year),
+      ext ? el('p', { class: 'note' }, '住院人日與門急診人次按月填：', el('button', { type: 'button', class: 'link', text: '填每月營運活動', onclick: () => setTab('annual', 'r-an-waterMonthly') })) : null,
       sum,
       el('div', { class: 'r-dlrow' },
         el('a', { class: 'r-btn', href: `/api/inv/report/water?year=${year.value}`, download: '', onclick: (e) => { e.currentTarget.href = `/api/inv/report/water?year=${encodeURIComponent(year.value)}`; }, text: '下載 水足跡盤查清冊' }),
+        ext ? el('a', { class: 'r-btn', href: `/api/inv/report/water-verification?year=${year.value}`, download: '', onclick: (e) => { e.currentTarget.href = `/api/inv/report/water-verification?year=${encodeURIComponent(year.value)}`; }, text: '下載 第三方查證資料包（zip）' }) : null,
         el('button', { type: 'button', class: 'link', text: '看待補欄位', onclick: () => showMissing() }), srcNode(WS.source)),
       missBox);
     paint();
@@ -527,7 +552,7 @@
     const nav = el('nav', { class: 'r-toc', 'aria-label': '章節' }, F.tables.map((t) => el('a', { href: `#r-fl-${t.id}`, onclick: (e) => { e.preventDefault(); document.getElementById(`r-fl-${t.id}`)?.scrollIntoView({ block: 'start' }); } }, t.label, t.missingCount ? el('span', { class: 'r-tag r-warn', text: String(t.missingCount) }) : null)));
     const head = el('section', { class: 'r-card' },
       el('h3', { text: `申報對照頁（資料年 ${F.year}）` }),
-      el('p', { class: 'note', text: '依新版附表三章節與欄位順序排列（前言、一～十一、附錄二），之後是附件一、附件二。每欄旁的「複製」貼到能源署申報系統對應欄；表格類每列可整列複製。空值標「待補」，按「去填」到填寫處。' }),
+      el('p', { class: 'note', text: '依新版附表三章節與欄位順序排列（前言、一～十一、附錄二），之後是附件一、附件二；最後是「水足跡」章節（水足跡盤查清冊，非能源署申報）。每欄旁的「複製」貼到能源署申報系統對應欄；表格類每列可整列複製。空值標「待補」，按「去填」到填寫處。' }),
       el('p', {}, el('b', { text: `待補 ${F.missingTotal} 項` }), '｜',
         el('span', { class: F.carryover.complete ? 'r-tag r-ok' : 'r-tag r-warn', text: `年度沿用 ${F.carryover.confirmed}/${F.carryover.total}${F.carryover.complete ? ' 已完成' : ' 未完成'}` }), ' ',
         F.carryover.complete ? null : el('button', { type: 'button', class: 'link', text: '去確認', onclick: () => setTab('carry') }), ' ',
@@ -546,6 +571,11 @@
         s.blocks.map(blockNode))),
       t.missing.length ? el('details', { class: 'r-misssheet' }, el('summary', { text: `待補欄位（${t.missing.length}）` }),
         el('ul', {}, t.missing.map((m) => el('li', {}, el('b', { text: m.field }), m.why ? `：${m.why}` : '')))) : null));
+    // 水足跡另立章節（第 27 項）：第一張水足跡表前放章節標題
+    const wi = F.tables.findIndex((t) => t.chapter === '水足跡');
+    if (wi >= 0) cards.splice(wi, 0, el('section', { class: 'r-card r-chapter', id: 'r-fl-water' },
+      el('h3', { text: '水足跡（ISO 14046 盤查與缺水足跡）' }),
+      el('p', { class: 'note', text: '以下不是能源署申報欄位，是水足跡盤查清冊的同一份內容，方便逐欄複製到 ESG 報告或查證文件。整份清冊與查證資料包在「措施與計畫」分頁的水足跡卡片下載。' })));
     return el('div', { class: 'r-wrap' }, head, ...cards);
   }
 
@@ -555,14 +585,14 @@
     if (oldBackend(r)) return oldBackendNote();
     if (!r.body?.ok) throw new Error(errMsg(r));
     const groups = new Map();
-    for (const t of r.body.tables) { const k = t.kind === 'annex3' ? '附表三 年度申報' : t.kind === 'diagnosis' ? '附件一 節能診斷報告' : '附件二 節能計畫'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(t); }
+    for (const t of r.body.tables) { const k = t.kind === 'annex3' ? '附表三 年度申報' : (t.kind === 'diagnosis' || t.kind === 'equipList') ? '附件一 節能診斷報告' : t.kind === 'water' ? '水足跡盤查清冊（ISO 14046）' : '附件二 節能計畫'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(t); }
     return el('div', { class: 'r-wrap' },
       el('section', { class: 'r-card' },
         el('h3', { text: `單表匯出（資料年 ${r.body.year}）` }),
         el('p', { class: 'note', text: '每張表可單獨下載 xlsx（含該表的待補欄位）或 CSV（UTF-8，Excel 可直接開）。內容與整本報表同一份。' }),
         el('div', { class: 'r-actions' },
-          el('a', { class: 'r-btn', href: `/api/inv/report/bundle?${q()}`, download: '', text: '下載整包（每張表 CSV＋三本 xlsx）' }),
-          el('a', { class: 'link', href: `/api/inv/report/plan-export?format=xlsx`, download: '', text: '節能計畫匯出檔（欄位齊全）' }))),
+          el('a', { class: 'r-btn', href: `/api/inv/report/bundle?${q()}`, download: '', text: '下載整包（每張表 CSV＋完整 xlsx）' }),
+          el('a', { class: 'link', href: `/api/inv/report/plan-export?format=xlsx`, download: '', text: '節能計畫匯出檔（能源署範例欄位＋系統欄位）' }))),
       [...groups].map(([g, list]) => el('section', { class: 'r-card' }, el('h3', { text: g }),
         el('ul', { class: 'r-tlist' }, list.map((t) => el('li', {},
           el('span', { class: 'r-tname' }, el('b', { text: t.label }), ' ', el('span', { class: 'muted', text: t.id }), t.sheets > 1 ? el('span', { class: 'muted', text: `（${t.sheets} 張）` }) : null),
@@ -643,7 +673,7 @@
     for (const b of AN.spec.blocks) { if (!byTable.has(b.table)) byTable.set(b.table, []); byTable.get(b.table).push(b); }
     return el('div', { class: 'r-wrap' },
       el('section', { class: 'r-card' }, el('h3', { text: `報表資料輸入（資料年 ${AN.year}）` }),
-        el('p', { class: 'note', text: '附表三裡每年要重填、初始建檔與點位紀錄推不出來的欄位。電號、建築、鍋爐、填表人都從既有資料選，不重打。存了就會出現在申報對照頁與匯出檔。' })),
+        el('p', { class: 'note', text: '附表三裡每年要重填、初始建檔與點位紀錄推不出來的欄位，以及水足跡的每月營運活動（住院人日、門急診人次）。電號、建築、鍋爐、填表人都從既有資料選，不重打。存了就會出現在申報對照頁與匯出檔。' })),
       [...byTable.values()].flat().map((b) => annualBlock(b, AN)));
   }
 

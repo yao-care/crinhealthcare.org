@@ -12,6 +12,7 @@ import {
 } from './report-model.js';
 import { buildAnnex3, buildDiagnosis, buildPlan, toXlsx } from './report-xlsx.js';
 import { buildWater } from './report-water.js';   // 水足跡盤查清冊（工作清單 23）
+import { buildWaterVerification } from './report-water-verify.js';   // 水足跡查證資料包（工作清單 26-6）
 import { handleExport } from './report-export-routes.js';
 import '../public/inventory-compute.js';
 
@@ -128,6 +129,21 @@ export async function handleReport({ req, res, sess, kind, json, readBody, origi
 
   // ── 規格 ──
   if (GET && head === 'spec' && !id) return json(res, 200, { ok: true, spec: reportSpec });
+
+  // ── 水足跡第三方查證資料包（ISO 14046 第 7 章；zip）──
+  if (GET && head === 'water-verification' && !id) {
+    const year = q.get('year');
+    if (year !== null && year !== '' && !/^\d{2,4}$/.test(year)) return json(res, 400, { ok: false, error: 'bad_year', message: '資料年請填民國年（例：114）或西元年' });
+    const inv = await readInventory(hid);
+    const b = buildWaterVerification(inv, { year: year ? Number(year) : undefined, today, hospitalName: sess.name });
+    res.writeHead(200, {
+      'Content-Type': 'application/zip', 'Content-Length': b.buffer.length,
+      'Content-Disposition': `attachment; filename="water-verification.zip"; filename*=UTF-8''${encodeURIComponent(b.filename)}`,
+      'Cache-Control': 'private, no-store',
+    });
+    res.end(b.buffer);
+    return true;
+  }
 
   // ── 產出 xlsx／待補清單 ──
   if (GET && BUILDERS[head] && !id) {
@@ -274,9 +290,11 @@ export async function handleReport({ req, res, sess, kind, json, readBody, origi
         const before = { ...(p.fields || {}) };
         const next = mergeFields(p.fields, input, n.values);
         const check = C.planRowCheck({ paybackYears: planView(p, inv, ry, 0).paybackYears, completionYear: next.completionYear, note: next.note, reportYear: ry });
-        // 已完工的舊計畫（完工年度早於提報年度）沒動到完工年度／備註時不擋：要能補表十的執行資料（第 24 項）
-        const doneUntouched = next.status === '已完工' && ['completionYear', 'note'].every((k) => JSON.stringify(before[k]) === JSON.stringify(next[k]));
-        if (check.ok === false && !doneUntouched) throw new HttpErr(422, { error: 'validation', rule: 'R7', details: check.issues, message: check.msg, source: check.source });
+        // 已完工的計畫不受 R7「預計完工年度須在提報年度～+4 年」範圍限制（第 24、27 項）：完工年度是已發生的事實，
+        // 早於提報年度是正常的（舊計畫補表十執行資料、更正實際完工年度都要能存）。其餘 R7 檢核（未填完工年度須寫備註）照舊。
+        const isDone = next.status === '已完工';
+        const issues = isDone ? (check.issues || []).filter((x) => !/^預計完工年度須在/.test(x)) : (check.issues || []);
+        if (check.ok === false && issues.length) throw new HttpErr(422, { error: 'validation', rule: 'R7', details: issues, message: issues.join('；'), source: check.source });
         const keys = [...new Set([...Object.keys(before), ...Object.keys(next)])].filter((k) => JSON.stringify(before[k]) !== JSON.stringify(next[k]));
         if (!keys.length) return { plan: planView(p, inv, ry, inv.plans.indexOf(p) + 1), unchanged: true };
         // R8：已填過的值被改掉才是「變更」，要原因；空格第一次填寫不必

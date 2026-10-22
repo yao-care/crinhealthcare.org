@@ -1,11 +1,12 @@
 // 水足跡盤查清冊（工作清單 23）→ xlsx。GET /api/inv/report/water?year=N（report-routes.js 的 BUILDERS 分派）。
 //
 // 結構依 ISO 14046:2014 的方法架構：目的與範疇（5.2）→ 盤查（5.3：取水、用水單元、排放與回收、水質）
-// → ISO 46001:2019 的水平衡（附錄 C）、用水績效指標與基線（3.2、3.4、6.2.5～6.2.7）→ 資料品質（4.8、5.2.4）。
-// 只做盤查，不做衝擊評估（5.4）；依 3.3.1 註 1 檔名稱「水足跡盤查清冊」。條號與取得程度見 docs/water-footprint-spec.md。
+// → ISO 46001:2019 的水平衡（附錄 C）→ 間接用水（5.2.3，外購電力）→ 水質（放流水標準）→ 用水績效指標、基線與目標達成度
+// （3.2、3.4、6.2.5～6.2.7、6.3）→ 衝擊評估（5.4，缺水足跡，AWARE）→ 資料品質（4.8、5.2.4）。
+// 依 3.3.1 註 1，衝擊結果稱「缺水足跡」；檔名仍為「水足跡盤查清冊」。條號與取得程度見 docs/water-footprint-spec.md。
 //
 // 每張工作表第 1 列表名、第 2 列依據、第 3 列院所與資料年（同附表三報表慣例）。推不出的格子留空並列入「待補欄位」。
-// 計算全部走 public/inventory-compute.js 的 water* 函式（前後端同一份）。
+// 計算全部走 public/inventory-compute.js 的 waterFootprint（前後端同一份）。
 // 純函式：buildWater(inv, { year, today, hospitalName }) → { sheets, missing, filename, summary }。
 import { siteBlockById, refLabel } from './inventory-schema.js';
 import { WATER_SPEC } from './water-schema.js';
@@ -58,7 +59,7 @@ export function buildWater(inv, opts = {}) {
     yearLabel: `資料年 ${roc} 年（${Y} 年 1～12 月）`,
   };
   const site = inv.site || {};
-  const W = C.waterInventory(inv, { year: Y });
+  const W = C.waterFootprint(inv, { year: Y });
   const F = W.flows;
   const scope = site.waterScope || {};
   const bName = (id) => refLabel(site, 'buildings', id);
@@ -71,11 +72,12 @@ export function buildWater(inv, opts = {}) {
     let v = scope[f.key];
     let note = f.hint || '';
     if (blank(v) && f.default !== undefined) { v = f.default; note = `預設值${note ? `；${note}` : ''}`; }
-    const shown = Array.isArray(v) ? v.join('、') : f.type === 'year' && v ? `${Number(v) - 1911} 年（${v}）` : f.type === 'percent' && v !== undefined ? `${v}%` : v;
+    const shown = Array.isArray(v) ? v.join('、') : f.type === 'year' && v ? `${Number(v) - 1911} 年（${v}）` : f.type === 'percent' && v !== undefined ? `${v}%` : f.optionLabels?.[v] ? `${v} ${f.optionLabels[v]}` : v;
     sc.row([f.label, shown, note]);
     if (blank(v) && (f.required || ['cutoff', 'drainageBasin', 'dataQuality'].includes(f.key))) sc.need(f.label, f.required ? '必填，尚未填寫（初始建檔 › 水足跡範疇與基線）' : '建議填寫（初始建檔 › 水足跡範疇與基線）');
   }
-  sc.gap().text('本檔是 ISO 14046 的水足跡「盤查」（5.3），沒有進行衝擊評估（5.4）。依 3.3.1 註 1，未完整評估衝擊時不得單稱「水足跡」。');
+  sc.gap().text('本檔含 ISO 14046 的水足跡盤查（5.3）與缺水足跡衝擊評估（5.4，AWARE）；未評估水質劣化類衝擊。依 3.3.1 註 1，結果稱「缺水足跡」，不單稱「水足跡」。');
+  sc.text(`系統邊界：${W.indirect.included ? '院區直接用水＋間接用水（外購電力以係數估算；其他上游只登錄）' : '院區直接用水（間接用水只列參考值，不計入）'}`);
   sc.text('單位：m³（水費單的「度」＝m³）。消耗量依 3.2.1 註 2：取出後沒有回到同一流域的水。');
 
   // 2. 取水（依水源別）
@@ -127,15 +129,48 @@ export function buildWater(inv, opts = {}) {
   sb.row(['消耗', F.consumption.value, F.consumption.msg]);
   if (F.consumption.value === undefined) sb.need('消耗量', F.consumption.msg);
 
-  // 6. 水質
-  const sq = new Sheet(ctx, '水質', '水足跡盤查清冊·水質', F.qualitySource);
-  sq.widths(22, 16, 12, 8, 10, 10, 10, 10, 12).head(['排放口', '項目', '單位', '筆數', '最小', '最大', '平均', '最近一次', '最近期別']);
-  for (const q of F.quality) sq.row([q.dischargeName, q.param, q.unit, q.n, q.min, q.max, q.avg, q.last, q.lastPeriod]);
-  if (!F.quality.length) sq.row(['（無資料）']);
-  for (const d of site.waterDischarges || []) for (const p of d.qualityParams || []) {
-    if (!F.quality.some((q) => q.dischargeId === d.id && q.param === p && q.n > 0)) sq.need(`${d.name || d.id}·${p}`, `${roc} 年沒有抽測值（貼紙點位：水質抽測）`);
+  // 5-1. 間接用水（5.2.3 系統邊界；外購電力 × 發電用水係數）
+  const I = W.indirect, E = I.electricity;
+  const sx = new Sheet(ctx, '間接用水', '水足跡盤查清冊·間接用水（外購電力等上游）', I.boundarySource);
+  sx.widths(30, 14, 14, ...MONTHS.map(() => 10), 14).text(I.msg).gap();
+  sx.head(['項目', '係數', '單位', ...MONTHS, '合計']);
+  sx.row(['外購電力用電量（度）', '', 'kWh', ...E.months, E.kwh]);
+  sx.row(['發電耗水量（m³）', E.factor.consumption, 'L/kWh', ...E.consumptionMonths, E.consumption]);
+  sx.row(['發電取水量（m³）', E.factor.withdrawal, 'L/kWh', ...MONTHS.map(() => ''), E.withdrawal]);
+  sx.row(['計入合計', I.included ? '是' : '否（系統邊界只含直接用水）']);
+  sx.gap().text(`活動數據：${E.method === 'bill' ? '電費單（同電號同月取最後送出的那筆）' : E.method === 'reading' ? '電類點位連結電號的累計讀數' : '無'}；${E.monthsCovered}/12 個月`);
+  sx.text(`係數：${E.factor.custom ? `院方自訂（${E.factor.note}）` : `${E.source.doc} ${E.source.ref}｜${E.source.note}｜${E.source.url}`}`);
+  if (E.kwh === undefined) sx.need('外購電力用電量', `${roc} 年沒有電費單或電表讀數（貼紙點位：電費單）`);
+  else if (E.monthsCovered < 12) sx.need('外購電力用電量', `只有 ${E.monthsCovered} 個月用電資料`);
+  if (E.factor.custom && !scope.elecWaterFactorNote) sx.need('自訂係數來源', '有自訂外購電力用水係數時須寫出處與年份');
+  sx.gap().head(['其他上游（只登錄、不量化）', '類別', '年用量', '單位', '備註']);
+  for (const u of I.upstream) sx.row([u.name, u.category, u.annualQty, u.unit, u.note || '尚無係數，未量化']);
+  if (!I.upstream.length) sx.row(['（未登錄）', '', '', '', '外購蒸汽、藥品耗材等，在初始建檔「間接用水·其他上游」登錄']);
+
+  // 6. 水質（放流水標準預設組＋依許可覆寫；超標提示）
+  const Q = W.quality;
+  const sq = new Sheet(ctx, '水質', '水足跡盤查清冊·水質（檢測項目、限值與超標）', Q.source);
+  sq.widths(22, 16, 12, 22, 10, 10, 8, 8, 10, 10, 10, 34).head(['排放口', '項目', '單位', '限值', '頻率', '應測次數', '實測', '超標', '最小', '最大', '平均', '依據']);
+  for (const r of Q.rules) {
+    const st = F.quality.find((q) => q.dischargeId === r.dischargeId && q.param === r.param);
+    sq.row([r.dischargeName, r.param, r.unit, C.waterQualityLimitText(r), r.frequency, r.perYear, r.n, r.exceeded, st?.min, st?.max, st?.avg, `${r.origin === 'default' ? '預設：' : '許可：'}${r.basis}`]);
+    if (!r.linked) sq.need(`${r.dischargeName}·${r.param}`, '沒有水質抽測點位項目連到這個項目（貼紙點位：水質抽測）');
+    else if (r.shortfall) sq.need(`${r.dischargeName}·${r.param}`, `${roc} 年應測 ${r.perYear} 次（${r.frequency}），實測 ${r.n} 次`);
   }
-  sq.text('標準限值依各院放流水許可，本表不判定是否合格。');
+  if (!Q.rules.length) sq.row(['（無需檢測的排放口）']);
+  // 舊的寫法：排放口上勾的水質項目（沒有限值）
+  const ruleKey = new Set(Q.rules.map((r) => `${r.dischargeId}|${r.param}`));
+  for (const q of F.quality) if (!ruleKey.has(`${q.dischargeId}|${q.param}`)) sq.row([q.dischargeName, q.param, q.unit, '未設限值', '', '', q.n, '', q.min, q.max, q.avg, '']);
+  for (const d of site.waterDischarges || []) for (const p of d.qualityParams || []) {
+    if (!ruleKey.has(`${d.id}|${p}`) && !F.quality.some((q) => q.dischargeId === d.id && q.param === p && q.n > 0)) sq.need(`${d.name || d.id}·${p}`, `${roc} 年沒有抽測值（貼紙點位：水質抽測）`);
+  }
+  sq.gap().text(Q.msg);
+  if (Q.exceedances.length) {
+    sq.gap().head(['超標期別', '排放口', '項目', '測值', '單位', '限值', '填寫人', '點位', '紀錄 ID']);
+    for (const x of Q.exceedances) sq.row([x.period, x.dischargeName, x.param, x.value, x.unit || '—', x.limit, x.who, x.pointCode, x.recordId]);
+  }
+  sq.text(`檢測頻率依據：${Q.frequencySource.doc} ${Q.frequencySource.ref}｜${Q.frequencySource.note}`);
+  sq.text('預設項目組只套用在去向「自設污水處理設施後放流」的排放口；納管排入污水下水道者依當地下水道機構標準，請在初始建檔「水質檢測項目與頻率」設定。');
 
   // 7. 用水績效指標與基線
   const sp = new Sheet(ctx, '績效指標與基線', '水足跡盤查清冊·用水績效指標與基線', C.WATER_SOURCES.indicator);
@@ -153,9 +188,47 @@ export function buildWater(inv, opts = {}) {
     if (p.value === undefined) sp.need(`績效指標·${p.label}`, p.msg);
   }
   if (!W.baseline) sp.need('用水基線年', '初始建檔 › 水足跡範疇與基線');
-  if (scope.targetPct !== undefined) sp.text(`目標：較基線降低 ${scope.targetPct}%${scope.targetYear ? `（${scope.targetYear - 1911} 年）` : ''}`);
+  // 每月實填的分母（申報與報告 › 報表資料輸入）
+  const monthlyP = W.performance.filter((p) => p.months);
+  if (monthlyP.length) {
+    sp.gap().head(['每月（實填分母）', ...MONTHS]);
+    sp.row(['取水（m³）', ...F.intake.months]);
+    for (const p of monthlyP) {
+      sp.row([`${p.denomLabel}`, ...p.months.map((m) => m.denominator)]);
+      sp.row([`${p.label}（${p.unit}）`, ...p.months.map((m) => m.value)]);
+    }
+  }
+  if (act?.monthly && act.monthsFilled < 12) sp.need(`每月營運活動 ${roc} 年`, `只填了 ${act.monthsFilled}/12 個月（申報與報告 › 報表資料輸入）`);
+  // 節水目標達成度（ISO 46001 6.3）
+  const TG = W.targets;
+  sp.gap().head(['節水目標達成度', '本年', '基線', '降幅（%）', '達成度（%）', '說明']);
+  for (const t of TG.rows) sp.row([t.label, t.value, t.baseline, t.reductionPct, t.progressPct, t.msg]);
+  if (TG.targetPct === undefined) sp.need('節水目標', '初始建檔 › 水足跡範疇與基線：用水效率目標（較基線降低 %）與目標年');
+  sp.text(srcLine(TG.source));
   sp.text(srcLine(C.WATER_SOURCES.baseline));
   sp.text('官方沒有醫院用水標竿（每床日），本表只與自己的基線比較。');
+
+  // 7-1. 衝擊評估：缺水足跡（ISO 14046 5.4；AWARE）
+  const SC = W.scarcity;
+  const sa = new Sheet(ctx, '衝擊評估', '水足跡盤查清冊·衝擊評估（缺水足跡）', SC.source);
+  sa.widths(30, 22, 18, 60).head(['項目', '值', '單位', '說明']);
+  sa.row(['特徵化模型', `${SC.model.name} ${SC.model.version}`, '—', `${SC.model.file}｜${SC.model.url}`]);
+  sa.row(['地區（流域）', SC.region.label, '—', SC.region.note || '初始建檔 › 水足跡範疇與基線「缺水特徵化因子地區」']);
+  sa.row(['用途別', SC.useLabel, '—', SC.cfFallback ? '這個地區沒有該用途別的因子，改用非農業年平均' : '醫院屬非農業用水']);
+  sa.row(['年平均特徵化因子 CF', SC.cfAnnual, 'm³ world-eq/m³', SC.method === 'monthly' ? '本年改用月別 CF（見下表）' : '年消耗 × 年平均 CF']);
+  sa.row(['直接用水消耗量', SC.direct.consumption, 'm³', SC.direct.consumptionMethod === 'balance' ? '取水－排放（質量平衡）' : SC.direct.consumptionMethod === 'units' ? '用水單元消耗比例估算' : '算不出']);
+  sa.row(['直接用水缺水足跡', SC.direct.value, 'm³ world-eq', SC.method === 'monthly' ? '逐月消耗 × 月別 CF' : '年消耗 × 年平均 CF']);
+  sa.row(['間接用水（外購電力）消耗量', SC.indirect.consumption, 'm³', SC.indirect.included ? '計入' : '不計入（系統邊界只含直接用水）；僅供參考']);
+  sa.row(['間接用水缺水足跡', SC.indirect.value, 'm³ world-eq', `× 全國平均 CF ${SC.indirect.cf}（發電廠分布全台）`]);
+  sa.row(['缺水足跡合計', SC.total, 'm³ world-eq', SC.msg]);
+  if (SC.rows) {
+    sa.gap().head(['月份', '消耗量（m³）', '月別 CF', '缺水足跡（m³ world-eq）']);
+    for (const r of SC.rows) sa.row([`${r.month} 月`, r.consumption, r.cf, r.wsf]);
+  }
+  if (SC.total === undefined) sa.need('缺水足跡', SC.msg);
+  sa.gap().text(`特徵化因子來源：${SC.cfSource.doc} ${SC.cfSource.ref || ''}${SC.cfSource.note ? `｜${SC.cfSource.note}` : ''}`);
+  sa.text('缺水足跡＝Σ（消耗量 × CF）。CF 表示該地區每消耗 1 m³ 相對於世界平均的缺水程度（AWARE：0.1～100）。結果是「缺水足跡」，不是完整的水足跡（未含水質劣化類衝擊）。');
+  sa.text('ISO 14046 5.4 的條文內容未取得原文（二手來源），見 docs/water-footprint-spec.md §0、§10。');
 
   // 8. 資料品質
   const sk = new Sheet(ctx, '資料品質', '水足跡盤查清冊·資料品質與完整度', W.completeness.source);
@@ -187,6 +260,8 @@ export function buildWater(inv, opts = {}) {
     summary: {
       year: Y, rocYear: roc, intake: F.intake.total, discharge: F.discharge.total, reuse: F.reuse.total, consumption: F.consumption.value, consumptionMethod: F.consumption.method,
       performance: W.performance.map(({ id, label, unit, value }) => ({ id, label, unit, value })), completeness: W.completeness.pct,
+      scarcity: W.scarcity.total, scarcityDirect: W.scarcity.direct.value, indirectConsumption: W.indirect.electricity.consumption, indirectIncluded: W.indirect.included,
+      qualityExceedances: W.quality.exceedances.length, targets: W.targets.rows.map(({ id, label, reductionPct, progressPct, met }) => ({ id, label, reductionPct, progressPct, met })),
     },
     source: WATER_SPEC.source,
   };

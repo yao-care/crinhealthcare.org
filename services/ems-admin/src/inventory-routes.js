@@ -269,6 +269,8 @@ export async function handleInventory({ req, res, sess, pathname, json, readBody
       a.decreases = ru.decreases;
       a.usage = { ...a.usage, ...ru.usage };
       a.warnings = [...ru.warnings, ...a.warnings];
+      // 水質抽測超出放流水標準（或依許可覆寫的限值）→ 只提示不擋（工作清單 26-5）
+      if (globalThis.EMSInventoryCompute.waterQualityWarnings) a.warnings.push(...globalThis.EMSInventoryCompute.waterQualityWarnings(inv, point, a.values, period));
       if (a.issues.length) throw new HttpErr(422, { error: 'validation', details: a.issues, message: a.errors.join('；') });
       if (a.decreases.length) throw new HttpErr(422, { error: 'reading_decreased', details: a.decreases, message: a.decreases.map((d) => d.message).join('\n') });
       if (a.pending.length) {

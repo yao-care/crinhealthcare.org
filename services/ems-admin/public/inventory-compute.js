@@ -960,10 +960,11 @@
   };
   // 用水績效指標（ISO 46001 3.4）。label 與 src/water-schema.js 的 REPORTING_UNITS 相同（測試有對）
   const WATER_INDICATORS = [
-    { id: 'bedDay', label: '每床日', unit: 'L/床日', per: 'L', denom: (a) => num(a?.bedDays), denomLabel: '住院人日' },
+    // denomKeys：可按月填報的分母（申報與報告 › 報表資料輸入「水足跡·每月營運活動」，工作清單 26-3）
+    { id: 'bedDay', label: '每床日', unit: 'L/床日', per: 'L', denom: (a) => num(a?.bedDays), denomLabel: '住院人日', denomKeys: ['bedDays'] },
     { id: 'visit', label: '每人次（門急診＋住院）', unit: 'L/人次', per: 'L',
       denom: (a) => { const xs = [a?.outpatientVisits, a?.erVisits, a?.admissions].map(num).filter((v) => v !== undefined); return xs.length ? xs.reduce((s, v) => s + v, 0) : undefined; },
-      denomLabel: '門診＋急診＋住院人次' },
+      denomLabel: '門診＋急診＋住院人次', denomKeys: ['outpatientVisits', 'erVisits', 'admissions'] },
     { id: 'area', label: '每平方公尺樓地板', unit: 'm³/m²·年', per: 'm3', denom: (a) => num(a?.floorArea), denomLabel: '樓地板面積' },
     { id: 'fte', label: '每員工（FTE）', unit: 'm³/人·年', per: 'm3', denom: (a) => num(a?.staffFte), denomLabel: '員工（FTE）' },
   ];
@@ -1173,12 +1174,33 @@
   // 訊息裡的數字（共用 fmt 沒有對外，這裡用 round＋千分位自做）
   function C_fmt(v) { if (v === undefined) return '—'; const [i, f] = String(round(v, 2)).split('.'); return i.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (f ? '.' + f : ''); }
 
-  // 營運活動資料（site.waterActivity 該年那一筆；樓地板面積空白用表三第 18 欄）
+  // 營運活動資料：每月實填（annual[民國年].waterMonthly，工作清單 26-3）優先；沒有月資料的項目用 site.waterActivity 該年那一筆；
+  // 樓地板面積空白用表三第 18 欄。from[key]＝'monthly'｜'yearly'，monthly＝12 個月的列（沒填的月是 null）。
+  const MONTHLY_KEYS = ['bedDays', 'outpatientVisits', 'erVisits', 'admissions'];
+  function waterMonthlyOf(inv, year) {
+    const Y = num(year);
+    const rows = inv?.annual?.[Y - 1911]?.waterMonthly;
+    if (!Array.isArray(rows) || !rows.length) return null;
+    const out = Array(12).fill(null);
+    for (const r of rows) { const m = num(r?.month); if (m >= 1 && m <= 12 && MONTHLY_KEYS.some((k) => num(r[k]) !== undefined)) out[m - 1] = r; }
+    return out.some(Boolean) ? out : null;
+  }
   function waterActivityOf(inv, year) {
     const Y = num(year);
     const row = rowsOf(inv, 'waterActivity').find((a) => num(a.year) === Y || (num(a.year) !== undefined && num(a.year) + 1911 === Y));
+    const mon = waterMonthlyOf(inv, Y);
     const fa = num(row?.floorArea) ?? num(inv?.site?.basic?.floorArea);
-    return row ? { ...row, floorArea: fa, floorAreaFrom: num(row.floorArea) !== undefined ? 'waterActivity' : (fa !== undefined ? 'basic' : null) } : (fa !== undefined ? { year: Y, floorArea: fa, floorAreaFrom: 'basic', partial: true } : null);
+    if (!row && !mon) return fa !== undefined ? { year: Y, floorArea: fa, floorAreaFrom: 'basic', partial: true, from: {} } : null;
+    const out = { ...(row || { year: Y }) };
+    const from = {};
+    for (const k of MONTHLY_KEYS) {
+      const xs = mon ? mon.map((m) => num(m?.[k])).filter((v) => v !== undefined) : [];
+      if (xs.length) { out[k] = xs.reduce((a, b) => a + b, 0); from[k] = 'monthly'; }
+      else if (num(row?.[k]) !== undefined) from[k] = 'yearly';
+    }
+    const monthsFilled = mon ? mon.filter(Boolean).length : 0;
+    return { ...out, floorArea: fa, floorAreaFrom: num(row?.floorArea) !== undefined ? 'waterActivity' : (fa !== undefined ? 'basic' : null),
+      from, monthly: mon, monthsFilled, ...(row || monthsFilled === 12 ? {} : { partial: true }) };
   }
   // 報告單位（範疇勾的）→ 指標 id；都沒勾＝全部
   function waterIndicatorIds(scope) {
@@ -1187,16 +1209,33 @@
   }
 
   // ── 用水績效指標（ISO 46001 3.4、6.2.6）──
-  function waterPerformance({ intake, activity, ids } = {}) {
+  // 分母按月實填時（activity.monthly），只拿「取水與分母都有資料的月份」相除，月份不齊也不會高估；monthsUsed 記用了幾個月。
+  function waterPerformance({ intake, activity, ids, intakeMonths } = {}) {
     const W = num(intake);
     const use = ids && ids.length ? WATER_INDICATORS.filter((x) => ids.includes(x.id)) : WATER_INDICATORS;
     return use.map((x) => {
+      const base = { id: x.id, label: x.label, unit: x.unit, denomLabel: x.denomLabel, source: WSRC.indicator };
+      const monthly = x.denomKeys && activity?.monthly && x.denomKeys.some((k) => activity.from?.[k] === 'monthly') && Array.isArray(intakeMonths);
+      if (monthly) {
+        const rows = activity.monthly.map((m, i) => {
+          const ds = m ? x.denomKeys.map((k) => num(m[k])).filter((v) => v !== undefined) : [];
+          const d = ds.length ? ds.reduce((a, b) => a + b, 0) : undefined;
+          const w = num(intakeMonths[i]);
+          return { month: i + 1, intake: w, denominator: d, value: w !== undefined && d ? round((x.per === 'L' ? w * 1000 : w) / d, 3) : undefined };
+        });
+        const ok = rows.filter((r) => r.value !== undefined);
+        const sw = ok.reduce((a, r) => a + r.intake, 0), sd = ok.reduce((a, r) => a + r.denominator, 0);
+        const b2 = { ...base, denominator: ok.length ? sd : activity[x.denomKeys[0]], denomFrom: 'monthly', months: rows, monthsUsed: ok.length };
+        if (!ok.length) return { ...b2, ok: null, level: 'na', value: undefined, msg: `${x.label}：取水與每月${x.denomLabel}沒有同一個月的資料，算不出` };
+        const v = round((x.per === 'L' ? sw * 1000 : sw) / sd, 3);
+        return { ...b2, ok: true, level: ok.length === 12 ? 'ok' : 'warn', value: v, msg: `${x.label}用水 ${C_fmt(v)} ${x.unit}${ok.length < 12 ? `（只用 ${ok.length} 個月：取水與${x.denomLabel}都有資料的月份）` : '（每月實填）'}` };
+      }
       const d = x.denom(activity);
-      const base = { id: x.id, label: x.label, unit: x.unit, denominator: d, denomLabel: x.denomLabel, source: WSRC.indicator };
-      if (W === undefined) return { ...base, ok: null, level: 'na', value: undefined, msg: `${x.label}：沒有取水量，算不出` };
-      if (!d) return { ...base, ok: null, level: 'na', value: undefined, msg: `${x.label}：缺${x.denomLabel}，算不出` };
+      const b1 = { ...base, denominator: d, denomFrom: x.denomKeys ? (activity?.from?.[x.denomKeys[0]] || null) : null };
+      if (W === undefined) return { ...b1, ok: null, level: 'na', value: undefined, msg: `${x.label}：沒有取水量，算不出` };
+      if (!d) return { ...b1, ok: null, level: 'na', value: undefined, msg: `${x.label}：缺${x.denomLabel}，算不出` };
       const v = round((x.per === 'L' ? W * 1000 : W) / d, 3);
-      return { ...base, ok: true, level: 'ok', value: v, msg: `${x.label}用水 ${C_fmt(v)} ${x.unit}` };
+      return { ...b1, ok: true, level: 'ok', value: v, msg: `${x.label}用水 ${C_fmt(v)} ${x.unit}` };
     });
   }
 
@@ -1234,7 +1273,7 @@
     const sigNo = flows.units.filter((u) => u.id && u.significant && !u.metered);
     add('units', '主要用水單元都有分表', sig.length && !sigNo.length, sig.length ? `沒有分表的主要用水單元：${sigNo.map((u) => u.name).join('、')}（目前用估計占比）` : '尚未標示主要用水單元');
     add('discharge', '排放量有量測', flows.discharge.measured, '沒有「排放」點位項目：消耗量只能估算');
-    add('activity', '營運活動資料（本年）', activity && !activity.partial, '請到初始建檔「營運活動資料」填本年住院人日、門急診人次、員工');
+    add('activity', '營運活動資料（本年）', activity && !activity.partial, activity?.monthly ? `每月營運活動只填了 ${activity.monthsFilled}/12 個月（申報與報告 › 報表資料輸入）` : '請到申報與報告 › 報表資料輸入「水足跡·每月營運活動」按月填住院人日、門急診人次（或初始建檔「營運活動資料」填年值）');
     add('baseline', '基線年有取水資料', baselineYear && baselineFlows && baselineFlows.intake.total !== undefined, baselineYear ? `基線年 ${baselineYear} 沒有取水資料` : '尚未設定基線年');
     const needQ = rowsOf(inv, 'waterDischarges').flatMap((d) => (d.qualityParams || []).map((p) => ({ d, p })));
     const missQ = needQ.filter(({ d, p }) => !flows.quality.some((q) => q.dischargeId === d.id && q.param === p && q.n > 0));
@@ -1251,14 +1290,14 @@
     const flows = waterFlows(inv, { year: Y });
     const activity = waterActivityOf(inv, Y);
     const ids = waterIndicatorIds(scope);
-    const performance = waterPerformance({ intake: flows.intake.total, activity, ids });
+    const performance = waterPerformance({ intake: flows.intake.total, activity, ids, intakeMonths: flows.intake.months });
     let BY = num(scope.baselineYear);
     if (BY !== undefined && BY < 1911) BY += 1911;
     let baseline = null;
     if (BY !== undefined) {
       const bf = BY === Y ? flows : waterFlows(inv, { year: BY });
       const ba = waterActivityOf(inv, BY);
-      const bp = waterPerformance({ intake: bf.intake.total, activity: ba, ids });
+      const bp = waterPerformance({ intake: bf.intake.total, activity: ba, ids, intakeMonths: bf.intake.months });
       baseline = { year: BY, flows: { intake: bf.intake.total }, rawFlows: bf, activity: ba, performance: bp, compare: waterBaselineCompare(performance, bp, { targetPct: scope.targetPct }), source: WSRC.baseline };
     }
     const completeness = waterCompleteness(inv, flows, { activity, baselineYear: BY, baselineFlows: baseline?.rawFlows });
@@ -1267,8 +1306,375 @@
   }
 
   Object.assign(C, {
-    waterUnitFactor, waterItemAmount, waterFlows, waterActivityOf, waterIndicatorIds, waterPerformance, waterBaselineCompare, waterCompleteness, waterInventory,
+    waterUnitFactor, waterItemAmount, waterFlows, waterMonthlyOf, waterActivityOf, waterIndicatorIds, waterPerformance, waterBaselineCompare, waterCompleteness, waterInventory,
     WATER_INDICATORS: WATER_INDICATORS.map(({ id, label, unit, denomLabel }) => ({ id, label, unit, denomLabel })),
     WATER_SOURCES: WSRC,
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+// ════════════════════════════════════════════════════════════════
+// 水足跡延伸（工作清單 26）：間接用水（外購電力）、缺水足跡衝擊評估（AWARE）、水質限值與超標、節水目標達成度。
+// 依據：ISO 14046:2014 5.2.3（系統邊界）、5.4（水足跡衝擊評估）；ISO 46001:2019 6.2.7、6.3；
+//       放流水標準、水污染防治措施及檢測申報管理辦法；WULCA AWARE 特徵化因子；台電永續報告書（發電用水）。
+// 係數與版本全部放在這一段的常數（前後端同一份）；來源與取得程度見 docs/water-footprint-spec.md §9～§12。
+// waterFootprint(inv, { year }) ＝ waterInventory ＋ indirect ＋ scarcity ＋ quality ＋ targets，報表與管理端都用這一支。
+// ════════════════════════════════════════════════════════════════
+(function (g) {
+  'use strict';
+  const C = g.EMSInventoryCompute;
+  if (!C || !C.waterInventory) return;
+  const num = C.num, round = C.round;
+  const SPEC_DOC = 'docs/water-footprint-spec.md';
+  const s14 = (ref, spec, note) => ({ doc: 'ISO 14046:2014', ref, spec, specDoc: SPEC_DOC, ...(note ? { note } : {}) });
+  const s46 = (ref, spec, note) => ({ doc: 'ISO 46001:2019', ref, spec, specDoc: SPEC_DOC, ...(note ? { note } : {}) });
+  const r3 = (v) => (v === undefined ? undefined : round(v, 3));
+  const nf = (v, d = 2) => { if (v === undefined) return '—'; const [a, b] = String(round(v, d)).split('.'); return a.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (b ? '.' + b : ''); };
+  const blank = (v) => v === undefined || v === null || v === '';
+
+  // 缺水特徵化因子（WULCA AWARE2.0，UNEP GLAM 推薦方法的現行版本）。單位 m³ world-eq / m³ 消耗；範圍 0.1～100。
+  // 全國：AWARE20_Countries_and_Regions.xlsx 列 ID 406「Taiwan」（ecoinvent TW），工作表 CFs_nonagri／CFs_agri／CFs_unspecified，欄 Annual、Jan～Dec。
+  // 縣市：AWARE20_Subnational_Resolution.xlsx 工作表 CFs_nonagri（GADM 4.1，只取年平均非農業）。
+  // 流域：AWARE20_Native_CFs.xlsx 工作表 native_CFs（每流域一組月別 CF，用途別只差在年平均的加權）。
+  // 全球平均（GLO）非農業 17.9、不分用途 39.5。
+  const M = (a) => a;   // 月別 1～12 月
+  const AWARE = {
+    name: 'WULCA AWARE', version: 'AWARE2.0（Zenodo 資料 v1.0.2，檔內版本日 2025-04-03）',
+    file: 'AWARE20_Countries_and_Regions.xlsx／AWARE20_Subnational_Resolution.xlsx／AWARE20_Native_CFs.xlsx',
+    url: 'https://zenodo.org/records/21708463', published: '2025（Seitfudem et al., J. Industrial Ecology 29(3):891–907, doi:10.1111/jiec.70023）',
+    regions: [
+      { id: 'TWN', label: '臺灣（全國平均）', annual: { nonAgri: 6.88, agri: 10.4, unknown: 9.08 },
+        monthly: { nonAgri: M([10.5, 27.2, 28.2, 3.36, 2.15, 0.26, 1.17, 0.327, 0.239, 0.661, 4.96, 5.03]), unknown: M([14.9, 43.5, 55.8, 3.87, 1.61, 0.253, 1.17, 0.317, 0.243, 0.738, 9.46, 7.72]) },
+        note: 'AWARE20_Countries_and_Regions.xlsx 列 ID 406 Taiwan；GLAM 沒有獨立的 TWN 列' },
+      { id: 'TW-TPE', label: '臺北市（縣市層級）', annual: { nonAgri: 0.404 }, note: 'AWARE20_Subnational_Resolution.xlsx CFs_nonagri；只有年平均' },
+      { id: 'TW-NWT', label: '新北市（縣市層級）', annual: { nonAgri: 0.461 }, note: 'AWARE20_Subnational_Resolution.xlsx CFs_nonagri；只有年平均' },
+      { id: 'TW-TXG', label: '臺中市（縣市層級）', annual: { nonAgri: 1.02 }, note: 'AWARE20_Subnational_Resolution.xlsx CFs_nonagri；只有年平均' },
+      { id: 'TW-TNN', label: '臺南市（縣市層級）', annual: { nonAgri: 22.8 }, note: 'AWARE20_Subnational_Resolution.xlsx CFs_nonagri；只有年平均' },
+      { id: 'TW-KHH', label: '高雄市（縣市層級）', annual: { nonAgri: 17.3 }, note: 'AWARE20_Subnational_Resolution.xlsx CFs_nonagri；只有年平均' },
+      { id: 'TW-OTH', label: '其他縣市（臺灣省，縣市層級）', annual: { nonAgri: 6.68 }, note: 'AWARE20_Subnational_Resolution.xlsx CFs_nonagri「Taiwan」；只有年平均' },
+      { id: 'TW-FJ', label: '金門、連江（縣市層級）', annual: { nonAgri: 1.66 }, note: 'AWARE20_Subnational_Resolution.xlsx CFs_nonagri「Fujian」；只有年平均' },
+    { id: 'B43170', label: '流域 43170：淡水河流域（臺北、新北）', annual: { nonAgri: 0.59, agri: 0.991, unknown: 0.751 }, monthly: { nonAgri: M([0.642, 0.413, 0.456, 0.418, 0.335, 0.313, 2.06, 0.489, 0.26, 0.409, 0.569, 0.681]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 43170（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B43171', label: '流域 43171：東北角（基隆、新北東北）', annual: { nonAgri: 0.375, agri: 0.736, unknown: 0.398 }, monthly: { nonAgri: M([0.212, 0.197, 0.261, 0.319, 0.279, 0.237, 1.83, 0.473, 0.163, 0.155, 0.154, 0.191]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 43171（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B43443', label: '流域 43443：桃竹苗（新竹、苗栗）', annual: { nonAgri: 10.8, agri: 15.9, unknown: 14.8 }, monthly: { nonAgri: M([7.24, 3.48, 1.48, 0.932, 0.629, 0.502, 3.99, 0.809, 0.527, 3.09, 100, 7.9]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 43443（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B43445', label: '流域 43445：蘭陽溪流域（宜蘭）', annual: { nonAgri: 0.431, agri: 1.09, unknown: 0.894 }, monthly: { nonAgri: M([0.201, 0.231, 0.34, 0.487, 0.407, 0.36, 2.12, 0.466, 0.148, 0.102, 0.107, 0.156]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 43445（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B43724', label: '流域 43724：臺中沿海', annual: { nonAgri: 42.9, agri: 30.2, unknown: 32.1 }, monthly: { nonAgri: M([100, 100, 100, 2.12, 0.466, 0.347, 0.505, 0.247, 0.719, 13.1, 100, 100]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 43724（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B43725', label: '流域 43725：臺中內陸（大甲溪、大肚溪上游）', annual: { nonAgri: 0.789, agri: 0.61, unknown: 0.665 }, monthly: { nonAgri: M([2.03, 1.46, 1.09, 0.782, 0.388, 0.264, 0.371, 0.215, 0.258, 0.328, 0.778, 1.54]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 43725（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B43727', label: '流域 43727：花蓮北部', annual: { nonAgri: 0.389, agri: 0.401, unknown: 0.398 }, monthly: { nonAgri: M([0.25, 0.308, 0.673, 0.991, 0.509, 0.381, 0.705, 0.292, 0.145, 0.1, 0.12, 0.196]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 43727（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44005', label: '流域 44005：濁水溪流域（彰化、雲林、南投）', annual: { nonAgri: 7.49, agri: 5.04, unknown: 5.27 }, monthly: { nonAgri: M([14, 16.9, 31.9, 1.97, 0.57, 0.178, 0.173, 0.103, 0.209, 0.764, 8.93, 14.5]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44005（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44008', label: '流域 44008：花蓮', annual: { nonAgri: 0.789, agri: 0.488, unknown: 0.627 }, monthly: { nonAgri: M([1.76, 1.72, 2.43, 0.857, 0.27, 0.17, 0.177, 0.112, 0.159, 0.201, 0.516, 1.14]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44008（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44284', label: '流域 44284：嘉義、臺南沿海', annual: { nonAgri: 27.3, agri: 36.3, unknown: 32.7 }, monthly: { nonAgri: M([100, 100, 100, 9.92, 5, 0.243, 0.246, 0.13, 0.261, 1.47, 6.22, 8.29]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44284（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44286', label: '流域 44286：東海岸（花東縱谷北段）', annual: { nonAgri: 1.0, agri: 0.296, unknown: 0.91 }, monthly: { nonAgri: M([1.75, 2.46, 2.92, 1.65, 0.618, 0.232, 0.248, 0.131, 0.156, 0.194, 0.453, 1.31]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44286（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44567', label: '流域 44567：臺南、高雄（曾文溪、高屏溪下游）', annual: { nonAgri: 17.7, agri: 30, unknown: 25.2 }, monthly: { nonAgri: M([6.82, 100, 100, 3.88, 1.11, 0.161, 0.159, 0.1, 0.179, 0.466, 1.79, 3.43]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44567（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44568', label: '流域 44568：屏東', annual: { nonAgri: 2.9, agri: 1.42, unknown: 1.69 }, monthly: { nonAgri: M([5.87, 7.43, 9.32, 5, 2.39, 0.289, 0.256, 0.15, 0.194, 0.33, 1.08, 2.77]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44568（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44569', label: '流域 44569：臺東', annual: { nonAgri: 2.84, agri: 2.99, unknown: 2.9 }, monthly: { nonAgri: M([2.7, 2.99, 6.04, 13, 5.02, 0.504, 0.402, 0.211, 0.194, 0.242, 0.542, 2.34]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44569（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44848', label: '流域 44848：高雄、屏東沿海', annual: { nonAgri: 42.3, agri: 38.5, unknown: 41.1 }, monthly: { nonAgri: M([100, 100, 76.6, 29.6, 3.48, 0.179, 0.206, 0.119, 0.296, 1.64, 100, 100]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44848（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B44849', label: '流域 44849：屏東南部', annual: { nonAgri: 6.56, agri: 8.59, unknown: 7.54 }, monthly: { nonAgri: M([6.49, 9.81, 34.3, 20.5, 2.95, 0.234, 0.22, 0.119, 0.163, 0.344, 1.13, 2.65]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 44849（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B45130', label: '流域 45130：恆春半島', annual: { nonAgri: 50.4, agri: 49.5, unknown: 50.4 }, monthly: { nonAgri: M([100, 100, 100, 100, 100, 0.544, 0.493, 0.261, 0.378, 0.74, 4.03, 100]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 45130（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    { id: 'B68126', label: '流域 68126：澎湖北部', annual: { nonAgri: 6.0, agri: 4.92, unknown: 5.15 }, monthly: { nonAgri: M([7.86, 19.2, 25.3, 3.56, 2.41, 0.42, 0.828, 0.345, 0.726, 1.96, 3.93, 6.24]) }, note: 'AWARE20_Native_CFs.xlsx native_CFs Basin_ID 68126（WaterGAP 0.5° 流域；地名為依網格位置的對照）' },
+    ],
+    source: { doc: 'WULCA AWARE2.0 特徵化因子', ref: 'Zenodo 10.5281/zenodo.21708463（v1.0.2）；方法：Seitfudem, Berger, Müller Schmied, Boulay (2025)', url: 'https://zenodo.org/records/21708463',
+      note: '邊際 CF（消耗量不足以改變流域可用水量時適用）；WULCA 官方版本頁 https://wulca-waterlca.org/what-is-aware/official-versions/ 稱 AWARE2.0 為現行版本並列於 UNEP GLAM 建議', spec: '§10', specDoc: SPEC_DOC },
+  };
+
+  // 外購電力的發電用水係數（L/kWh）。台電自有火力電廠的淡水取水與耗水（自來水＋井水／河川／海淡水），
+  // 不含海水直流冷卻（缺水足跡只看淡水，正確排除）、水力水庫蒸發、燃料上游與民營電廠 → 屬下限值。
+  // 耗水強度＝耗水量 ÷（取水量 ÷ 公布之用水密集度）：8,258,135 m³ ÷ 136.5 TWh ≈ 0.0605 L/kWh。
+  const ELEC_WATER = {
+    consumption: 0.0605, withdrawal: 0.0651, unit: 'L/kWh', dataYear: 2025,
+    source: { doc: '台灣電力公司《2025 永續報告書》', ref: '3.2.2 促進水資源使用效率·「2023-2025 年台電用水量統計表」（第 90 頁）；SASB IF-EU-140a.1',
+      url: 'https://service.taipower.com.tw/csr/download/sustainables/Bd/2025-Taipower-Sustainability-Report-c.pdf',
+      note: '2025 年火力：取水 8,884,954 m³、耗水 8,258,135 m³、用水密集度 65.11 公噸/GWh（＝0.0651 L/kWh）；耗水強度由取水量與密集度回推發電量後計算。不含海水冷卻、水力蒸發、燃料上游與民營電廠，為下限值', spec: '§9', specDoc: SPEC_DOC },
+  };
+
+  // 醫院預設水質檢測項目組（放流水標準 附表八「醫院、醫事機構」＋「共同適用」；檢測項目依 水污染防治措施及檢測申報管理辦法 附表一（五十三））。
+  // 只套用在去向「自設污水處理設施後放流」（排入地面水體）的排放口；納管排入污水下水道的，限值依各地「下水道可容納排入之下水水質標準」，請院方自行設定。
+  // schedule：限值自某月起生效（既設設施：氨氮 116-01 起 75、118-01 起 45；自由有效餘氯 116-01 起 2.0）。新設（113-12-18 前未招標）者請依許可證覆寫（氨氮 30）。
+  // seasonal：水溫 5～9 月 ≤38℃、10～4 月 ≤35℃（排放於非海洋之地面水體）。
+  const LAW_EFF = '放流水標準（113-12-18 環部水字第 1131081975 號令修正）';
+  const effB = (ref) => `${LAW_EFF} 第 2 條 附表八 ${ref}`;
+  const EFFLUENT_HOSPITAL = [
+    { param: 'pH', label: '氫離子濃度指數', unit: '', min: 6.0, max: 9.0, basis: effB('共同適用') },
+    { param: '水溫', label: '水溫', unit: '℃', max: 38, seasonal: { months: [5, 6, 7, 8, 9], max: 38, otherMax: 35 }, basis: effB('共同適用（5～9 月 ≤38℃、10～4 月 ≤35℃）') },
+    { param: 'BOD', label: '生化需氧量', unit: 'mg/L', max: 30, basis: effB('醫院、醫事機構') },
+    { param: 'COD', label: '化學需氧量', unit: 'mg/L', max: 100, basis: effB('醫院、醫事機構') },
+    { param: 'SS', label: '懸浮固體', unit: 'mg/L', max: 30, basis: effB('醫院、醫事機構') },
+    { param: '大腸桿菌群', label: '大腸桿菌群', unit: 'CFU/100mL', max: 200000, basis: effB('醫院、醫事機構') },
+    { param: '自由有效餘氯', label: '自由有效餘氯', unit: 'mg/L', schedule: [{ from: '2027-01', max: 2.0 }], basis: effB('醫院、醫事機構（既設者 116-01-01 起適用；疫情指揮中心開設期間不適用）') },
+    { param: '氨氮', label: '氨氮', unit: 'mg/L', schedule: [{ from: '2027-01', max: 75 }, { from: '2029-01', max: 45 }], basis: effB('醫院、醫事機構（自來水水質水量保護區以外；既設者 116-01-01 起 75、118-01-01 起 45；新設 30）') },
+  ];
+  const EFFLUENT_DEFAULT_DESTINATION = '自設污水處理設施後放流';
+  const EFFLUENT_DEFAULT_FREQUENCY = '每半年';
+  const EFFLUENT_FREQUENCY_SOURCE = { doc: '水污染防治措施及檢測申報管理辦法（115-04-20 修正）', ref: '第 83 條、第 84 條、附表一（五十三）醫院、醫事機構',
+    note: '放流水排入地面水體：須設專責單位或甲級專責人員者每 3 個月（每季）、乙級或免設者每 6 個月；納管者每 6 個月。專責等級依「廢（污）水處理專責單位或人員設置及管理辦法」附表一（一般醫院：2,000 CMD 以上甲級）', spec: '§11', specDoc: SPEC_DOC };
+
+  const XSRC = {
+    boundary: s14('5.2.3 系統邊界；附錄 A（組織）', '§9', '間接用水＝外購電力等上游；依範疇設定決定是否納入'),
+    indirect: s14('5.2.3 系統邊界；5.3 盤查（間接用水以係數估算）', '§9', '外購蒸汽、藥品耗材等其他上游只登錄、不量化'),
+    scarcity: s14('5.4 水足跡衝擊評估（5.4.2 衝擊類別與特徵化模型之選擇、5.4.4 特徵化）；3.3.14 特徵化因子；3.3.17 缺水；3.3.1 註 1（加修飾語「缺水足跡」）', '§10', '特徵化模型：WULCA AWARE2.0。3.x 定義為一手；5.4 子條名取自官方西文譯本目錄，條文內容未取得'),
+    quality: { doc: '放流水標準', ref: '第 2 條 附表八（醫院、醫事機構）', law: '環部水字第 1131081975 號令（113-12-18）', spec: '§11', specDoc: SPEC_DOC },
+    target: s46('6.2.7 基線；6.3 目標與行動計畫；9.1 監測、量測', '§3.6'),
+  };
+
+  // ── 外購電力（間接用水的活動數據）──
+  // 電費單：同電號同計費月份取最後送出的那筆（同 src/report-model.js billMonths；test/water.test.js 對兩邊結果）；
+  // 沒有電費單時改用電類點位上「連結電號」的累計讀數（kWh／度）用量。
+  const KWH_UNITS = ['kwh', '度', '瓩時', '千瓦時'];
+  function waterElectricityKwh(inv, { year } = {}) {
+    const Y = num(year);
+    const points = inv?.points || [];
+    const meters = inv?.site?.meters || [];
+    const byKey = new Map();
+    for (const r of inv?.records || []) {
+      const p = points.find((x) => x.code === r.pointCode);
+      if (!p) continue;
+      for (const it of p.items || []) {
+        if (it.type !== 'bill') continue;
+        const b = r.values?.[it.id]?.values;
+        if (!b) continue;
+        const month = /^\d{4}-\d{2}$/.test(String(b.period || '')) ? b.period : r.period;
+        const meter = (it.meterId && meters.find((m) => m.id === it.meterId)) || meters.find((m) => m.meterNo && String(m.meterNo) === String(b.meterNo || '')) || null;
+        const key = `${meter?.id || `no:${b.meterNo || ''}`}|${month}`;
+        const prev = byKey.get(key);
+        if (!prev || String(r.at) > String(prev.at)) byKey.set(key, { month, meterNo: meter?.meterNo || b.meterNo || '', bill: b, recordId: r.id, pointCode: r.pointCode, at: r.at, who: r.who || '' });
+      }
+    }
+    const months = Array(12).fill(undefined);
+    const rows = [];
+    for (const x of byKey.values()) {
+      if (!String(x.month).startsWith(`${Y}-`)) continue;
+      const xs = ['usePeak', 'useHalfPeak', 'useSatHalfPeak', 'useOffPeak'].map((k) => num(x.bill[k])).filter((v) => v !== undefined);
+      if (!xs.length) continue;
+      const kwh = xs.reduce((a, b) => a + b, 0);
+      const i = Number(x.month.slice(5, 7)) - 1;
+      months[i] = (months[i] || 0) + kwh;
+      rows.push({ source: '電費單', meterNo: x.meterNo, month: x.month, kwh, recordId: x.recordId, pointCode: x.pointCode, at: x.at, who: x.who });
+    }
+    let method = rows.length ? 'bill' : null;
+    if (!rows.length) {
+      for (const p of points) {
+        if (p.domain !== 'power') continue;
+        for (const it of p.items || []) {
+          if (it.type !== 'reading' || !it.meterId || !KWH_UNITS.includes(String(it.unit || '').trim().toLowerCase())) continue;
+          for (const r of inv.records || []) {
+            if (r.pointCode !== p.code || !String(r.period || '').startsWith(`${Y}-`)) continue;
+            const v = num(r.usage?.[it.id]);
+            if (v === undefined) continue;
+            const i = Number(r.period.slice(5, 7)) - 1;
+            months[i] = (months[i] || 0) + v;
+            rows.push({ source: '電表讀數', meterNo: meters.find((m) => m.id === it.meterId)?.meterNo || '', month: r.period, kwh: v, recordId: r.id, pointCode: p.code, at: r.at, who: r.who || '' });
+          }
+        }
+      }
+      if (rows.length) method = 'reading';
+    }
+    rows.sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : String(a.meterNo).localeCompare(String(b.meterNo))));
+    const have = months.filter((v) => v !== undefined);
+    return { year: Y, total: have.length ? r3(have.reduce((a, b) => a + b, 0)) : undefined, months: months.map(r3), monthsCovered: have.length, method, rows };
+  }
+
+  const indirectIncluded = (scope) => String(scope?.boundary || '').includes('間接');
+  // ── 間接用水（ISO 14046 5.2.3）：外購電力 × 發電用水係數；其他上游（site.waterUpstream）只列出不量化 ──
+  function waterIndirect(inv, { year } = {}) {
+    const scope = inv?.site?.waterScope || {};
+    const e = waterElectricityKwh(inv, { year });
+    const custom = num(scope.elecWaterFactor);
+    const cL = custom !== undefined ? custom : ELEC_WATER.consumption;
+    const wL = custom !== undefined ? custom : ELEC_WATER.withdrawal;
+    const f = { consumption: cL, withdrawal: wL, unit: 'L/kWh', custom: custom !== undefined, note: custom !== undefined ? (scope.elecWaterFactorNote || '院方自訂係數') : `${ELEC_WATER.source.doc}（${ELEC_WATER.dataYear} 年資料）` };
+    const m3 = (kwh, L) => (kwh === undefined ? undefined : r3(kwh * L / 1000));
+    const electricity = {
+      kwh: e.total, months: e.months, monthsCovered: e.monthsCovered, method: e.method, rows: e.rows, factor: f,
+      withdrawal: m3(e.total, wL), consumption: m3(e.total, cL), consumptionMonths: e.months.map((v) => m3(v, cL)),
+      msg: e.total === undefined ? '資料年沒有電費單或電表讀數，算不出外購電力的間接用水'
+        : `外購電力 ${nf(e.total, 0)} 度 × ${cL} L/度 ＝ 耗水 ${nf(m3(e.total, cL))} m³${e.monthsCovered < 12 ? `（只有 ${e.monthsCovered} 個月用電資料）` : ''}`,
+      source: ELEC_WATER.source,
+    };
+    const upstream = (Array.isArray(inv?.site?.waterUpstream) ? inv.site.waterUpstream : []).map((u) => ({ ...u, quantified: false }));
+    const included = indirectIncluded(scope);
+    return { included, electricity, upstream, consumption: included ? electricity.consumption : undefined, source: XSRC.indirect, boundarySource: XSRC.boundary,
+      msg: included ? '系統邊界含間接用水：外購電力以係數估算納入；其他上游只登錄不量化' : '系統邊界只含院區直接用水；間接用水僅供參考，不計入合計' };
+  }
+
+  // ── 缺水足跡（ISO 14046 5.4；AWARE）──
+  function waterAwareRegion(id) { return AWARE.regions.find((r) => r.id === id) || AWARE.regions[0]; }
+  function waterScarcity(inv, { year, flows, indirect } = {}) {
+    const scope = inv?.site?.waterScope || {};
+    const region = waterAwareRegion(scope.awareRegion);
+    const useKey = scope.awareUse === '不分用途（unspecified）' ? 'unknown' : 'nonAgri';
+    // 縣市層級只有非農業年平均、流域層級的月別 CF 不分用途 → 缺的用途別退回非農業（標 cfFallback）
+    const cfFallback = region.annual[useKey] === undefined;
+    const cfY = cfFallback ? region.annual.nonAgri : region.annual[useKey];
+    const cfM = region.monthly?.[useKey] || region.monthly?.nonAgri || null;
+    const F = flows || C.waterFlows(inv, { year });
+    const cons = F.consumption;
+    let rows = null, direct, method;
+    const im = F.intake.months, dm = F.discharge.months;
+    const monthlyOk = cons.method === 'balance' && cfM && im.some((v) => v !== undefined) && im.every((v, i) => v === undefined || dm[i] !== undefined);
+    if (cons.value === undefined) { direct = undefined; method = null; }
+    else if (monthlyOk) {
+      rows = im.map((w, i) => {
+        if (w === undefined) return { month: i + 1, consumption: undefined, cf: cfM[i], wsf: undefined };
+        const c = Math.max(0, w - dm[i]);
+        return { month: i + 1, consumption: r3(c), cf: cfM[i], wsf: r3(c * cfM[i]) };
+      });
+      direct = r3(rows.reduce((a, r) => a + (r.wsf || 0), 0));
+      method = 'monthly';
+    } else { direct = r3(cons.value * cfY); method = 'annual'; }
+    const ind = indirect || waterIndirect(inv, { year });
+    const cfInd = AWARE.regions[0].annual.nonAgri;   // 發電廠分布全台：用全國平均（非農業）
+    const indValue = ind.electricity.consumption === undefined ? undefined : r3(ind.electricity.consumption * cfInd);
+    const total = direct === undefined && (!ind.included || indValue === undefined) ? undefined : r3((direct || 0) + (ind.included ? (indValue || 0) : 0));
+    const msgs = [];
+    if (cons.value === undefined) msgs.push('沒有消耗量（取水－排放或用水單元估算），直接用水的缺水足跡算不出');
+    else msgs.push(`直接用水：消耗 ${nf(cons.value)} m³ × ${method === 'monthly' ? '各月' : `年平均 ${cfY}`} CF ＝ ${nf(direct)} m³ world-eq${cons.method === 'units' ? '（消耗量為估算）' : ''}`);
+    if (ind.included) msgs.push(indValue === undefined ? '間接用水（外購電力）沒有用電資料' : `間接用水（外購電力）：耗水 ${nf(ind.electricity.consumption)} m³ × 全國平均 ${cfInd} ＝ ${nf(indValue)} m³ world-eq`);
+    return {
+      unit: 'm³ world-eq', region: { id: region.id, label: region.label, note: region.note || '' }, use: useKey, useLabel: useKey === 'nonAgri' ? '非農業用水' : '不分用途',
+      cfAnnual: cfY, cfMonthly: cfM, cfFallback, method, rows,
+      direct: { consumption: cons.value, consumptionMethod: cons.method, value: direct },
+      indirect: { included: ind.included, consumption: ind.electricity.consumption, cf: cfInd, value: indValue },
+      total, model: { name: AWARE.name, version: AWARE.version, file: AWARE.file, url: AWARE.url, published: AWARE.published },
+      msg: msgs.join('；'), level: total === undefined ? 'na' : cons.method === 'balance' ? 'ok' : 'warn', source: XSRC.scarcity, cfSource: AWARE.source,
+    };
+  }
+
+  // ── 水質：預設項目組（放流水標準）＋依許可證覆寫（site.waterQualityPlan）→ 各排放口實際要測的項目、限值、頻率 ──
+  const FREQ_PER_YEAR = { 每月: 12, 每季: 4, 每半年: 2, 每年: 1 };
+  function waterQualityRules(inv) {
+    const ds = Array.isArray(inv?.site?.waterDischarges) ? inv.site.waterDischarges : [];
+    const plan = Array.isArray(inv?.site?.waterQualityPlan) ? inv.site.waterQualityPlan : [];
+    const out = [];
+    for (const d of ds) {
+      const own = plan.filter((p) => p.dischargeId === d.id && p.param);
+      if (own.length) {
+        for (const p of own) out.push({ dischargeId: d.id, dischargeName: d.name || d.id, param: p.param, unit: p.unit || EFFLUENT_HOSPITAL.find((x) => x.param === p.param)?.unit || '',
+          min: num(p.limitMin), max: num(p.limitMax), frequency: p.frequency || '', perYear: FREQ_PER_YEAR[p.frequency], basis: p.basis || '依排放許可（院方設定）', origin: 'permit' });
+      } else if (d.destination === EFFLUENT_DEFAULT_DESTINATION) {
+        const freq = d.defaultFrequency || EFFLUENT_DEFAULT_FREQUENCY;
+        for (const x of EFFLUENT_HOSPITAL) out.push({ dischargeId: d.id, dischargeName: d.name || d.id, param: x.param, label: x.label, unit: x.unit, min: x.min, max: x.max, schedule: x.schedule, seasonal: x.seasonal, frequency: freq, perYear: FREQ_PER_YEAR[freq], basis: x.basis, origin: 'default' });
+      }
+    }
+    return out;
+  }
+  // 某期別適用的上限：schedule（自某月起生效）、seasonal（依月份）；其餘用 max
+  function maxAt(rule, period) {
+    const p = String(period || '');
+    if (rule.schedule) { const hit = rule.schedule.filter((x) => !p || x.from <= p).pop(); return hit ? hit.max : undefined; }
+    if (rule.seasonal && /^\d{4}-\d{2}$/.test(p)) return rule.seasonal.months.includes(Number(p.slice(5, 7))) ? rule.seasonal.max : rule.seasonal.otherMax;
+    return rule.max;
+  }
+  const rocM = (ym) => `${Number(ym.slice(0, 4)) - 1911}-${ym.slice(5, 7)}`;
+  // 限值文字（報表、畫面用）：範圍、上限、分期生效、分季節
+  function waterQualityLimitText(rule) {
+    if (!rule) return '';
+    const u = rule.unit ? ` ${rule.unit}` : '';
+    if (rule.schedule) return rule.schedule.map((x) => `${rocM(x.from)} 起 ≤ ${x.max}${u}`).join('；');
+    if (rule.seasonal) return `5～9 月 ≤ ${rule.seasonal.max}${u}；10～4 月 ≤ ${rule.seasonal.otherMax}${u}`;
+    if (rule.min !== undefined && rule.max !== undefined) return `${rule.min}～${rule.max}${u}`;
+    if (rule.max !== undefined) return `≤ ${rule.max}${u}`;
+    if (rule.min !== undefined) return `≥ ${rule.min}${u}`;
+    return '未設限值';
+  }
+  function waterQualityCheck(rule, value, period) {
+    const v = num(value);
+    if (!rule || v === undefined) return { exceeded: false };
+    rule = { ...rule, max: maxAt(rule, period) };
+    const lo = rule.min !== undefined && v < rule.min, hi = rule.max !== undefined && v > rule.max;
+    if (!lo && !hi) return { exceeded: false };
+    const lim = rule.min !== undefined && rule.max !== undefined ? `${rule.min}～${rule.max}` : hi ? `≤ ${rule.max}` : `≥ ${rule.min}`;
+    return { exceeded: true, limit: lim, msg: `「${rule.param}」${v}${rule.unit ? ` ${rule.unit}` : ''} 超出限值 ${lim}${rule.unit ? ` ${rule.unit}` : ''}（${rule.basis}）` };
+  }
+  const paramOf = (it) => it.waterParam || it.label;
+  // 貼紙頁送出時的超標提示（不擋送出）
+  function waterQualityWarnings(inv, point, values, period) {
+    if (point?.domain !== 'water') return [];
+    const rules = waterQualityRules(inv);
+    const out = [];
+    for (const it of point.items || []) {
+      if (it.waterFlow !== 'quality') continue;
+      const rule = rules.find((r) => r.param === paramOf(it) && (!it.waterDischargeId || r.dischargeId === it.waterDischargeId));
+      const c = waterQualityCheck(rule, values?.[it.id], period);
+      if (c.exceeded) out.push(`${c.msg}，請通知污水處理負責人確認並依規定處理`);
+    }
+    return out;
+  }
+  function waterQualityAssess(inv, { year } = {}) {
+    const Y = num(year);
+    const rules = waterQualityRules(inv);
+    const items = [];
+    for (const p of inv?.points || []) if (p.domain === 'water') for (const it of p.items || []) if (it.waterFlow === 'quality') items.push({ p, it });
+    const recs = (inv?.records || []).filter((r) => String(r.period || '').startsWith(`${Y}-`));
+    const exceedances = [];
+    const rows = rules.map((rule) => {
+      const mine = items.filter(({ it }) => paramOf(it) === rule.param && (!it.waterDischargeId || it.waterDischargeId === rule.dischargeId));
+      const vals = [];
+      for (const { p, it } of mine) for (const r of recs) {
+        if (r.pointCode !== p.code) continue;
+        const v = num(r.values?.[it.id]);
+        if (v === undefined) continue;
+        vals.push(v);
+        const c = waterQualityCheck(rule, v, r.period);
+        if (c.exceeded) exceedances.push({ dischargeName: rule.dischargeName, param: rule.param, value: v, unit: rule.unit, limit: c.limit, period: r.period, at: r.at, who: r.who || '', pointCode: p.code, recordId: r.id, msg: c.msg });
+      }
+      const n = vals.length;
+      return { ...rule, n, linked: mine.length > 0, exceeded: exceedances.filter((x) => x.dischargeName === rule.dischargeName && x.param === rule.param).length,
+        shortfall: rule.perYear !== undefined && n < rule.perYear ? rule.perYear - n : 0 };
+    });
+    const missing = rows.filter((r) => !r.linked);
+    return { rules: rows, exceedances, missing, defaults: EFFLUENT_HOSPITAL, source: XSRC.quality, frequencySource: EFFLUENT_FREQUENCY_SOURCE,
+      msg: !rules.length ? '沒有需要檢測的排放口（自設污水處理設施後放流才套用預設項目組；納管排入污水下水道的請依納管許可自行設定）'
+        : exceedances.length ? `資料年有 ${exceedances.length} 筆抽測超出限值` : '抽測值都在限值內',
+      level: !rules.length ? 'na' : exceedances.length ? 'error' : missing.length || rows.some((r) => r.shortfall) ? 'warn' : 'ok' };
+  }
+
+  // ── 節水目標達成度（ISO 46001 6.3）──
+  // 降幅＝（基線－本年）÷ 基線；達成度＝降幅 ÷ 目標降幅；有目標年時另算「依直線進度本年應達降幅」判斷是否落後。
+  function waterTargets(W) {
+    const scope = W.scope || {};
+    const T = num(scope.targetPct);
+    let TY = num(scope.targetYear); if (TY !== undefined && TY < 1911) TY += 1911;
+    const BY = W.baseline?.year;
+    const list = (W.baseline?.compare || []).map((c) => ({ id: c.id, label: c.label, unit: c.unit, value: c.value, baseline: c.baseline }));
+    list.unshift({ id: 'total', label: '總取水量', unit: 'm³/年', value: W.flows.intake.total, baseline: W.baseline?.flows?.intake });
+    const pick = scope.targetIndicator ? list.filter((x) => x.label === scope.targetIndicator) : list;
+    const expected = T !== undefined && TY !== undefined && BY !== undefined && TY > BY ? round(Math.min(1, Math.max(0, (W.year - BY) / (TY - BY))) * T, 1) : undefined;
+    const rows = pick.map((x) => {
+      if (T === undefined) return { ...x, level: 'na', msg: '尚未設定節水目標（初始建檔 › 水足跡範疇與基線）' };
+      if (x.value === undefined || !x.baseline) return { ...x, targetPct: T, level: 'na', msg: `${x.label}：本年或基線年缺資料，無法計算達成度` };
+      const red = round((x.baseline - x.value) / x.baseline * 100, 1);
+      const prog = round(red / T * 100, 0);
+      const met = red >= T;
+      const behind = !met && expected !== undefined && red < expected;
+      return { ...x, targetPct: T, targetYear: TY, reductionPct: red, progressPct: prog, expectedPct: expected, met,
+        level: met ? 'ok' : behind || red < 0 ? 'warn' : 'ok',
+        msg: `${x.label}較基線${red >= 0 ? `降低 ${red}%` : `增加 ${-red}%`}，目標降低 ${T}%${TY ? `（${TY - 1911} 年）` : ''}：達成度 ${Math.max(prog, 0)}%${met ? '，已達成' : expected !== undefined ? `；依進度本年應降 ${expected}%${behind ? '，落後' : '，符合進度'}` : ''}` };
+    });
+    return { targetPct: T, targetYear: TY, baselineYear: BY, expectedPct: expected, rows, source: XSRC.target };
+  }
+
+  // ── 整合 ──
+  function waterFootprint(inv, { year } = {}) {
+    const W = C.waterInventory(inv, { year });
+    const indirect = waterIndirect(inv, { year });
+    const scarcity = waterScarcity(inv, { year, flows: W.flows, indirect });
+    const quality = waterQualityAssess(inv, { year });
+    const targets = waterTargets(W);
+    // 延伸項目的資料品質檢查併入完整度（ISO 14046 4.8、5.2.4）
+    const checks = W.completeness.checks.slice();
+    const add = (key, label, ok, msg, source) => checks.push({ key, label, ok: !!ok, msg, source: source || W.completeness.source });
+    if (indirect.included) add('indirect', '間接用水：外購電力 12 個月都有用電資料', indirect.electricity.monthsCovered === 12, `外購電力只有 ${indirect.electricity.monthsCovered} 個月用電資料（電費單）`, XSRC.indirect);
+    if (quality.rules.length) {
+      const bad = quality.rules.filter((r) => !r.linked || r.shortfall);
+      add('qualityFreq', '水質檢測項目依頻率都有抽測', !bad.length, `未達頻率或沒有抽測點位：${bad.map((r) => `${r.dischargeName}·${r.param}`).join('、')}`, quality.frequencySource);
+    }
+    add('scarcity', '缺水足跡可計算（有消耗量）', scarcity.direct.value !== undefined, scarcity.msg, XSRC.scarcity);
+    const okN = checks.filter((c) => c.ok).length;
+    const completeness = { ...W.completeness, checks, passed: okN, total: checks.length, pct: round(okN / checks.length * 100, 0) };
+    return { ...W, completeness, indirect, scarcity, quality, targets };
+  }
+
+  Object.assign(C, {
+    waterElectricityKwh, waterIndirect, waterAwareRegion, waterScarcity, waterQualityRules, waterQualityCheck, waterQualityLimitText, waterQualityWarnings, waterQualityAssess, waterTargets, waterFootprint,
+    WATER_AWARE: AWARE, WATER_ELEC: ELEC_WATER, WATER_EFFLUENT: { items: EFFLUENT_HOSPITAL, destination: EFFLUENT_DEFAULT_DESTINATION, frequency: EFFLUENT_DEFAULT_FREQUENCY, frequencies: Object.keys(FREQ_PER_YEAR).concat(['其他']), source: XSRC.quality, frequencySource: EFFLUENT_FREQUENCY_SOURCE },
+    WATER_X_SOURCES: XSRC,
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

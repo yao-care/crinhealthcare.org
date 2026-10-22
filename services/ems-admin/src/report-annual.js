@@ -13,6 +13,7 @@
 // 同一事實只存一次：年度表裡的電號、建築、鍋爐、填表人一律存 site／設備主檔的 id（ref），不重打一次。
 import { createHash } from 'node:crypto';
 import { SITE_BLOCKS, siteBlockById, SOURCES } from './inventory-schema.js';
+import { W46 } from './water-schema.js';
 import '../public/inventory-compute.js';
 
 const C = globalThis.EMSInventoryCompute;
@@ -138,6 +139,14 @@ export const ANNUAL_BLOCKS = [
       { key: 'applyReasonText', label: '申請理由說明', type: 'text', max: 2000 },
       { key: 'evidence', label: '佐證資料', type: 'multiselect', options: APP2_EVIDENCE },
     ] },
+  // 水足跡（工作清單 26-3）：住院人日與門急診人次由院方按月填報；用水績效指標改用這份實填值（每月 × 取水同月相除）。
+  // water：true＝不屬於附表三（不進 annex3 欄位盤點）。不是 stable：每年重填。
+  { id: 'waterMonthly', table: '水足跡', water: true, label: '水足跡·每月營運活動（住院人日、門急診人次）', kind: 'months', source: W46('3.4 營運活動指標；6.2.5、6.2.6', '§2.2', '院方每月填報；用水績效指標的分母（每床日、每人次）'),
+    fields: [MONTH,
+      { key: 'bedDays', label: '住院人日', type: 'number', unit: '床日' },
+      { key: 'outpatientVisits', label: '門診人次', type: 'number', unit: '人次' },
+      { key: 'erVisits', label: '急診人次', type: 'number', unit: '人次' },
+      { key: 'admissions', label: '住院人次', type: 'number', unit: '人次' }] },
 ];
 export const annualBlockById = (id) => ANNUAL_BLOCKS.find((b) => b.id === id) || null;
 

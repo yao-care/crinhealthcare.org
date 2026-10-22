@@ -157,7 +157,8 @@ test('整包 zip：每張表一個 CSV＋三本完整 xlsx＋節能計畫匯出�
   assert.ok(names.some((n) => n.startsWith('附件一_節能診斷報告/') && n.endsWith('.xlsx')));
   assert.ok(names.some((n) => /^附件二_節能計畫\/節能計畫匯出_\d+年\.xlsx$/.test(n)));
   const csvs = names.filter((n) => n.endsWith('.csv') && !n.endsWith('待補欄位.csv') && !n.includes('節能計畫匯出'));
-  assert.equal(csvs.length, EX.TABLES.filter((t) => t.kind !== 'planExport').length, '每張表一個 CSV');
+  assert.equal(csvs.length, EX.TABLES.filter((t) => !EX.RAW_EXPORTS[t.kind]).length, '每張表一個 CSV');
+  assert.ok(names.includes('附件一_節能診斷報告/設備清單_全部_115年.xlsx') && names.includes('附件一_節能診斷報告/設備清單_應辦理節能診斷_115年.xlsx'), '設備清單兩種');
   // 整本與單表數字一樣
   const full = readWorkbook(files.get('附表三_115年資料/附表三_能源查核申報_115年資料.xlsx'));
   const one = readWorkbook((await call('GET', '/api/inv/report/table/a3-05-4?year=115')).body);
@@ -168,7 +169,7 @@ test('申報對照頁：依章節順序列欄位與值，空值標待補並帶�
   const r = await call('GET', '/api/inv/report/filing?year=115');
   assert.equal(r.status, 200);
   const ids = r.body.tables.map((t) => t.id);
-  assert.deepEqual(ids, EX.TABLES.filter((t) => t.kind !== 'planExport' && t.id !== 'a3-00').map((t) => t.id));
+  assert.deepEqual(ids, EX.TABLES.filter((t) => !EX.RAW_EXPORTS[t.kind] && t.id !== 'a3-00').map((t) => t.id));
   const t3 = r.body.tables.find((t) => t.id === 'a3-03');
   const items = t3.sheets[0].blocks.find((b) => b.type === 'fields').items;
   const beds = items.find((x) => x.label === '營業規模');
@@ -243,10 +244,18 @@ test('年度報表資料：再生能源 → 表六、表十之三（二）自發
 test('節能計畫：表十／十一新欄位、措施來源跨年度、效益計算期間推算；month 欄位驗證', async () => {
   const bad = await call('PUT', '/api/inv/report/plans/p-m-b', { plan: { fields: { execEnd: '2026-13' } }, reason: 'x' });
   assert.equal(bad.status, 422);
-  // 114 年完工的舊計畫（完工年度早於提報年度 115）：補表十執行資料不被 R7 擋；改完工年度才擋
+  // 114 年完工的舊計畫（完工年度早於提報年度 115）：已完工的計畫不受 R7 完工年度範圍限制（第 27 項）
   const old = await call('PUT', '/api/inv/report/plans/p-m-a', { plan: { fields: { beforeState: '出水 7℃', afterState: '出水 8℃' } } });
   assert.equal(old.status, 200, JSON.stringify(old.body));
-  assert.equal((await call('PUT', '/api/inv/report/plans/p-m-a', { plan: { fields: { completionYear: 113 } }, reason: '更正' })).status, 422);
+  const fix = await call('PUT', '/api/inv/report/plans/p-m-a', { plan: { fields: { completionYear: 113 } }, reason: '更正實際完工年度' });
+  assert.equal(fix.status, 200, '已完工：更正完工年度為更早的年度也可以存（R8 仍要原因）');
+  assert.equal((await call('PUT', '/api/inv/report/plans/p-m-a', { plan: { fields: { completionYear: 114 } } })).status, 422, 'R8：改已填的值仍要原因');
+  assert.equal((await call('PUT', '/api/inv/report/plans/p-m-a', { plan: { fields: { completionYear: 114 } }, reason: '改回' })).status, 200);
+  // 未完工的計畫照 R7：預計完工年度須在提報年度～+4 年
+  const notDone = await call('PUT', '/api/inv/report/plans/p-m-a', { plan: { fields: { status: '執行中', completionYear: 113 } }, reason: '測試' });
+  assert.equal(notDone.status, 422);
+  assert.equal(notDone.body.rule, 'R7');
+  assert.equal((await call('PUT', '/api/inv/report/plans/p-m-a', { plan: { fields: { status: '執行中' } }, reason: '測試' })).status, 422, '未完工＋114 年（早於提報年度 115）→ R7 擋');
   const ok = await call('PUT', '/api/inv/report/plans/p-m-b', { plan: { fields: { valueSource: '電表 803-E05', formula: '2', peakReductionKw: 12 } } });
   assert.equal(ok.status, 200, JSON.stringify(ok.body));
   const wb = readWorkbook((await call('GET', '/api/inv/report/annex3?year=115')).body);
@@ -284,7 +293,63 @@ test('節能計畫匯出檔：欄位依對照表、可讀回（改對照表就�
   const back2 = EX.readPlanExport(buildWorkbook(b2.sheets).buffer, alt);
   assert.deepEqual(back2.rows.map((x) => x.completionYear).sort(), ['114', '115']);
   const csv = await call('GET', '/api/inv/report/plan-export?format=csv');
-  assert.ok(csv.body.toString('utf8').startsWith('﻿編號,節能改善措施'));
+  assert.ok(csv.body.toString('utf8').startsWith('﻿編號,設備/措施名稱,年節能量預估,單位,投資金額(元),回收年限(年),預計完工年度,備註,'));
+});
+
+test('節能計畫匯出檔對齊能源署範例：前 7 欄順序與表頭、設備/措施名稱、空值「-」；能源署原檔（無措施 ID）以編號讀回', async () => {
+  const official = EX.PLAN_EXPORT_MAP.columns.filter((c) => c.official).map((c) => c.header);
+  assert.deepEqual(official, ['編號', '設備/措施名稱', '年節能量預估', '單位', '投資金額(元)', '回收年限(年)', '預計完工年度', '備註']);
+  assert.ok(EX.PLAN_EXPORT_MAP.columns.slice(0, official.length).every((c) => c.official), '範例欄排在最前面');
+  assert.equal(EX.officialPlanName('辦公區照明燈具', 'replace', { kind: '燈具' }), '燈具/辦公區照明燈具汰舊換新');
+  assert.equal(EX.officialPlanName('螺旋式冰水機汰舊換新成能效1級冰水機', 'replace', { kind: '冰水機' }), '冰水機/螺旋式冰水機汰舊換新成能效1級冰水機');
+  assert.equal(EX.officialPlanName('依季節調整冰水出水溫度', 'operation', null), '依季節調整冰水出水溫度');
+  const inv = seed();
+  inv.measures[1].fields.investment = 0;
+  inv.plans[1].fields.completionYear = '';
+  inv.plans[1].fields.note = '配合預算調整，規劃於 122 年執行';
+  const b = EX.buildPlanExport(inv, { today: '2026-10-22' });
+  const rowB = b.sheets[0].rows.find((r) => r[1].v === '停車場照明時間控制');
+  const at = (h) => rowB[EX.PLAN_EXPORT_MAP.columns.findIndex((c) => c.header === h)].v;
+  assert.equal(at('投資金額(元)'), '-');
+  assert.equal(at('回收年限(年)'), 0, '無投資 → 0（同範例）');
+  assert.equal(at('預計完工年度'), '-');
+  // 模擬能源署原檔：只有範例 7 欄（年節能量兩層表頭攤平）、沒有措施 ID → 用編號對回，「-」讀成空
+  const { buildWorkbook } = await import('../src/xlsx.js');
+  const offRows = b.sheets[0].rows.map((r) => r.slice(0, official.length));
+  const back = EX.readPlanExport(buildWorkbook([{ name: '節能計畫', rows: offRows }]).buffer);
+  assert.deepEqual(back.errors, []);
+  assert.equal(back.keyField, 'no');
+  const r2 = back.rows.find((x) => x.no === '2');
+  assert.equal(r2.completionYear, '');
+  assert.equal(r2.note, '配合預算調整，規劃於 122 年執行');
+});
+
+test('節能診斷設備清單：欄位依能源署範例、全部／僅應辦理診斷兩種、製造年份西元、可單表與整包下載', async () => {
+  const official = EX.EQUIP_LIST_MAP.columns.filter((c) => c.official).map((c) => c.header);
+  assert.deepEqual(official, ['編號', '設備名稱', '廠牌', '型式', '製造年份', '容量', '容量單位', '數量', '運轉時數(小時)', '年耗能量', '年耗能量單位']);
+  const all = EX.equipListRows(seed(), { today: '2026-10-22' }).rows;
+  assert.deepEqual(all.map((r) => r.equipmentId), ['eq-led', 'eq-boiler']);
+  const led = all[0];
+  assert.equal(led.madeYear, 2010);
+  assert.equal(led.capacity, 20);
+  assert.equal(led.capacityUnit, 'W/具');
+  assert.equal(led.qty, 100);
+  assert.equal(led.due, '是', 'LED 機齡 16 年 > 8 年');
+  assert.equal(all[1].due, '否', '鍋爐 2018 年製，公用設備未超過 10 年');
+  const inv = seed();
+  inv.equipment[1].fields.madeYear = 100;   // 民國年也轉西元
+  inv.equipment.push({ id: 'eq-gone', building: 'bld-1', category: 'ac', kind: '中央空調主機', status: 'replaced', fields: { name: '舊冰水機', madeYear: 1990 } });
+  const due = EX.equipListRows(inv, { today: '2026-10-22', due: true }).rows;
+  assert.deepEqual(due.map((r) => r.equipmentId), ['eq-led', 'eq-boiler'], '已汰換的不列；鍋爐 2011 年製 → 超過 10 年');
+  assert.equal(due[1].madeYear, 2011);
+  const x = await call('GET', '/api/inv/report/table/a1-equip-due?format=xlsx');
+  assert.equal(x.status, 200);
+  const sh = readWorkbook(x.body).sheets.get('設備清單').cells;
+  EX.EQUIP_LIST_MAP.columns.forEach((c, i) => assert.equal(sh.get(`${String.fromCharCode(65 + i)}1`), c.header));
+  assert.equal(sh.get('B2'), 'B1 停車場 LED');
+  assert.equal(sh.get('B3'), undefined, '只有一筆應辦理');
+  const list = await call('GET', '/api/inv/report/table');
+  assert.equal(list.body.tables.find((t) => t.id === 'a1-equip').kind, 'equipList');
 });
 
 test('年度沿用：逐區塊確認記人與快照；確認後又改 → 需重新確認；年度區塊一鍵沿用 N-1；N-1 年面積取快照', async () => {
@@ -364,12 +429,66 @@ test('欄位對照：每欄有來源與狀態、ref 指到真的欄位、docs/an
     if (e.ref) assert.ok(FM.refExists(e.ref), `${e.tableId}「${e.field}」ref ${e.ref} 不存在`);
     if (e.status === 'input') assert.ok(e.ref, `新增輸入欄位要指出填寫處：${e.field}`);
   }
-  for (const t of EX.TABLES.filter((x) => !['a3-00', 'a2-export'].includes(x.id))) assert.ok(FM.FIELD_MAP.some((e) => e.tableId === t.id), `${t.id} 沒有盤點`);
+  // 水足跡（kind water）不屬於附表三，不在欄位盤點內
+  for (const t of EX.TABLES.filter((x) => x.id !== 'a3-00' && !EX.RAW_EXPORTS[x.kind] && x.kind !== 'water')) assert.ok(FM.FIELD_MAP.some((e) => e.tableId === t.id), `${t.id} 沒有盤點`);
   const doc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../../docs/annex3-field-map.md'), 'utf8');
   assert.equal(doc, FM.fieldMapMarkdown() + '\n', '請跑 node scripts/field-map.mjs 重產');
   // 年度區塊的每個欄位都有人用（盤點裡出現或是內部欄）
-  for (const b of AN.ANNUAL_BLOCKS) for (const f of b.fields) {
+  for (const b of AN.ANNUAL_BLOCKS.filter((x) => !x.water)) for (const f of b.fields) {
     if (f.key === 'month' || f.key === 'group' || f.key === 'equipmentId' || f.key === 'evidence' && b.id === 'deductN' || f.key === 'selfKwh' && b.id === 'renewables' || f.key === 'applicantStaffId' || f.key === 'mainMeterId' || f.key === 'phone' || f.key === 'applyUnit' || f.key === 'prevParkingArea') continue;
     assert.ok(FM.FIELD_MAP.some((e) => e.ref === `annual.${b.id}.${f.key}`) || FM.FIELD_MAP.some((e) => e.ref?.startsWith(`annual.${b.id}.`) && e.status !== 'input'), `年度欄 ${b.id}.${f.key} 沒有在盤點出現`);
   }
+});
+
+// ════════════════════════ 第 27 項 ════════════════════════
+test('第 27 項：水足跡盤查清冊納入單表匯出、整包 zip、申報對照頁（另立「水足跡」章節）', async () => {
+  const W = await import('../src/report-water.js');
+  // 每張水足跡工作表都有 tableId（新增或改名工作表要同步 TABLES）
+  const names = W.buildWater(seed(), { year: 115, today: '2026-10-22' }).sheets.map((s) => s.name).filter((n) => n !== '待補欄位');
+  const wt = EX.TABLES.filter((t) => t.kind === 'water');
+  assert.deepEqual(wt.map((t) => t.sheet), names, '水足跡 tableId 依清冊工作表順序');
+  assert.ok(wt.every((t) => t.chapter === '水足跡'));
+  assert.ok(EX.TABLES.indexOf(wt[0]) > EX.TABLES.findIndex((t) => t.id === 'a2-export'), '排在附件二之後');
+
+  const list = await call('GET', '/api/inv/report/table?year=115');
+  assert.ok(list.body.tables.some((t) => t.id === 'w-09' && t.kind === 'water' && t.sheets === 1));
+  const one = await call('GET', '/api/inv/report/table/w-09?year=115&format=xlsx');
+  assert.equal(one.status, 200);
+  assert.match(decodeURIComponent(one.headers.get('content-disposition')), /w-09_水足跡·衝擊評估（缺水足跡）_115年資料\.xlsx/);
+  const wb = readWorkbook(one.body);
+  assert.deepEqual([...wb.sheets.keys()], ['衝擊評估', '待補欄位']);
+  const csv = (await call('GET', '/api/inv/report/table/w-02?year=115&format=csv')).body.toString('utf8');
+  assert.ok(csv.startsWith('﻿水足跡盤查清冊·取水'));
+
+  const files = unzip((await call('GET', '/api/inv/report/bundle?year=115')).body);
+  const zn = [...files.keys()];
+  assert.ok(zn.some((n) => /^水足跡盤查_115年資料\/水足跡盤查清冊_115年_.*\.xlsx$/.test(n)), zn.join('\n'));
+  assert.equal(zn.filter((n) => n.startsWith('水足跡盤查_115年資料/w-')).length, wt.length, '每張水足跡表一個 CSV');
+  assert.ok(zn.includes('水足跡盤查_115年資料/待補欄位.csv'));
+
+  const f = await call('GET', '/api/inv/report/filing?year=115');
+  const ch = f.body.tables.filter((t) => t.chapter === '水足跡');
+  assert.equal(ch.length, wt.length);
+  assert.equal(f.body.tables.at(-1).chapter, '水足跡', '水足跡章節在最後');
+  const scope = ch.find((t) => t.id === 'w-01');
+  assert.deepEqual(scope.fill, { section: 'i-site-waterScope', block: 'waterScope' });
+  assert.ok(scope.missingCount > 0, '範疇沒填 → 待補');
+  assert.deepEqual(ch.find((t) => t.id === 'w-08').fill, { tab: 'annual', block: 'waterMonthly' }, '績效指標去填＝每月營運活動');
+});
+
+test('第 27 項：年度沿用維持全部區塊逐一確認——水足跡的初始建檔區塊也是沿用單位，確認與 stale 照常', async () => {
+  const S2 = await import('../src/inventory-schema.js');
+  const v = await call('GET', '/api/inv/report/carryover?year=117');
+  const ids = v.body.units.map((u) => u.id);
+  for (const b of S2.SITE_BLOCKS) assert.ok(ids.includes(`site.${b.id}`), `site.${b.id} 不在沿用清單`);
+  for (const id of ['site.waterScope', 'site.waterActivity', 'site.waterSources', 'site.waterUnits', 'site.waterDischarges', 'site.waterQualityPlan', 'site.waterUpstream']) assert.ok(ids.includes(id), id);
+  assert.ok(!ids.includes('annual.waterMonthly'), '每月營運活動每年重填，不是沿用單位');
+  const u = v.body.units.find((x) => x.id === 'site.waterScope');
+  const c = await call('POST', '/api/inv/report/carryover/site.waterScope?year=117', { expectHash: u.hash });
+  assert.equal(c.status, 200);
+  assert.equal(c.body.unit.status, 'confirmed');
+  await call('PUT', '/api/inv/site/waterScope', { value: { goal: '新目的' } });
+  const v2 = await call('GET', '/api/inv/report/carryover?year=117');
+  assert.equal(v2.body.units.find((x) => x.id === 'site.waterScope').status, 'stale');
+  assert.equal(v2.body.complete, false);
 });

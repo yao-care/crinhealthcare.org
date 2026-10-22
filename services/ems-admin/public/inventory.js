@@ -423,6 +423,26 @@
   }
 
   // ════════════════════════ 初始建檔：site 區塊 ════════════════════════
+  function qualityRulesBox() {
+    const rules = C.waterQualityRules(INV);
+    const E = C.WATER_EFFLUENT;
+    const box = el('div', { class: 'i-rules' }, [el('div', { class: 'i-rulestitle', text: `目前生效的水質檢測項目（${rules.length}）` })]);
+    if (!rules.length) {
+      box.append(note(`沒有需要套用的排放口。去向為「${E.destination}」的排放口，下面留白時自動套用醫院預設項目組（放流水標準 附表八）；納管排入污水下水道的，請依下水道機構的納管標準逐項設定。`));
+    } else {
+      box.append(el('div', { class: 'r-tablewrap' }, [el('table', { class: 'r-mtable' }, [
+        el('thead', {}, [el('tr', {}, ['排放口', '項目', '限值', '頻率', '來源'].map((h) => el('th', { text: h })))]),
+        el('tbody', {}, rules.map((r) => el('tr', {}, [
+          el('td', { text: r.dischargeName }), el('td', { text: r.label && r.label !== r.param ? `${r.param}（${r.label}）` : r.param }),
+          el('td', { text: C.waterQualityLimitText(r) }), el('td', { text: r.frequency || '—' }),
+          el('td', { text: r.origin === 'default' ? '預設（放流水標準）' : `依許可：${r.basis}` }),
+        ]))),
+      ])]));
+    }
+    box.append(srcChip(E.source), srcChip(E.frequencySource));
+    return box;
+  }
+
   function drawSite(root, blockId) {
     const b = blockOf(blockId);
     if (!b) { root.append(note('沒有這個區塊。')); return; }
@@ -445,6 +465,8 @@
     if (b.id === 'exemption') {
       for (const x of SPEC.exemptionCodes || []) if (x.applicable === false) root.append(el('p', { class: 'i-private', text: `${x.code} ${x.label}：${x.note || '不適用'}，所以不在可選的排除條件裡。` }));
     }
+    // 水質檢測項目與頻率（工作清單 26-5）：目前各排放口實際生效的項目（預設組或依許可覆寫），計算庫沒有這支（舊版）就不顯示
+    if (b.id === 'waterQualityPlan' && C?.waterQualityRules) root.append(qualityRulesBox());
     if (b.private) root.append(el('p', { class: 'i-private', text: '🔒 含個資（姓名、電話、電子郵件），只存在主機本地，不會同步到公開看板。' }));
     const refs = REFS.filter((x) => x.block === b.id);
     if (refs.length) root.append(el('div', { class: 'i-rules' }, [el('div', { class: 'i-rulestitle', text: `待修（${refs.length}）：舊資料的文字對不到建築資料，請按「修改」改選` }), ...refs.map((x) => ruleRow('待修', { level: 'warn', msg: x.message }))]));

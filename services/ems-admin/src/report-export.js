@@ -7,10 +7,11 @@
 // 申報對照頁也照這個順序排。
 import { buildWorkbook, zip, readWorkbook } from './xlsx.js';
 import { buildAnnex3, buildDiagnosis, buildPlan, toXlsx, FILL } from './report-xlsx.js';
-import { materialize, measuresView, plansView, reportYearOf, todayIso } from './report-model.js';
-import { energyLabel, A2, PLAN_FIELDS } from './report-schema.js';
+import { materialize, measuresView, plansView, reportYearOf, todayIso, equipmentDefaults, r6For } from './report-model.js';
+import { energyLabel, energyUnit, A2, PLAN_FIELDS } from './report-schema.js';
 import { MEASURE_CODES } from './inventory-schema.js';
 import { carryoverView } from './report-annual.js';
+import { buildWater } from './report-water.js';   // 水足跡盤查清冊（第 23、26 項；第 27 項納入單表、整包、申報對照）
 import '../public/inventory-compute.js';
 
 const C = globalThis.EMSInventoryCompute;
@@ -57,36 +58,55 @@ export const TABLES = [
   T('a1-02', 'diagnosis', '附件一', '二、設備汰換', '附件一 二、設備汰換節能改善措施', FILL.measures().fill),
   T('a1-03', 'diagnosis', '附件一', '三、操作面', '附件一 三、操作面節能改善措施', FILL.measures().fill),
   T('a1-04', 'diagnosis', '附件一', '四、診斷團隊聲明', '附件一 四、診斷團隊聲明', FILL.diagnosis().fill),
+  T('a1-equip', 'equipList', '附件一', '設備清單', '節能診斷設備清單（全部設備，供診斷團隊）', FILL.eq('ac').fill),
+  T('a1-equip-due', 'equipList', '附件一', '設備清單', '節能診斷設備清單（使用年限達應辦理節能診斷）', FILL.eq('ac').fill, { due: true }),
   T('a2-01', 'plan', '附件二', '節能計畫', '附件二 節能計畫', FILL.plans().fill),
   T('a2-02', 'plan', '附件二', '版本紀錄', '附件二 版本紀錄（R8）', FILL.plans().fill),
-  T('a2-export', 'planExport', '附件二', '節能計畫匯出', '節能計畫匯出檔（欄位齊全，供能源署匯入對照）', FILL.plans().fill),
+  T('a2-export', 'planExport', '附件二', '節能計畫匯出', '節能計畫匯出檔（依能源署範例欄位，可匯回）', FILL.plans().fill),
+  // 水足跡盤查清冊（第 27 項）：申報對照頁另立「水足跡」章節，排在附件二之後；工作表名稱對 src/report-water.js
+  T('w-01', 'water', '水足跡', '目的與範疇', '水足跡·目的與範疇', FILL.site('waterScope').fill),
+  T('w-02', 'water', '水足跡', '取水', '水足跡·取水（依水源別）', FILL.site('waterSources').fill),
+  T('w-03', 'water', '水足跡', '主要用水單元', '水足跡·主要用水單元', FILL.site('waterUnits').fill),
+  T('w-04', 'water', '水足跡', '排放與回收', '水足跡·排放與回收', FILL.site('waterDischarges').fill),
+  T('w-05', 'water', '水足跡', '水平衡', '水足跡·水平衡', FILL.points().fill),
+  T('w-06', 'water', '水足跡', '間接用水', '水足跡·間接用水（外購電力等上游）', FILL.site('waterUpstream').fill),
+  T('w-07', 'water', '水足跡', '水質', '水足跡·水質（檢測項目、限值與超標）', FILL.site('waterQualityPlan').fill),
+  T('w-08', 'water', '水足跡', '績效指標與基線', '水足跡·用水績效指標、基線與目標達成度', FILL.annual('waterMonthly').fill),
+  T('w-09', 'water', '水足跡', '衝擊評估', '水足跡·衝擊評估（缺水足跡）', FILL.site('waterScope').fill),
+  T('w-10', 'water', '水足跡', '資料品質', '水足跡·資料品質與完整度', FILL.points().fill),
+  T('w-11', 'water', '水足跡', '節水改善回報', '水足跡·節水改善回報', FILL.points().fill),
 ];
 export const tableById = (id) => TABLES.find((t) => t.id === id) || null;
 const matches = (t, name) => (t.prefix ? name.startsWith(t.sheet) : name === t.sheet);
 
 // ════════════════════════════════════════════════════════════════
-// 節能計畫匯出檔（項目 6）
-// 能源署節能計畫「匯出 → 填 → 匯入」的檔案格式要登入才看得到（spec §9-9），目前沒有範本。
-// 先產一份欄位齊全的檔；拿到能源署的匯出檔後只改 PLAN_EXPORT_MAP（表頭文字、順序、哪幾欄可匯回），程式不用動。
+// 節能計畫匯出檔（項目 6、28）
+// 欄位依能源署公開的「節能計畫」範例與申報系統「6.填報節能計畫」畫面（docs/energy-plan-import-format.md）：
+//   編號｜設備/措施名稱｜年節能量預估［年節能量｜單位］｜投資金額(元)｜回收年限(年)｜預計完工年度｜備註
+// 申報系統「節能計畫(excel)匯出填寫／填寫內容匯入」的 xlsx 本身要登入才拿得到；拿到後只改 PLAN_EXPORT_MAP。
 //   field：planExportRows() 的鍵；header：檔案表頭；importable：匯回時要讀的欄（其餘只是給人看）
+//   official：能源署範例上有的欄（排在前面，順序照範例）；dash：空值或 0 顯示「-」（照範例）
+//   key：匯回對列用的欄；altKey：檔案沒有 key 欄（能源署原檔）時改用這欄（編號＝計畫列順序）
 // ════════════════════════════════════════════════════════════════
 export const PLAN_EXPORT_MAP = {
-  version: 'draft-2026-10-22',
-  note: '暫定格式：能源署匯出檔樣本取得前，以附件二欄位＋措施代碼（附錄一）＋預計完工年度排列。',
+  version: 'moeaea-sample-2026-05',
+  note: '前 7 欄依能源署「節能計畫」範例（115 年說明會簡報第 14 頁、後續申報流程簡報第 11 頁）；原範例「年節能量預估」為兩層表頭（年節能量｜單位），這裡攤平成一列。其後為本系統附加欄。',
   sheet: '節能計畫匯出',
   key: 'measureId',
+  altKey: 'no',
   columns: [
-    { field: 'no', header: '編號' },
-    { field: 'name', header: '節能改善措施' },
+    { field: 'no', header: '編號', official: true },
+    { field: 'officialName', header: '設備/措施名稱', official: true },
+    { field: 'annualSaving', header: '年節能量預估', official: true },
+    { field: 'unit', header: '單位', official: true },
+    { field: 'investment', header: '投資金額(元)', official: true, dash: true },
+    { field: 'paybackYears', header: '回收年限(年)', official: true },
+    { field: 'completionYear', header: '預計完工年度', official: true, dash: true, importable: true },
+    { field: 'note', header: '備註', official: true, importable: true },
+    { field: 'name', header: '節能改善措施（本系統名稱）' },
     { field: 'measureType', header: '措施類別' },
-    { field: 'annualSaving', header: '年節能量預估' },
-    { field: 'unit', header: '年節能量單位' },
     { field: 'energyType', header: '能源種類' },
     { field: 'savingCost', header: '節省能源費用（元/年）' },
-    { field: 'investment', header: '投資金額（元）' },
-    { field: 'paybackYears', header: '回收年限（年）' },
-    { field: 'completionYear', header: '預計完工年度', importable: true },
-    { field: 'note', header: '備註', importable: true },
     { field: 'officialCode', header: '節約能源措施代碼', importable: true },
     { field: 'officialCodeLabel', header: '措施代碼說明' },
     { field: 'mandatory', header: '強制納入（R7）' },
@@ -101,6 +121,15 @@ export const PLAN_EXPORT_MAP = {
     { field: 'planId', header: '計畫 ID' },
   ],
 };
+// 範例的「設備/措施名稱」：設備汰換＝「設備種類/措施名稱」（例：燈具/辦公區照明燈具汰舊換新），操作面＝措施名稱
+export function officialPlanName(name, measureType, equipment) {
+  const n = String(name || '').trim();
+  if (measureType !== 'replace') return n;
+  const head = String(equipment?.kind || equipment?.categoryLabel || '').trim();
+  const body = /汰舊換新|汰換/.test(n) ? n : `${n}汰舊換新`;
+  return head && head !== n ? `${head}/${body}` : body;
+}
+const dashOf = (c, v) => (c.dash && (v === '' || v === undefined || v === null || Number(v) === 0) ? '-' : v ?? '');
 
 export function officialCodeLabel(code) {
   const m = /^([A-Z])([A-Z])(\d{2})$/.exec(String(code || ''));
@@ -123,7 +152,7 @@ export function planExportRows(invIn, opts = {}) {
     const last = p.versions.at(-1);
     const madeYear = m?.values?.madeYear;
     return {
-      no: p.no, name: p.name, measureType: p.measure?.typeLabel || '', annualSaving: p.annualSaving ?? '', unit: p.unit,
+      no: p.no, officialName: officialPlanName(p.name, p.measure?.type, m?.equipment), name: p.name, measureType: p.measure?.typeLabel || '', annualSaving: p.annualSaving ?? '', unit: p.unit,
       energyType: p.energyType ? `${p.energyType} ${energyLabel(p.energyType)}` : '', savingCost: p.savingCost ?? '', investment: p.investment ?? '',
       paybackYears: p.paybackYears ?? (p.payback?.notApplicable ? '無法回收／不適用' : ''),
       completionYear: p.fields.completionYear ?? '', note: p.fields.note || '', officialCode: p.fields.officialCode || '', officialCodeLabel: officialCodeLabel(p.fields.officialCode),
@@ -140,10 +169,10 @@ export function buildPlanExport(inv, opts = {}, map = PLAN_EXPORT_MAP) {
   // 這份要能直接當匯入檔：第 1 列就是表頭，不放抬頭與依據（依據寫在第二張「說明」）
   const sheet = {
     name: map.sheet,
-    rows: [map.columns.map((c) => ({ v: c.header, s: 'head' })), ...rows.map((r) => map.columns.map((c) => ({ v: r[c.field] ?? '', s: 'cell' })))],
+    rows: [map.columns.map((c) => ({ v: c.header, s: 'head' })), ...rows.map((r) => map.columns.map((c) => ({ v: dashOf(c, r[c.field]), s: 'cell' })))],
     cols: map.columns.map((c) => Math.max(10, Math.min(30, c.header.length * 2))),
   };
-  const src = A2('節能計畫表', '能源署節能計畫匯出／匯入格式未取得；本檔欄位對照在 src/report-export.js 的 PLAN_EXPORT_MAP');
+  const src = A2('節能計畫表', '欄位依能源署公開範例（docs/energy-plan-import-format.md）；申報系統 xlsx 原檔未公開，對照在 src/report-export.js 的 PLAN_EXPORT_MAP');
   const about = {
     name: '說明',
     rows: [
@@ -179,23 +208,110 @@ export function readPlanExport(buf, map = PLAN_EXPORT_MAP) {
     const c = map.columns.find((x) => x.header === String(v).trim());
     if (m && c && (headRow === null || Number(m[2]) === headRow)) { headRow = Number(m[2]); colOf.set(c.field, m[1]); }
   }
+  // 本系統匯出檔用 key（措施 ID）對列；能源署原檔沒有措施 ID → 用 altKey（編號），回傳 keyField 讓呼叫端知道用哪個對
+  const keyField = colOf.has(map.key) ? map.key : (map.altKey && colOf.has(map.altKey) ? map.altKey : null);
   const keyCol = map.columns.find((c) => c.field === map.key);
-  if (!headRow || !colOf.has(map.key)) return { rows: [], errors: [`找不到表頭「${keyCol?.header || map.key}」`] };
+  if (!headRow || !keyField) return { rows: [], errors: [`找不到表頭「${keyCol?.header || map.key}」`] };
+  const cellOf = (col, r) => { const v = cells.get(`${col}${r}`); return v === '-' ? '' : v; };   // 範例以「-」表示空
   const rows = [];
   for (let r = headRow + 1; r < headRow + 2000; r++) {
-    const key = cells.get(`${colOf.get(map.key)}${r}`);
+    const key = cells.get(`${colOf.get(keyField)}${r}`);
     if (key === undefined || key === '') { if (![...colOf.values()].some((c) => cells.get(`${c}${r}`))) break; continue; }
-    const row = { [map.key]: String(key) };
-    for (const c of map.columns) if (c.importable && colOf.has(c.field)) row[c.field] = cells.get(`${colOf.get(c.field)}${r}`) ?? '';
+    const row = { [keyField]: String(key) };
+    for (const c of map.columns) if (c.importable && colOf.has(c.field)) row[c.field] = cellOf(colOf.get(c.field), r) ?? '';
     rows.push(row);
   }
-  return { rows, errors: [] };
+  return { rows, errors: [], keyField };
 }
+
+// ════════════════════════════════════════════════════════════════
+// 節能診斷設備清單（項目 28）：申報系統「2.設備清單下載」的對應檔，交給診斷團隊
+// 欄位依能源署 115 年說明會簡報第 10、25 頁的設備清單範例：
+//   編號｜設備名稱｜廠牌｜型式｜製造年份｜設備容量［容量｜單位］｜數量｜運轉時數(小時)｜年耗能量預估［年耗能量｜單位］
+// 來源＝設備主檔的表九之一（三）空調、表九之二照明、表九之三其他系統（使用中）；
+// 兩種：全部設備、僅「使用年限達應辦理節能診斷」（R6：螢光 >2 年、LED >8 年、公用 >10 年）。
+// 製造年份照範例用西元；年耗能量只有連到設備汰換措施且已填時才有（範例由診斷團隊評估）。
+// ════════════════════════════════════════════════════════════════
+export const EQUIP_LIST_MAP = {
+  version: 'moeaea-sample-2026-05',
+  note: '前 11 欄依能源署節能診斷說明會簡報的設備清單範例（設備容量、年耗能量預估為兩層表頭，這裡攤平）；其後為本系統附加欄。',
+  sheet: '設備清單',
+  columns: [
+    { field: 'no', header: '編號', official: true },
+    { field: 'name', header: '設備名稱', official: true },
+    { field: 'brand', header: '廠牌', official: true },
+    { field: 'model', header: '型式', official: true },
+    { field: 'madeYear', header: '製造年份', official: true },
+    { field: 'capacity', header: '容量', official: true },
+    { field: 'capacityUnit', header: '容量單位', official: true },
+    { field: 'qty', header: '數量', official: true },
+    { field: 'hoursPerYear', header: '運轉時數(小時)', official: true },
+    { field: 'annualUse', header: '年耗能量', official: true },
+    { field: 'annualUseUnit', header: '年耗能量單位', official: true },
+    { field: 'system', header: '系統別' },
+    { field: 'kind', header: '設備種類' },
+    { field: 'building', header: '建築' },
+    { field: 'replaceCategory', header: '設備類別（R6）' },
+    { field: 'age', header: '機齡（年）' },
+    { field: 'due', header: '使用年限達應辦理節能診斷' },
+    { field: 'dueNote', header: '判定說明' },
+    { field: 'equipmentId', header: '設備 ID' },
+  ],
+};
+const EQUIP_SYSTEM = { ac: '9.1 空調系統設備', lighting: '9.2 照明系統', other: '9.3 其他系統' };
+const adYearOf = (y) => { const n = Number(y); return y === undefined || y === null || y === '' || !Number.isFinite(n) ? (y ?? '') : (n < 1911 ? n + 1911 : n); };
+export function equipListRows(invIn, opts = {}) {
+  const inv = JSON.parse(JSON.stringify(invIn));
+  const ry = reportYearOf(inv, opts.today || todayIso());
+  materialize(inv, ry);
+  const mv = measuresView(inv, ry);
+  const rows = [];
+  for (const eq of inv.equipment || []) {
+    if (!EQUIP_SYSTEM[eq.category] || (eq.status && eq.status !== 'active')) continue;
+    const r6 = r6For(eq, ry);
+    if (opts.due && r6.value !== true) continue;
+    const d = equipmentDefaults(eq);
+    const m = mv.replace.find((x) => x.equipmentId === eq.id);
+    const use = m?.values?.annualUse;
+    rows.push({
+      no: rows.length + 1, name: d.name || '', brand: d.brand || '', model: d.model || '', madeYear: adYearOf(d.madeYear),
+      capacity: d.capacity ?? '', capacityUnit: d.capacityUnit || '', qty: d.qty ?? '', hoursPerYear: d.hoursPerYear ?? '',
+      annualUse: use ?? '', annualUseUnit: use === undefined || use === '' ? '' : energyUnit(m.values.energyType),
+      system: EQUIP_SYSTEM[eq.category], kind: eq.kind || '', building: (inv.site?.buildings || []).find((b) => b.id === eq.building)?.name || '',
+      replaceCategory: r6.category || '', age: r6.age ?? '', due: r6.value === true ? '是' : r6.value === false ? '否' : '無法判定', dueNote: r6.msg || '',
+      equipmentId: eq.id,
+    });
+  }
+  return { rows, year: ry };
+}
+export function buildEquipListExport(inv, opts = {}, map = EQUIP_LIST_MAP) {
+  const { rows, year } = equipListRows(inv, opts);
+  const sheet = {
+    name: map.sheet,
+    rows: [map.columns.map((c) => ({ v: c.header, s: 'head' })), ...rows.map((r) => map.columns.map((c) => ({ v: r[c.field] ?? '', s: 'cell' })))],
+    cols: map.columns.map((c) => Math.max(10, Math.min(30, c.header.length * 2))),
+  };
+  const about = {
+    name: '說明',
+    rows: [
+      [{ v: `節能診斷設備清單·${opts.due ? '使用年限達應辦理節能診斷之設備' : '全部設備'}·說明`, s: 'title' }],
+      [{ v: '依據：能源用戶辦理節能診斷及訂定節能計畫規定 附件一 註 2（螢光燈具超過 2 年、LED 燈具超過 8 年、公用設備超過 10 年及製程設備超過 20 年，應列於設備汰換表）；欄位依能源署說明會簡報的設備清單範例（docs/energy-plan-import-format.md）', s: 'note' }],
+      [{ v: `對照版本：${map.version}。${map.note}提報年度 ${year}。`, s: 'note' }],
+    ],
+    cols: [120],
+  };
+  return { sheets: [sheet, about], rows, filename: `設備清單_${opts.due ? '應辦理節能診斷' : '全部'}_${year}年.xlsx` };
+}
+// 匯出檔類（不從整本 xlsx 挑工作表，自己產檔）：kind → 產檔函式
+export const RAW_EXPORTS = {
+  planExport: (inv, opts) => buildPlanExport(inv, opts),
+  equipList: (inv, opts, t) => buildEquipListExport(inv, { ...opts, due: Boolean(t?.due) }),
+};
 
 // ════════════════════════════════════════════════════════════════
 // 單表與整包
 // ════════════════════════════════════════════════════════════════
-const BUILD = { annex3: buildAnnex3, diagnosis: buildDiagnosis, plan: buildPlan };
+const BUILD = { annex3: buildAnnex3, diagnosis: buildDiagnosis, plan: buildPlan, water: buildWater };
 function buildAll(inv, opts) {
   const cache = {};
   return (kind) => (cache[kind] ||= BUILD[kind](inv, opts));
@@ -212,14 +328,14 @@ const safeName = (s) => String(s).replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, 
 export function buildTable(inv, tableId, opts = {}) {
   const t = tableById(tableId);
   if (!t) return null;
-  if (t.kind === 'planExport') {
-    const b = buildPlanExport(inv, opts);
+  if (RAW_EXPORTS[t.kind]) {
+    const b = RAW_EXPORTS[t.kind](inv, opts, t);
     return { table: t, sheets: b.sheets, missing: [], filename: b.filename.replace(/\.xlsx$/, ''), raw: true };
   }
   const built = buildAll(inv, opts)(t.kind);
   const sheets = built.sheets.filter((s) => matches(t, s.name));
   const missing = built.missing.filter((m) => sheets.some((s) => s.name === m.sheet));
-  const yearTag = t.kind === 'annex3' ? `${built.year}年資料` : '';
+  const yearTag = t.kind === 'annex3' ? `${built.year}年資料` : t.kind === 'water' ? `${built.summary.rocYear}年資料` : '';
   return { table: t, sheets, missing, filename: safeName(`${t.id}_${t.label}${yearTag ? `_${yearTag}` : ''}`) };
 }
 
@@ -235,27 +351,31 @@ export function tableXlsx(bt) {
   return buildWorkbook(sheets).buffer;
 }
 
-// 整包 zip：附表三每張表一個 CSV＋附件一、二每張表一個 CSV＋三本完整 xlsx＋節能計畫匯出檔
+// 整包 zip：附表三每張表一個 CSV＋附件一、二、水足跡每張表一個 CSV＋四本完整 xlsx（含水足跡盤查清冊）＋節能計畫匯出檔
 export function buildBundle(inv, opts = {}) {
   const get = buildAll(inv, opts);
   const a3 = get('annex3');
   const N = a3.year;
   const files = [];
-  const dir = { annex3: `附表三_${N}年資料`, diagnosis: '附件一_節能診斷報告', plan: '附件二_節能計畫' };
+  const dir = { annex3: `附表三_${N}年資料`, diagnosis: '附件一_節能診斷報告', plan: '附件二_節能計畫', water: `水足跡盤查_${N}年資料` };
   for (const t of TABLES) {
-    if (t.kind === 'planExport') continue;
+    if (RAW_EXPORTS[t.kind]) continue;
     const b = get(t.kind);
     const sheets = b.sheets.filter((s) => matches(t, s.name));
     if (!sheets.length) continue;
     files.push([`${dir[t.kind]}/${safeName(`${t.id}_${t.label}`)}.csv`, toCsv(sheets)]);
   }
-  for (const k of ['annex3', 'diagnosis', 'plan']) {
+  for (const k of ['annex3', 'diagnosis', 'plan', 'water']) {
     files.push([`${dir[k]}/${get(k).filename}`, toXlsx(get(k))]);
     files.push([`${dir[k]}/待補欄位.csv`, toCsv(get(k).sheets.filter((s) => s.name === '待補欄位'))]);
   }
   const pe = buildPlanExport(inv, opts);
   files.push([`附件二_節能計畫/${pe.filename}`, buildWorkbook(pe.sheets).buffer]);
   files.push([`附件二_節能計畫/${pe.filename.replace(/\.xlsx$/, '.csv')}`, toCsv([pe.sheets[0]])]);
+  for (const due of [false, true]) {
+    const el = buildEquipListExport(inv, { ...opts, due });
+    files.push([`附件一_節能診斷報告/${el.filename}`, buildWorkbook(el.sheets).buffer]);
+  }
   return { buffer: zip(new Map(files)), filename: `申報資料_${N}年資料.zip`, files: files.map(([n]) => n), year: N };
 }
 
@@ -311,7 +431,7 @@ export function filingView(inv, opts = {}) {
   const N = a3.year;
   const tables = [];
   for (const t of TABLES) {
-    if (t.kind === 'planExport' || t.id === 'a3-00') continue;
+    if (RAW_EXPORTS[t.kind] || t.id === 'a3-00') continue;
     const b = get(t.kind);
     const sheets = b.sheets.filter((s) => matches(t, s.name));
     const missing = b.missing.filter((m) => sheets.some((s) => s.name === m.sheet));
@@ -333,7 +453,7 @@ export function filingView(inv, opts = {}) {
 export function tableList(inv, opts = {}) {
   const get = buildAll(inv, opts);
   return TABLES.map((t) => {
-    if (t.kind === 'planExport') return { id: t.id, kind: t.kind, chapter: t.chapter, label: t.label, sheets: 1, missing: 0 };
+    if (RAW_EXPORTS[t.kind]) return { id: t.id, kind: t.kind, chapter: t.chapter, label: t.label, sheets: 1, missing: 0 };
     const b = get(t.kind);
     const sheets = b.sheets.filter((s) => matches(t, s.name));
     return { id: t.id, kind: t.kind, chapter: t.chapter, label: t.label, sheets: sheets.length, missing: b.missing.filter((m) => sheets.some((s) => s.name === m.sheet)).length };
