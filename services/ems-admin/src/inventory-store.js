@@ -12,7 +12,7 @@ import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import { config } from './config.js';
 import { safeId, ensureInit, gitCommit, withLock, uploadDirFor } from './audit-store.js';
-import { blankInventory, SITE_BLOCKS } from './inventory-schema.js';
+import { blankInventory, SITE_BLOCKS, resolveSiteRefs } from './inventory-schema.js';
 
 const rel = (hid) => `inventory/${safeId(hid)}.json`;
 const invPath = (hid) => join(config.dataDir, rel(hid));
@@ -31,7 +31,8 @@ function normalize(saved) {
     out.site[b.id] = b.kind === 'form' ? (v && typeof v === 'object' && !Array.isArray(v) ? v : {}) : (Array.isArray(v) ? v : []);
   }
   for (const k of ['equipment', 'points', 'records', 'changes', 'measures', 'plans']) if (!Array.isArray(out[k])) out[k] = [];
-  return out;
+  // 舊資料的建築物名稱（文字）→ buildings[].id；對不上的保留原文字（siteRefIssues 會列待修）
+  return resolveSiteRefs(out);
 }
 
 async function readRaw(hid) {

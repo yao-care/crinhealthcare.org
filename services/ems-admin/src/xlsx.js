@@ -280,3 +280,85 @@ export function patchWorkbook(buf, patches) {
   }
   return { buffer: zip(out), skippedFormula };
 }
+
+// ── 從零產生活頁簿（申報表產出用；沒有原範本可套時）──
+// sheets: [{ name, rows: [[cell, …], …], cols?: [寬度], merges?: ['A1:H1'] }]
+//   cell：null／undefined／'' → 空格；number → 數值格；string → inlineStr；
+//         { v, s } → 指定樣式 s：'title'（粗體大字）／'head'（表頭：粗體、底色、框線、換行）／'note'（換行）／'cell'（框線）
+// 樣式只做這四種：產出是給人工轉填能源署申報系統的對照稿，不追求還原原表外觀。
+const STYLE_IDX = { cell: 1, head: 2, title: 3, note: 4 };
+const STYLES_XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+  + '<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font></fonts>'
+  + '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
+  + '<fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/></patternFill></fill></fills>'
+  + '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'
+  + '<border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders>'
+  + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+  + '<cellXfs count="5">'
+  + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+  + '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="top" wrapText="1"/></xf>'
+  + '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
+  + '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+  + '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+  + '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+// 工作表名稱：Excel 限 31 字、不得含 : \ / ? * [ ]，且不可重複
+function sheetName(name, used) {
+  let n = String(name).replace(/[:\\/?*[\]]/g, '_').slice(0, 31) || 'Sheet';
+  let i = 2;
+  while (used.has(n)) n = `${String(name).slice(0, 28)}_${i++}`;
+  used.add(n);
+  return n;
+}
+
+function cellXml(ref, cell) {
+  const isObj = cell !== null && typeof cell === 'object';
+  const v = isObj ? cell.v : cell;
+  const s = isObj && STYLE_IDX[cell.s] ? ` s="${STYLE_IDX[cell.s]}"` : '';
+  if (v === null || v === undefined || v === '') return s ? `<c r="${ref}"${s}/>` : '';
+  if (typeof v === 'number' && Number.isFinite(v)) return `<c r="${ref}"${s}><v>${v}</v></c>`;
+  if (typeof v === 'boolean') return `<c r="${ref}"${s} t="inlineStr"><is><t>${v ? '是' : '否'}</t></is></c>`;
+  return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${esc(v)}</t></is></c>`;
+}
+
+export function buildWorkbook(sheets) {
+  const files = new Map();
+  const used = new Set();
+  const names = sheets.map((sh) => sheetName(sh.name, used));
+  sheets.forEach((sh, i) => {
+    const rowsXml = (sh.rows || []).map((row, r) => {
+      const cells = (row || []).map((c, ci) => cellXml(toRef(ci + 1, r + 1), c)).join('');
+      return cells ? `<row r="${r + 1}">${cells}</row>` : '';
+    }).join('');
+    const cols = sh.cols?.length
+      ? `<cols>${sh.cols.map((w, ci) => `<col min="${ci + 1}" max="${ci + 1}" width="${Number(w) || 12}" customWidth="1"/>`).join('')}</cols>` : '';
+    const merges = sh.merges?.length ? `<mergeCells count="${sh.merges.length}">${sh.merges.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '';
+    files.set(`xl/worksheets/sheet${i + 1}.xml`, Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+      + `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${cols}<sheetData>${rowsXml}</sheetData>${merges}</worksheet>`, 'utf8'));
+  });
+  files.set('xl/workbook.xml', Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'
+    + names.map((n, i) => `<sheet name="${esc(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')
+    + '</sheets></workbook>', 'utf8'));
+  files.set('xl/_rels/workbook.xml.rels', Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + names.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')
+    + `<Relationship Id="rId${names.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`
+    + '</Relationships>', 'utf8'));
+  files.set('xl/styles.xml', Buffer.from(STYLES_XML, 'utf8'));
+  files.set('_rels/.rels', Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>', 'utf8'));
+  files.set('[Content_Types].xml', Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    + '<Default Extension="xml" ContentType="application/xml"/>'
+    + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+    + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+    + names.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')
+    + '</Types>', 'utf8'));
+  // [Content_Types].xml 習慣放第一個（部分讀取器只認這個順序）
+  const ordered = new Map([['[Content_Types].xml', files.get('[Content_Types].xml')], ...[...files].filter(([k]) => k !== '[Content_Types].xml')]);
+  return { buffer: zip(ordered), names };
+}

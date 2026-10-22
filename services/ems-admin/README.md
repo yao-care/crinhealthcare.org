@@ -1,15 +1,16 @@
-# ems-admin — 電力健檢填報 ＋ EMS 看板維護
+# ems-admin — 能源盤點 ＋ 電力健檢填報 ＋ EMS 看板維護
 
-院所人員以帳密登入後，畫面分成**兩支平行的任務**（2026-08-21 改版）：
+院所人員以帳密登入後，畫面分成**幾支平行的任務**（2026-08-21 改版；2026-10-22 加入能源盤點）：
 
 | 任務 | 在做什麼 | 資料存哪 | 送出的門檻 |
 |------|---------|---------|-----------|
+| 📍 點位與進度／🏗 初始建檔／🗂 異動登錄／📑 申報與報告 | 能源盤點（貼紙點位＋三類填報），見下面「盤點改版」一節 | **主機本地**（`AUDIT_DATA_DIR/inventory/<hid>.json`）＋ `AUDIT_UPLOADS_DIR/<hid>/inventory/` | 各區塊各自存檔；伺服器逐筆驗證 |
 | 📇 聯絡人與帳號＋🔌 電力健檢填報 | 依「軍醫院電力健檢」公文附件一／三填報：聯絡人、基本資料、電費單 12 個月、排放源清單、重大設備與負載、冰水主機、營運與異常事件；上傳佐證檔案自動解析 | **主機本地**（`AUDIT_DATA_DIR`，沒有 remote 的 git 倉庫）＋ `AUDIT_UPLOADS_DIR` | 每一格都複驗完 ＋ 六條自我檢核勾滿 |
 | 🖥 看板維護 | 原本的整套看板欄位編輯（院所／各資源平戰時／環境參數／報表 ESG） | `REPO_DIR`（**公開的** crinhealthcare.org 工作副本） | zod schema 驗證 |
 
 送出健檢填報時，**其中的彙總數字會自動同步到看板**（見下面「看板同步」）。獨立 pm2 部署於主機，**不隨 astro build**。
 
-> ⚠️ **兩套儲存不可以合併。** `REPO_DIR` 指向的 repo 是 public。附件一那張表上有姓名、電話、電子郵件；電費單與逐筆排放源清單也不是該公開的東西。它們只能走 `AUDIT_DATA_DIR`。
+> ⚠️ **兩套儲存不可以合併。** `REPO_DIR` 指向的 repo 是 public。附件一那張表上有姓名、電話、電子郵件；電費單與逐筆排放源清單也不是該公開的東西。它們只能走 `AUDIT_DATA_DIR`。能源盤點（能管人員個資、電費單、設備清冊）同樣只走 `AUDIT_DATA_DIR`。
 
 ## 特性
 
@@ -22,6 +23,108 @@
 - **送出前先看變更摘要**：列出這次改了哪些欄位、前後值各是什麼，確認後才推。有未送出修改時離開會擋，並存 localStorage 草稿（防 8 小時 session 逾時）。
 - **送出前驗證**：用與 Astro 建置同一套 zod schema 驗證，不合規回 422，錯誤翻成中文並可點擊跳回該欄位。
 - **安全**：scrypt 密碼雜湊、HMAC 簽章 session cookie（HttpOnly/SameSite=Strict/Secure）、POST 加 Origin 檢查（CSRF）、登入失敗節流。推送金鑰只在伺服器端。
+
+## 盤點改版（貼紙點位＋三類填報）
+
+2026-10-22 立項。需求依據 `../../docs/energy-audit-spec.md`；架構約定與 API 細節以 `../../docs/ems-admin-revamp.md` 為準（改架構要同步更新那份）。核心想法：**掃貼紙只記「這一次會變的東西」**，設備型號、容量、年份在管理端建一次，貼紙頁不出現。三類名稱固定為**初始建檔／定期更新／異動登錄**。
+
+### 資料放哪（兩套儲存不可合併）
+
+| 資料 | 位置 | 說明 |
+|------|------|------|
+| 盤點資料 | `AUDIT_DATA_DIR/inventory/<hid>.json` | site（初始建檔）、equipment（設備主檔）、points、records（定期更新）、changes（異動登錄）、measures、plans、diagnosis。與健檢填報同一個**沒有 remote** 的 git 倉庫，每次寫入一個 commit（`src/inventory-store.js`，與 audit-store 共用一把鎖） |
+| 現場照片、電費單照片 | `AUDIT_UPLOADS_DIR/<hid>/inventory/` | 二進位，不進 git |
+| 看板 hospital JSON | `REPO_DIR`（public） | 盤點資料**一筆都不寫進去** |
+
+### 點位網址與 QR
+
+- 點位代碼 `<hid>-<E|W><兩位數>`（例 `803-E07`；E＝電、W＝水），以最後一個 `-` 切出 hid。新增點位自動配下一號，**停用的號碼不重發**；代碼與類別建好就不能改（網址已經印在貼紙上），改名、搬家只改名稱與位置。
+- 每個點位固定網址 `PUBLIC_BASE_URL/s/<代碼>`（預設 `https://ems-admin.crinhealthcare.org/s/803-E07`），QR 與 NFC 寫同一個網址。單張 QR：`GET /api/inv/points/<代碼>/qr.png?size=512&download=1`；全部 QR 在管理端「點位與進度 › 列印全部 QR」排版列印。
+- 貼紙頁（`public/s.html` ＋ `public/sticker.js`）未登入先登入，可勾「這支手機記住 30 天」。別家院所的代碼一律 403（貼紙貼在走廊，誰都拍得到）。
+
+### 點位項目類型（`items[].type`）
+
+表單依項目類型動態長出來，新增點位或改欄位不改程式：
+
+| 類型 | 用途 |
+|------|------|
+| `reading` | 累計讀數（電表、水表）。自動算本次用量；讀數倒退擋下，確認換表／歸零才放行；用量差超過 `warnPct` 只提示 |
+| `status` | 設備狀態，預設 正常／異常／停機（可自訂）。選「異常」備註必填，並列入「未結異常」 |
+| `bill` | 電費單：拍照解析＋逐格確認（沿用 `extract.js` 與健檢的複驗閘門，伺服器那份判準才算數） |
+| `number`／`text`／`photo` | 一般數值、文字、照片 |
+
+共同欄位：`id, label, unit?, equipmentId?, meterId?, options?, warnPct?, required?`；冰水機群組月效率另有 `chillerGroup`＋`chillerRole`。
+
+### 三類任務對應的畫面
+
+| 類別 | 誰在哪裡填 | 畫面 |
+|------|-----------|------|
+| 初始建檔 | 能管人員，管理端 | 「🏗 初始建檔」：附表三 表三、電號、表七建築、表八變壓器與發電機、能管人員、表四組織與政策、R1／R2 判定；「設備主檔（表九）」三類設備。表單由 `GET /api/inv/spec` 長出來。建完預設唯讀 |
+| 定期更新 | 現場人員，手機掃貼紙 | `/s/<代碼>` 貼紙頁；管理端「📍 點位與進度」看本期誰記了、未結異常（可結案）、點位管理與 QR |
+| 異動登錄 | 能管人員，管理端 | 「🗂 異動登錄」：設備新增／汰換／移除／規格更正、人員異動、措施完工、計畫變更；每筆記時間、人、前後差異、原因 |
+| （產出） | 能管人員，管理端 | 「📑 申報與報告」（`public/inventory-report.js`）：期限提醒、診斷措施、節能計畫、報表下載與待補欄位 |
+
+幾條規則（伺服器把關，前端只是提早提示）：
+
+- **原因必填**：已建檔的 site 區塊（`PUT /api/inv/site/:block`）、設備主檔（`PUT /api/inv/equipment/:id`）有變動卻沒帶 `reason` → 422 `reason_required`。第一次建檔、沒有變動不需要。
+- **操作人姓名**：帳號一院一組。所有改變狀態的 `/api/inv`、`/api/inv/report` API 都收選填 `reporter`（≤20 字；DELETE 用 `?reporter=`），有填時 who＝「姓名（院名）」並另存 `reporter`。管理端頂部「操作人」欄與貼紙頁「填寫人」共用 localStorage key `ems.sticker.reporter`。
+- **設備汰換**：異動登錄的「設備汰換」先建新設備，再把舊設備標成已汰換並帶 `replacedBy`；伺服器把所有點位項目的 `equipmentId` 改指新設備、新設備承接舊的所屬點位，記在同一筆異動。設備移除時回傳仍連著它的點位項目，管理端提示去點位移除。
+- **設備↔點位以點位項目為準**：設備主檔的 `pointCode` 跟著點位項目的 `equipmentId` 走。`GET /api/inv` 回 `linkIssues`（對不上的清單），「點位與進度」列出並可一鍵修正。
+- **建築用 id 連結**：設備主檔與變壓器的建築存 `buildings[].id`（下拉選）。舊資料存的是名稱文字，讀取時自動對回 id；對不上保留原文字、列「待修」（`siteRefIssues`）。發電機的官方欄位沒有建築物名稱，不受影響。
+
+### 規則與依據的單一來源
+
+- 欄位規格、驗證、依據：`src/inventory-schema.js`（盤點）、`src/report-schema.js`（措施、計畫、診斷團隊）。區塊、欄位群、設備類別、項目類型都帶 `source:{doc, ref, law, spec?, note?}`，畫面與報表都從那裡讀，不另寫一份。
+- 規則與計算（R1–R9、用量、EUI、kW/RT、回收年限、機齡、期限）：`public/inventory-compute.js`，**伺服器與瀏覽器共用同一份**（同 `audit-compute.js` 的掛法）。R6 的設備類別只用它的 `equipmentReplaceCategory()`：日光燈、省電燈泡＝螢光燈具（2 年）、LED＝LED 燈具（8 年）、其他燈種不套門檻、空調與其他系統＝公用設備（10 年）。
+
+### 報表產出與待補欄位
+
+- `GET /api/inv/report/annex3?year=<民國資料年>`、`/diagnosis`、`/plan` 下載 xlsx（附表三年度申報、附件一節能診斷報告、附件二節能計畫）；加 `format=json` 只看工作表與待補清單。
+- 每張工作表第 1 列表名、第 2 列依據（文件、表號、文號）、第 3 列院所與資料年。系統推不出的格子留空，逐項列在最後的「待補欄位」工作表；`GET /api/inv/report/missing?kind=annex3|diagnosis|plan&year=N` 回同一份清單（JSON）。
+- R6 機齡超過門檻的設備自動列入設備汰換表、R7 回收 < 10 年自動列入節能計畫，兩者都不可刪（409 `mandatory`）；計畫改已填過的值要原因（R8 版本紀錄）。
+- 能源署申報系統沒有公開匯入格式，xlsx 是對照官方表格的轉填稿。
+
+### 舊資料轉移（健檢填報 → 盤點）
+
+```bash
+node scripts/migrate-inventory.mjs 803 --dry-run   # 先試跑看報告，不寫檔
+node scripts/migrate-inventory.mjs 803             # 單一院所
+node scripts/migrate-inventory.mjs --all           # 全部院所
+```
+
+bills／majorLoads／chillers／basic／contact 轉進新結構，**原健檢檔只讀不改**。重跑安全（轉過的記在 `migration.audit.map`，只補新出現的資料）。資料目錄取 `AUDIT_DATA_DIR`（沒設就讀 `.env`）。服務正在跑也不用重啟：盤點每次請求都重新讀檔。
+
+### 部署注意：production 的工作目錄就是這個 repo
+
+pm2 的 `ems-admin`（port 8470）`cwd` 就是本目錄（`ecosystem.config.cjs`），所以：
+
+- **`public/` 存檔即上線**（靜態檔送 `no-store`）。後端（`src/`）要 `pm2 restart ems-admin` 才生效，因此前端必須能跑在舊後端上：`/api/inv/spec` 拿不到時 `app.js` 維持舊版導覽；新欄位（`linkIssues`、`linkedItems` 等）缺了要有退路。
+- 改 `public/` 前先在副本改好、測過再一次複製回來，不要在這裡邊改邊試。
+- `.env`、`accounts.json` 是 production 設定，本地測試不要拿來用（`config.js` 會自動讀本目錄的 `.env`）。
+
+### 本地測試
+
+```bash
+pnpm test                                   # 全部回歸（測試自己開暫存目錄，不碰 production 資料）
+(cd ../.. && node scripts/check-design.mjs)  # 要在 repo 根目錄跑：設計規範守門（含 public/ 的 CSS）
+```
+
+開一個跟 production 完全隔開的實例（不要複製 `.env`；`process.loadEnvFile` 不覆蓋已設的環境變數，但沒有 `.env` 最保險）：
+
+```bash
+SITE=$(git rev-parse --show-toplevel)                # crinhealthcare.org 根目錄
+rsync -a --exclude node_modules --exclude .env --exclude accounts.json ./ /tmp/ems-scratch/
+ln -s "$PWD/node_modules" /tmp/ems-scratch/node_modules && cd /tmp/ems-scratch
+mkdir -p /tmp/ems-run/{data,uploads,repo/src/content/hospitals}
+cp "$SITE/src/content/hospitals/803.json" /tmp/ems-run/repo/src/content/hospitals/   # 看板維護畫面要讀得到院所 JSON
+echo '{"accounts":[]}' > /tmp/ems-run/accounts.json
+ACCOUNTS_FILE=/tmp/ems-run/accounts.json EMS_PW='testpass' node scripts/hash-password.mjs hosp-803 803 "測試院所"
+HTTP_PORT=8476 JWT_SECRET=$(openssl rand -hex 16) ACCOUNTS_FILE=/tmp/ems-run/accounts.json \
+  REPO_DIR=/tmp/ems-run/repo AUDIT_DATA_DIR=/tmp/ems-run/data AUDIT_UPLOADS_DIR=/tmp/ems-run/uploads \
+  COOKIE_SECURE=0 PUBLIC_BASE_URL=http://127.0.0.1:8476 node src/index.js
+```
+
+關掉時用 `ss -ltnp | grep :8476` 取 pid 精準 kill，**不要 `pkill node`**（會連 production 一起殺）。
 
 ## 電力健檢填報（公文附件一／三）
 
@@ -101,6 +204,8 @@
 - `GET /api/audit/file?id=` → 佐證檔案本體（`Content-Disposition` 用中文的 displayName）
 - `GET /api/audit/history`
 
+能源盤點（`/api/inv/*`、`/s/:code`，路由在 `src/inventory-routes.js`，報表在 `src/report-routes.js`）：完整路由表與請求／回應形狀見 `../../docs/ems-admin-revamp.md`「架構約定」與「後端實作補充」。
+
 ## 表單為什麼要 schema 驅動（勿改回「照資料長」）
 
 舊版照載入到的 JSON 遞迴長表單，造成三個院方碰得到的死路，都已改掉且有測試蓋住（`test/spec.test.js`）：
@@ -143,8 +248,10 @@ pnpm install
 cp .env.example .env        # 填 JWT_SECRET / REPO_DIR，COOKIE_SECURE=0（本地 http）
 EMS_PW='密碼' node scripts/hash-password.mjs hosp-802 802 "國軍高雄總醫院"
 pnpm start                  # http://localhost:8470
-pnpm test                   # schema 對所有現有院所 JSON 做回歸
+pnpm test                   # schema 對所有現有院所 JSON 做回歸＋盤點、報表的回歸
 ```
+
+> 這裡的 `.env` 是給「自己的開發機」用的。在 production 主機上請照上面「盤點改版 › 本地測試」另開實例，不要動本目錄的 `.env`。
 
 ## 部署（主機 SOP）
 
@@ -236,5 +343,15 @@ pnpm test                   # schema 對所有現有院所 JSON 做回歸
 - `public/audit.js` — 健檢填報前端（三段式版面、表格編輯器、複驗標記、送出檢核）
 - `test/spec.test.js` — A1–A5 的回歸測試＋schema 對齊檢查
 - `test/audit.test.js` — 健檢的回歸測試（計算、複驗閘門、看板同步不越界、xlsx 對照）
+- `src/inventory-schema.js` — 盤點的欄位規格、點位與項目類型、驗證、依據 source、操作人姓名與設備↔點位一致性（唯一真實來源）
+- `src/inventory-store.js` — 盤點資料落地（`AUDIT_DATA_DIR/inventory/`，無 remote）＋照片
+- `src/inventory-routes.js` — `/api/inv/*` 路由（server.js 只分派）
+- `src/report-schema.js` / `src/report-model.js` / `src/report-xlsx.js` / `src/report-routes.js` — 措施、計畫、診斷團隊的規格、推導、xlsx 產出與 `/api/inv/report/*` 路由
+- `src/inventory-migrate.js` / `scripts/migrate-inventory.mjs` — 健檢填報舊資料 → 盤點
+- `public/inventory-compute.js` — **伺服器與瀏覽器共用**的 R1–R9 規則與計算
+- `public/inventory.js` — 管理端（點位與進度、初始建檔、設備主檔、異動登錄）
+- `public/inventory-report.js` — 管理端「申報與報告」
+- `public/s.html` / `public/sticker.js` — 貼紙落地頁（手機）
+- `test/inventory.test.js` / `test/inventory-compute.test.js` / `test/report.test.js` / `test/migrate.test.js` — 盤點的回歸測試
 
-> 改 `src/*` 後要 `pm2 restart ems-admin`；`public/*` 是靜態檔、存檔即生效（伺服器對靜態檔送 `no-store`）。
+> 改 `src/*` 後要 `pm2 restart ems-admin`；`public/*` 是靜態檔、存檔即生效（伺服器對靜態檔送 `no-store`）。production 的工作目錄就是這個 repo，所以 `public/` 的改動一存檔就上線，見「盤點改版 › 部署注意」。

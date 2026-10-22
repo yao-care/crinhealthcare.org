@@ -11,7 +11,9 @@ import { coerce, blockById, pendingCells, validateAudit } from './audit-schema.j
 
 // ── 欄位型別（site 區塊與設備主檔共用）──
 // year：西元年；輸入 3 位數以下視為民國年自動 +1911（各表原文多用民國年，院方兩種都會填）。
-export const FIELD_TYPES = ['text', 'number', 'percent', 'month', 'date', 'year', 'select', 'multiselect', 'boolean'];
+// ref：連到另一個 site 表格的某一筆（f.ref＝區塊 id，目前只有 'buildings'），存的是那一筆的 id。
+//      舊資料存的是名稱文字：讀取時用名稱（或編號）對回 id，對不上就保留原文字、列入待修（siteRefIssues）。
+export const FIELD_TYPES = ['text', 'number', 'percent', 'month', 'date', 'year', 'select', 'multiselect', 'boolean', 'ref'];
 
 const YES = { type: 'boolean' };
 
@@ -105,7 +107,7 @@ const BUILDING_FIELDS = [
 
 // 表八 變壓器規格＋尖峰抄表運轉值
 const TRANSFORMER_FIELDS = [
-  { key: 'building', label: '建築物名稱', type: 'text' },
+  { key: 'building', label: '建築物名稱', type: 'ref', ref: 'buildings', hint: '從「建築資料」選，表七、表八、表九的建築名稱才會一致' },
   { key: 'code', label: '變壓器編號', type: 'text', required: true },
   { key: 'brand', label: '廠牌', type: 'text' },
   { key: 'madeYear', label: '製造年份', type: 'year' },
@@ -341,8 +343,11 @@ export const categoryById = (id) => EQUIPMENT_CATEGORIES.find((c) => c.id === id
 export const EQUIPMENT_STATUS = { active: '使用中', replaced: '已汰換', removed: '已移除' };
 
 // ── 表九之一（二）冰水機群組系統效率（逐月）──
-// 不在 site／設備主檔裡（它是每月的量測結果），欄位規格放這裡給報表與日後的點位項目共用。
+// 不在 site／設備主檔裡（它是每月的量測結果），欄位規格放這裡給報表與點位項目共用。
+// 存放方式：不另建月表，從點位紀錄推導——點位項目標 chillerGroup＋chillerRole（kwh／rth），
+// 報表把該群組、該月所有紀錄的值加總（reading 型取用量、number 型取數值）。建築取設備主檔同群組設備的建築。
 export const CHILLER_GROUP_MONTH = {
+  derivation: '點位項目 chillerGroup＋chillerRole（kwh／rth）；月值＝當月紀錄加總（reading 取用量、number 取數值）',
   source: A3('表九之一（二）', '單一群組冰水主機含備用機總容量 ≥ 1,000 RT 必填；逐時量測紀錄保存 ≥ 5 年'),
   fields: [
     { key: 'building', label: '建築名稱', type: 'text', required: true },
@@ -395,6 +400,7 @@ export function isMeasureCode(code) {
 export const DEFAULT_STATUS_OPTIONS = ['正常', '異常', '停機'];
 // 選到這個值就開一筆「未結異常」。自訂 options 時請保留「異常」這個字，否則不會進未結清單。
 export const ANOMALY_VALUE = '異常';
+export const ANOMALY_NOTE_MSG = '設備回報異常時請在備註寫明狀況';
 
 export const ITEM_TYPES = [
   { id: 'reading', label: '累計讀數', hint: '電表、水表的累計值；系統自動算本次用量，讀數倒退會擋下', valueType: 'number', usesUnit: true, usesWarnPct: true, source: A3('表五之二', '用電度數；水表讀數為院內水足跡紀錄（非附表三欄位）') },
@@ -430,6 +436,10 @@ const itemSchema = z.object({
   options: z.array(z.string().trim().min(1).max(20)).min(2).max(12).optional(),
   warnPct: z.number().positive().max(10000).optional(),
   required: z.boolean().optional(),
+  // 表九之一（二）冰水機群組月效率（報表從點位紀錄推導）：標示這個項目屬於哪個冰水機群組、
+  // 量的是月耗電量（kwh）還是系統負荷（rth）。2026-10-22 報表項目新增，舊點位沒有這兩個鍵也照常通過。
+  chillerGroup: z.string().trim().min(1).max(60).optional(),
+  chillerRole: z.enum(['kwh', 'rth']).optional(),
 }).strict();
 
 const pointSchema = z.object({
@@ -458,6 +468,8 @@ export function validatePoint(point, inv) {
     ids.add(it.id);
     if (it.options && it.type !== 'status') errors.push(`「${it.label}」不是狀態型，不能設定選項`);
     if (it.warnPct !== undefined && it.type !== 'reading') errors.push(`「${it.label}」不是累計讀數，不能設定用量警示`);
+    if ((it.chillerGroup || it.chillerRole) && !(it.chillerGroup && it.chillerRole)) errors.push(`「${it.label}」冰水機群組與量測角色（kwh／rth）要一起設定`);
+    if (it.chillerRole && it.type !== 'reading' && it.type !== 'number') errors.push(`「${it.label}」只有累計讀數或一般數值能標成冰水機群組的 kWh／RTh`);
     if (it.equipmentId && inv && !inv.equipment.some((e) => e.id === it.equipmentId)) errors.push(`「${it.label}」連結的設備不存在：${it.equipmentId}`);
     if (it.meterId && inv && !(inv.site.meters || []).some((m) => m.id === it.meterId)) errors.push(`「${it.label}」連結的電號不存在：${it.meterId}`);
   }
@@ -495,6 +507,11 @@ function normField(f, raw, kind) {
     case 'select': {
       const v = String(raw);
       return f.options.includes(v) ? { value: v } : { error: `不在選項內（${f.options.join('／')}）` };
+    }
+    case 'ref': {
+      const v = String(raw).trim();
+      if (v.length > 120) return { error: '超過 120 字' };
+      return v ? { value: v } : { value: undefined };
     }
     case 'multiselect': {
       if (!Array.isArray(raw)) return { error: '必須是陣列' };
@@ -535,7 +552,8 @@ function checkFields(fields, values, where, kind) {
 }
 
 // 驗證並正規化 site 的某區塊。table 的每筆保留／補上 id（點位項目的 meterId 靠它連結）。
-export function validateSiteBlock(blockId, value, newId) {
+// inv 有給時，ref 欄位（變壓器的建築）用名稱對回 id；對不上的保留原文字，只列 warning（待修，不擋存檔）。
+export function validateSiteBlock(blockId, value, newId, inv) {
   const b = siteBlockById(blockId);
   if (!b) return { ok: false, errors: [`沒有這個區塊：${blockId}`], warnings: [] };
   if (b.kind === 'form') {
@@ -553,8 +571,67 @@ export function validateSiteBlock(blockId, value, newId) {
     ids.add(id);
     rows.push({ id, ...r.values });
   });
+  if (inv) {
+    // 這一次存的建築區塊（就是 buildings 本身時）以新值為準
+    const site = blockId === 'buildings' ? { ...inv.site, buildings: rows } : inv.site;
+    rows.forEach((row, i) => {
+      for (const f of b.fields) {
+        if (f.type !== 'ref' || row[f.key] === undefined) continue;
+        const id = resolveRef(site, f.ref, row[f.key]);
+        if (id) row[f.key] = id;
+        else warnings.push(`${b.label} 第 ${i + 1} 筆·「${f.label}」對不到${siteBlockById(f.ref)?.label || f.ref}：${row[f.key]}（保留原文字，待修）`);
+      }
+    });
+  }
   return { ok: !errors.length, errors, warnings, value: rows };
 }
+
+// ── ref 欄位（目前只有變壓器的建築物名稱 → buildings[].id）──
+const refName = (row) => String(row?.name || row?.code || row?.id || '');
+// 值是 id 就回 id；是名稱（或編號）且只對到一筆就回那筆的 id；否則 null
+export function resolveRef(site, ref, v) {
+  if (typeof v !== 'string' || !v.trim()) return null;
+  const rows = Array.isArray(site?.[ref]) ? site[ref] : [];
+  if (rows.some((r) => r.id === v)) return v;
+  const t = v.trim();
+  const hit = rows.filter((r) => String(r.name || '').trim() === t);
+  const hits = hit.length ? hit : rows.filter((r) => String(r.code || '').trim() === t);
+  return hits.length === 1 ? hits[0].id : null;
+}
+const refFields = () => SITE_BLOCKS.filter((b) => b.kind === 'table').flatMap((b) => b.fields.filter((f) => f.type === 'ref').map((f) => ({ b, f })));
+// 讀取時把舊資料的名稱文字換成 id（直接改 inv；下一次寫入就落地）
+export function resolveSiteRefs(inv) {
+  for (const { b, f } of refFields()) {
+    for (const row of inv.site?.[b.id] || []) {
+      const v = row?.[f.key];
+      if (typeof v !== 'string' || !v) continue;
+      const id = resolveRef(inv.site, f.ref, v);
+      if (id && id !== v) row[f.key] = id;
+    }
+  }
+  return inv;
+}
+// 對不上的 ref（舊資料的名稱文字、或建築被刪掉）→ 管理端標「待修」
+export function siteRefIssues(inv) {
+  const out = [];
+  for (const { b, f } of refFields()) {
+    (inv.site?.[b.id] || []).forEach((row, i) => {
+      const v = row?.[f.key];
+      if (v === undefined || v === null || v === '') return;
+      if (resolveRef(inv.site, f.ref, v) === v) return;
+      const title = row.code || row.name || `第 ${i + 1} 筆`;
+      out.push({
+        block: b.id, rowId: row.id, field: f.key, value: v,
+        message: `${b.label}「${title}」的${f.label}「${v}」對不到${siteBlockById(f.ref)?.label || f.ref}，請改選（待修）`,
+      });
+    });
+  }
+  return out;
+}
+export const refLabel = (site, ref, v) => {
+  const id = resolveRef(site, ref, v);
+  return id ? refName((site?.[ref] || []).find((r) => r.id === id)) : (v ? String(v) : '');
+};
 
 // 驗證設備主檔一筆（新增或修改後的完整樣貌）
 export function validateEquipment(eq, inv) {
@@ -594,27 +671,31 @@ export function lastValue(records, pointCode, itemId) {
   return best ? { value: best.values[itemId], usage: best.usage?.[itemId] ?? null, at: best.at, period: best.period } : null;
 }
 
-// 回傳 { errors, decreases, pending, warnings, values, usage, anomalyItems }
-//   errors     → 422（格式不對、必填沒填）
+// 回傳 { errors, issues, decreases, pending, warnings, values, usage, anomalyItems }
+//   issues     → 422 validation 的 details：[{ itemId|null, message }]。同名 label 的多台設備
+//                只靠訊息文字對不回欄位，前端要用 itemId 標錯（itemId null＝不屬於某個項目）
+//   errors     → issues 的訊息字串（同順序；給只要文字的呼叫端）
 //   decreases  → 422（讀數倒退，除非該項目在 confirmDecrease 名單裡：換表、歸零）
 //   pending    → 409（電費單還有沒複驗的格子）
 //   warnings   → 照樣存檔，只是回給前端提示（用量差超過 warnPct）
-export function assessRecord(point, records, rawValues, { confirmDecrease = [] } = {}) {
-  const errors = [], decreases = [], pending = [], warnings = [];
+//   note       → 紀錄的備註；有 status 選了「異常」而備註空白 → 該 status 項目一筆 issue
+export function assessRecord(point, records, rawValues, { confirmDecrease = [], note } = {}) {
+  const issues = [], decreases = [], pending = [], warnings = [];
+  const err = (itemId, message) => { issues.push({ itemId, message }); };
   const values = {}, usage = {}, anomalyItems = [];
   const input = rawValues && typeof rawValues === 'object' ? rawValues : {};
   const known = new Set(point.items.map((i) => i.id));
-  for (const k of Object.keys(input)) if (!known.has(k)) errors.push(`不認得的項目：${k}`);
+  for (const k of Object.keys(input)) if (!known.has(k)) err(null, `不認得的項目：${k}`);
 
   for (const it of point.items) {
     const raw = input[it.id];
     const empty = raw === undefined || raw === null || raw === '' || (Array.isArray(raw) && !raw.length);
-    if (empty) { if (it.required) errors.push(`「${it.label}」必填`); continue; }
+    if (empty) { if (it.required) err(it.id, `「${it.label}」必填`); continue; }
 
     if (it.type === 'reading' || it.type === 'number') {
       const n = typeof raw === 'number' ? raw : coerce(raw, 'number');
-      if (typeof n !== 'number' || !Number.isFinite(n)) { errors.push(`「${it.label}」必須是數字`); continue; }
-      if (it.type === 'reading' && n < 0) { errors.push(`「${it.label}」讀數不可為負數`); continue; }
+      if (typeof n !== 'number' || !Number.isFinite(n)) { err(it.id, `「${it.label}」必須是數字`); continue; }
+      if (it.type === 'reading' && n < 0) { err(it.id, `「${it.label}」讀數不可為負數`); continue; }
       values[it.id] = n;
       if (it.type !== 'reading') continue;
       const prev = lastValue(records, point.code, it.id);
@@ -638,25 +719,29 @@ export function assessRecord(point, records, rawValues, { confirmDecrease = [] }
     } else if (it.type === 'status') {
       const opts = itemOptions(it);
       const v = String(raw);
-      if (!opts.includes(v)) { errors.push(`「${it.label}」須為 ${opts.join('／')}`); continue; }
+      if (!opts.includes(v)) { err(it.id, `「${it.label}」須為 ${opts.join('／')}`); continue; }
       values[it.id] = v;
-      if (v === ANOMALY_VALUE) anomalyItems.push(it);
+      if (v === ANOMALY_VALUE) {
+        anomalyItems.push(it);
+        if (note !== undefined && !String(note).trim()) err(it.id, ANOMALY_NOTE_MSG);
+      }
     } else if (it.type === 'text') {
       const v = String(raw).trim();
-      if (v.length > 2000) { errors.push(`「${it.label}」超過 2000 字`); continue; }
+      if (v.length > 2000) { err(it.id, `「${it.label}」超過 2000 字`); continue; }
       if (v) values[it.id] = v;
     } else if (it.type === 'photo') {
       const arr = Array.isArray(raw) ? raw : [raw];
-      if (!arr.every((x) => typeof x === 'string' && RE_PHOTO_ID.test(x))) { errors.push(`「${it.label}」照片代號不正確`); continue; }
+      if (!arr.every((x) => typeof x === 'string' && RE_PHOTO_ID.test(x))) { err(it.id, `「${it.label}」照片代號不正確`); continue; }
       values[it.id] = [...new Set(arr)];
     } else if (it.type === 'bill') {
       // 電費單：沿用健檢填報的欄位定義與複驗閘門。值的形狀 { values:{電費單欄位}, meta:{欄位:{state,source}} }
       const r = checkBill(raw, it.label);
-      errors.push(...r.errors); warnings.push(...r.warnings); pending.push(...r.pending);
+      for (const m of r.errors) err(it.id, m);
+      warnings.push(...r.warnings); pending.push(...r.pending);
       if (!r.errors.length) values[it.id] = { values: r.bill.values, meta: r.bill.meta };
     }
   }
-  return { errors, decreases, pending, warnings, values, usage, anomalyItems };
+  return { errors: issues.map((i) => i.message), issues, decreases, pending, warnings, values, usage, anomalyItems };
 }
 
 export const RE_PHOTO_ID = /^[A-Za-z0-9_-]{8,80}$/;
@@ -699,6 +784,78 @@ export const CHANGE_KINDS = {
   'other': '其他',
 };
 
+// ════════════════════════════════════════════════════════════════
+// 操作人姓名（reporter）
+// 帳號一院一組，session 只看得到院名。所有改變狀態的 API 都接受選填 reporter（trim 後 ≤ 20 字）：
+// 有填 → who＝「姓名（院名）」並另存 reporter；沒填 → who 只有院名、reporter 為 null。
+// 貼紙頁與管理端共用同一個 localStorage key（ems.sticker.reporter），同一支手機／電腦填一次就好。
+// ════════════════════════════════════════════════════════════════
+export const REPORTER_MAX = 20;
+export const REPORTER_STORAGE_KEY = 'ems.sticker.reporter';
+export const REPORTER_ERROR = `填寫人姓名最長 ${REPORTER_MAX} 字`;
+export function parseReporter(raw) {
+  if (raw === undefined || raw === null) return { ok: true, reporter: null };
+  if (typeof raw !== 'string') return { ok: false, message: REPORTER_ERROR };
+  const r = raw.trim();
+  if (r.length > REPORTER_MAX) return { ok: false, message: REPORTER_ERROR };
+  return { ok: true, reporter: r || null };
+}
+export const whoLabel = (base, reporter) => (reporter ? `${reporter}（${base}）` : base);
+
+// ════════════════════════════════════════════════════════════════
+// 設備 ↔ 點位的一致性
+// 連結以「點位項目的 equipmentId」為準；設備主檔的 pointCode 只是方便查的副本。
+// GET /api/inv 回傳這份清單，管理端在「點位與進度」列出並提供修正。
+// ════════════════════════════════════════════════════════════════
+export function linkedItemsOf(inv, equipmentId) {
+  const out = [];
+  for (const p of inv.points || []) {
+    for (const it of p.items || []) {
+      if (it.equipmentId === equipmentId) out.push({ pointCode: p.code, pointName: p.name, active: p.active !== false, itemId: it.id, label: it.label });
+    }
+  }
+  return out;
+}
+
+export function equipmentLinkIssues(inv) {
+  const out = [];
+  const eqName = (e) => e?.fields?.name || e?.kind || e?.id || '';
+  const byId = new Map((inv.equipment || []).map((e) => [e.id, e]));
+  for (const p of inv.points || []) {
+    for (const it of p.items || []) {
+      if (!it.equipmentId) continue;
+      const e = byId.get(it.equipmentId);
+      const base = { pointCode: p.code, pointName: p.name, itemId: it.id, label: it.label, equipmentId: it.equipmentId };
+      if (!e) {
+        out.push({ type: 'item_missing_equipment', ...base, message: `點位 ${p.code}「${it.label}」連到的設備不存在（${it.equipmentId}），請到點位改連或移除` });
+      } else if (e.status && e.status !== 'active') {
+        const nu = e.replacedBy ? byId.get(e.replacedBy) : null;
+        out.push({
+          type: 'item_inactive_equipment', ...base, equipmentName: eqName(e), status: e.status, replacedBy: e.replacedBy || null,
+          message: `點位 ${p.code}「${it.label}」仍連到${EQUIPMENT_STATUS[e.status] || e.status}的設備「${eqName(e)}」${nu ? `，應改連「${eqName(nu)}」` : '，請到點位移除或改連'}`,
+        });
+      }
+    }
+  }
+  for (const e of inv.equipment || []) {
+    if (e.status && e.status !== 'active') continue;
+    const linked = [...new Set(linkedItemsOf(inv, e.id).map((x) => x.pointCode))];
+    const cur = e.pointCode || null;
+    if (linked.length && !linked.includes(cur)) {
+      out.push({
+        type: 'equipment_point_mismatch', equipmentId: e.id, equipmentName: eqName(e), pointCode: cur, expected: linked[0], linkedPoints: linked,
+        message: `設備「${eqName(e)}」主檔的所屬點位是 ${cur || '（未指定）'}，但連到它的點位項目在 ${linked.join('、')}`,
+      });
+    } else if (!linked.length && cur) {
+      out.push({
+        type: 'equipment_point_unlinked', equipmentId: e.id, equipmentName: eqName(e), pointCode: cur, expected: null, linkedPoints: [],
+        message: `設備「${eqName(e)}」主檔的所屬點位是 ${cur}，但該點位沒有任何項目連到它`,
+      });
+    }
+  }
+  return out;
+}
+
 // ── 前端用的規格（純資料）──
 export const inventorySpec = {
   fieldTypes: FIELD_TYPES,
@@ -713,7 +870,9 @@ export const inventorySpec = {
   billColumns: blockById('bills').columns,   // bill 型項目的逐格確認表單照這份長
   exemptionCodes: EXEMPTION_CODES,
   chillerGroupMonth: CHILLER_GROUP_MONTH,
+  chillerRoles: { kwh: '月耗電量（kWh）', rth: '系統負荷（RTh）' },
   measureCodes: MEASURE_CODES,
+  reporter: { max: REPORTER_MAX, storageKey: REPORTER_STORAGE_KEY },
 };
 
 // ── 空白骨架 ──

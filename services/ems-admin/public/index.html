@@ -80,9 +80,15 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="boot" class="card"><p class="muted">載入中…</p></div>
 
-  <!-- 順序有意義：audit-compute 先掛上共用計算，app.js 定義 window.EMSUI，audit.js 才用得到 -->
+  <!-- 順序有意義：audit-compute／inventory-compute 先掛上共用計算，app.js 定義 window.EMSUI，
+       audit.js、inventory-report.js、inventory.js 才用得到。app.js 等 DOMContentLoaded 才開始載資料。
+       inventory-report.js（申報與報告）要在 inventory.js 之前：inventory.js 導覽到該任務時呼叫
+       window.EMSInventoryReportUI.mount()，不存在就顯示「建置中」。 -->
   <script src="/audit-compute.js"></script>
+  <script src="/inventory-compute.js"></script>
   <script src="/app.js"></script>
   <script src="/audit.js"></script>
+  <script src="/inventory-report.js"></script>
+  <script src="/inventory.js"></script>
 </body>
 </html>

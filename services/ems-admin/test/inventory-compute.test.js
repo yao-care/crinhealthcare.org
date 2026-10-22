@@ -204,6 +204,23 @@ test('R6：各類門檻「超過」才強制列入，剛好等於不列', () => 
   assert.match(r.msg, /強制列入/);
 });
 
+test('R6 燈具類別：省電燈泡、日光燈＝螢光燈具（2 年）；LED＝LED 燈具（8 年）；其他燈種不套門檻（單一函式）', () => {
+  const cat = (category, kind) => C.equipmentReplaceCategory({ category, kind });
+  assert.equal(cat('lighting', '日光燈'), '螢光燈具');
+  assert.equal(cat('lighting', '省電燈泡'), '螢光燈具');
+  assert.equal(cat('lighting', 'LED'), 'LED 燈具');
+  for (const k of ['鹵素燈', '複金屬燈', '高壓鈉燈', '高壓水銀燈', '其他']) assert.equal(cat('lighting', k), '其他', k);
+  assert.equal(cat('ac', '中央空調主機'), '公用設備');
+  assert.equal(cat('other', '電梯'), '公用設備');
+  assert.equal(C.equipmentReplaceCategory(null), undefined);
+  const r6 = (kind, age) => C.replacementRequired({ category: cat('lighting', kind), mfgYear: 115 - age, reportYear: 115 }).value;
+  assert.equal(r6('省電燈泡', 3), true, '省電燈泡 3 年 > 2 年');
+  assert.equal(r6('省電燈泡', 2), false);
+  assert.equal(r6('LED', 9), true);
+  assert.equal(r6('鹵素燈', 40), false, '其他燈種不套門檻');
+  assert.equal(C.replaceCategory('省電燈泡'), 'fluorescent');
+});
+
 test('R6：機齡用民國年；誤填西元自動轉；製造晚於提報不通過', () => {
   assert.equal(C.equipmentAge(2015, 115).value, 11);
   assert.equal(C.equipmentAge(116, 115).ok, false);
@@ -316,6 +333,10 @@ test('EUI：電與熱，室內面積 = 總樓地板 − 室內停車場', () => 
   assert.equal(e.value, 120);
   assert.equal(e.area, 10000);
   assert.equal(C.euiThermal(5000, 12000, 2000).value, 0.5);
+  // 115-01-23 新版表五之五：單位改公斤油當量/㎡
+  assert.match(C.euiThermal(5000, 12000, 2000).msg, /公斤油當量\/㎡/);
+  assert.doesNotMatch(C.euiThermal(5000, 12000, 2000).msg, /公升/);
+  assert.match(C.euiThermal(5000, 12000, 2000).source.ref, /表五之五/);
   assert.equal(C.euiElectric(1000, 100, 100).ok, false);
   assert.equal(C.euiElectric('', 100).ok, null);
 });
@@ -329,6 +350,39 @@ test('冰水效率 kW/RT、PUE、能源費用比例、需量反應', () => {
   assert.equal(C.energyCostRatio(2000, 1000).ok, false);
   assert.equal(C.demandResponseSaving(200, 3).value, 600);
   assert.equal(C.annualConsumption(1000, 200, 50).value, 1150);
+});
+
+test('油當量換算（§6.1）與診斷摘要：天然氣預設 NG1', () => {
+  assert.equal(C.toToe(10000, 'E01').value, 0.86);
+  assert.equal(C.toToe(1, 'E02').value, 0.932);
+  assert.equal(C.toToe(1000, 'E04').value, 0.8107);
+  assert.equal(C.toToe(1000, 'E04', { ng: 'NG2' }).value, 0.8755);
+  assert.equal(C.toToe(1, 'E99').ok, false);
+  assert.equal(C.fuelsToKgoe({ E06: 1, E01: 999 }).value, 862.9, '電力不計入熱能');
+  const s = C.diagnosisSummary([{ energyType: 'E01', annualSaving: 100000 }, { energyType: 'E04', annualSaving: 1000 }, { id: 'x' }]);
+  assert.equal(s.value.count, 3);
+  assert.equal(s.value.toe, 9.411);
+  assert.equal(s.value.tenThousandKwh, 10);
+  assert.equal(s.level, 'warn', '缺年節能量的措施要提示');
+  assert.match(s.note, /NG1/);
+  assert.equal(s.source.doc, '附件一 節能診斷報告');
+});
+
+test('表十之四 年度用電量計算（8 項可扣除）與表十一之四 年度用電量估算（6 項＋其他估算方式）', () => {
+  assert.equal(C.DEDUCTIONS_N.length, 8);
+  assert.equal(C.DEDUCTIONS_N1.length, 6);
+  assert.ok(C.DEDUCTIONS_N.some((d) => d.key === 'safety') && !C.DEDUCTIONS_N1.some((d) => d.key === 'safety' || d.key === 'newRegulation'));
+  const r = C.annualConsumptionN({ billKwh: 1000000, selfUseKwh: 5000, deductions: { newBuilding: 20000, safety: 5000 } });
+  assert.equal(r.value, 980000);
+  assert.equal(r.actual, 1005000);
+  assert.equal(r.source.ref.startsWith('表十之四 年度用電量計算'), true);
+  assert.equal(C.annualConsumptionN({ billKwh: 10, deductions: { ev: -1 } }).ok, false);
+  assert.equal(C.annualConsumptionN({}).ok, null);
+  const f = C.forecastConsumption({ actualKwh: 1005000, deductions: { construction: 5000, safety: 999 } });
+  assert.equal(f.value, 1000000, '表十一之四沒有「安全考量」這項，不扣');
+  assert.equal(C.forecastConsumption({ method: 'other', estimateKwh: 900000 }).ok, false, '其他估算方式須附說明');
+  assert.equal(C.forecastConsumption({ method: 'other', estimateKwh: 900000, note: '新大樓' }).value, 900000);
+  assert.match(f.source.ref, /表十一之四/);
 });
 
 test('節電率：年度、平均（含前期超額）、目標', () => {
@@ -407,6 +461,8 @@ test('依據：每條規則與期限的結果都帶 source', () => {
     indoorArea: [10], euiElectric: [1, 10], euiThermal: [1, 10], chillerEfficiency: [1, 1], pue: [1, 1],
     energyCostRatio: [1, 10], demandResponseSaving: [1, 1], annualConsumption: [1], savingTarget: [{ contractKw: 900 }],
     annualSavingRate: [{ saving: 1, consumption: 99 }], averageSavingRate: [[{ saving: 1, consumption: 99 }]],
+    annualConsumptionN: [{ billKwh: 1 }], forecastConsumption: [{ actualKwh: 1 }], toToe: [1, 'E01'], fuelsToKgoe: [{ E06: 1 }],
+    diagnosisSummary: [[]],
     utilizationRate: [1, 2], runHoursRate: [10],
   };
   for (const [name, args] of Object.entries(calls)) {
@@ -416,6 +472,8 @@ test('依據：每條規則與期限的結果都帶 source', () => {
   assert.equal(C.replacementRequired({ category: 'LED', mfgYear: 100, reportYear: 115 }).source.doc, '附件一');
   assert.equal(C.replacementRequired({ category: 'LED', mfgYear: 100, reportYear: 115 }).source.ref, '註 2');
   assert.match(C.replacementRequired({}).source.law, /經能字第 11558001660 號/);
+  // 新版附表三已刪除表十之六；節電率依 114–117 規定，依據不得再指向已刪除的表
+  for (const k of Object.keys(C.SOURCES)) assert.doesNotMatch(String(C.SOURCES[k].ref), /表十之六/, `${k} 仍引用已刪除的表十之六`);
   const rec = C.recordUsage([{ id: 'k', type: 'reading' }], { k: 2 }, { values: { k: 1 } });
   assert.ok(rec.source && rec.results.k.source);
   for (const d of C.upcomingDeadlines('2026-10-22', { isoCertExpiry: '2027-01-01', licenceExpiry: '2027-06-01' })) {
@@ -423,6 +481,6 @@ test('依據：每條規則與期限的結果都帶 source', () => {
   }
   assert.match(C.upcomingDeadlines('2026-10-22').find((d) => d.key === 'first-period').source.ref, /第四點/);
   // 沒漏包：規則函式數＝上面清單＋recordUsage／upcomingDeadlines
-  const ruleFns = Object.keys(C).filter((k) => typeof C[k] === 'function' && !['num', 'round', 'rocToAd', 'adToRoc', 'toRocYear', 'parseDate', 'toIso', 'toRocDate', 'daysBetween', 'addYears', 'replaceCategory', 'recordUsage', 'upcomingDeadlines'].includes(k));
+  const ruleFns = Object.keys(C).filter((k) => typeof C[k] === 'function' && !['num', 'round', 'rocToAd', 'adToRoc', 'toRocYear', 'parseDate', 'toIso', 'toRocDate', 'daysBetween', 'addYears', 'replaceCategory', 'equipmentReplaceCategory', 'recordUsage', 'upcomingDeadlines'].includes(k));
   assert.deepEqual(ruleFns.sort(), Object.keys(calls).sort());
 });

@@ -192,6 +192,26 @@ test('assessRecord：電費單未逐格確認 → pending（複驗閘門）', ()
   assert.equal(ok.values.bill.values.feeTotal, 123456);
 });
 
+test('assessRecord：issues 帶 itemId（同名 label 的多台設備分得開）', () => {
+  const P = { code: '803-E07', domain: 'power', name: '機房', items: [
+    { id: 'ac1', label: '設備狀態', type: 'status', equipmentId: 'e1', required: true },
+    { id: 'ac2', label: '設備狀態', type: 'status', equipmentId: 'e2', required: true },
+  ] };
+  const a = S.assessRecord(P, [], { ac1: '正常', zz: 1 });
+  assert.deepEqual(a.issues, [{ itemId: null, message: '不認得的項目：zz' }, { itemId: 'ac2', message: '「設備狀態」必填' }]);
+  assert.deepEqual(a.errors, a.issues.map((i) => i.message));
+});
+
+test('assessRecord：狀態「異常」而備註空白 → 該項目一筆 issue；沒傳 note 不檢查', () => {
+  const P = { code: '803-E07', domain: 'power', name: '機房', items: [
+    { id: 'ac1', label: '設備狀態', type: 'status' }, { id: 'ac2', label: '設備狀態', type: 'status' },
+  ] };
+  const a = S.assessRecord(P, [], { ac1: '正常', ac2: '異常' }, { note: '  ' });
+  assert.deepEqual(a.issues, [{ itemId: 'ac2', message: '設備回報異常時請在備註寫明狀況' }]);
+  assert.equal(S.assessRecord(P, [], { ac2: '異常' }, { note: '壓縮機異音' }).issues.length, 0);
+  assert.equal(S.assessRecord(P, [], { ac2: '異常' }).issues.length, 0);
+});
+
 // ════════ 儲存 ════════
 test('store：沒有檔案回骨架；寫入落在 dataDir/inventory 並 commit、沒有 remote', async () => {
   const empty = await store.readInventory('901');
@@ -344,7 +364,74 @@ test('API：停用的點位不能再填；spec 與整份資料讀得到', async 
   assert.ok(s.body.spec.site[0].source.law);
   const all = await call('GET', '/api/inv');
   assert.equal(all.body.inventory.points.length, 2);
-  assert.equal((await call('GET', '/api/inv/report/annex3')).status, 501, 'report-routes.js 還沒寫就回 501');
+  // report-routes.js 還沒寫就回 501；寫好之後就由它處理（不再是 501）
+  const rep = (await call('GET', '/api/inv/report/annex3')).status;
+  if (existsSync(new URL('../src/report-routes.js', import.meta.url))) assert.notEqual(rep, 501);
+  else assert.equal(rep, 501, 'report-routes.js 還沒寫就回 501');
+});
+
+test('API 貼紙頁：validation details 帶 itemId、異常備註必填、電號與 billColumns、填寫人', async () => {
+  const H = { hid: '805' };
+  let r = await call('PUT', '/api/inv/site/meters', { value: [{ meterNo: '07-1234-56', contractKw: 1200 }] }, H);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const meterId = r.body.value[0].id;
+  r = await call('POST', '/api/inv/equipment', { equipment: { category: 'ac', kind: '分離式冷氣', fields: { name: '機房冷氣 A' } } }, H);
+  const eA = r.body.equipment.id;
+  r = await call('POST', '/api/inv/equipment', { equipment: { category: 'ac', kind: '分離式冷氣', fields: { name: '機房冷氣 B' } } }, H);
+  const eB = r.body.equipment.id;
+
+  r = await call('POST', '/api/inv/points', { point: { domain: 'power', name: '台電總表', items: [
+    { id: 'kwh', label: '累計度數', type: 'reading', unit: 'kWh', meterId },
+    { id: 'bill', label: '電費單', type: 'bill', meterId },
+  ] } }, H);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const e01 = r.body.point.code;
+  r = await call('POST', '/api/inv/points', { point: { domain: 'power', name: '機房', items: [
+    { id: 'acA', label: '設備狀態', type: 'status', equipmentId: eA, required: true },
+    { id: 'acB', label: '設備狀態', type: 'status', equipmentId: eB, required: true },
+  ] } }, H);
+  const e02 = r.body.point.code;
+
+  // GET：帶 meterId 的項目有 meterNo；有電費單型才附 billColumns
+  r = await call('GET', `/api/inv/point/${e01}`, undefined, H);
+  assert.deepEqual(r.body.point.items.map((i) => i.meterNo), ['07-1234-56', '07-1234-56']);
+  assert.ok(r.body.billColumns.some((c) => c.key === 'feeTotal'));
+  r = await call('GET', `/api/inv/point/${e02}`, undefined, H);
+  assert.ok(!('meterNo' in r.body.point.items[0]));
+  assert.equal(r.body.billColumns, undefined);
+
+  // 422 validation：details 為 [{itemId, message}]，同名 label 的第二台標得到
+  r = await call('POST', `/api/inv/point/${e02}/record`, { values: { acA: '正常' } }, H);
+  assert.equal(r.status, 422);
+  assert.equal(r.body.error, 'validation');
+  assert.deepEqual(r.body.details, [{ itemId: 'acB', message: '「設備狀態」必填' }]);
+  r = await call('POST', `/api/inv/point/${e02}/record`, { values: { acA: '正常', acB: '正常', nope: 1 } }, H);
+  assert.deepEqual(r.body.details, [{ itemId: null, message: '不認得的項目：nope' }]);
+
+  // 異常而備註空白 → 422，itemId 指向那一台
+  r = await call('POST', `/api/inv/point/${e02}/record`, { values: { acA: '正常', acB: '異常' }, note: ' ' }, H);
+  assert.equal(r.status, 422);
+  assert.deepEqual(r.body.details, [{ itemId: 'acB', message: '設備回報異常時請在備註寫明狀況' }]);
+
+  // 填寫人：過長 422；有填 → who＝姓名（院名）、另存 reporter
+  r = await call('POST', `/api/inv/point/${e02}/record`, { values: { acA: '正常', acB: '正常' }, reporter: '王'.repeat(21) }, H);
+  assert.equal(r.status, 422);
+  assert.equal(r.body.details[0].itemId, null);
+  r = await call('POST', `/api/inv/point/${e02}/record`, { values: { acA: '正常', acB: '異常' }, note: 'B 台漏水', reporter: ' 王小明 ' }, H);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.record.who, '王小明（測試院所805）');
+  assert.equal(r.body.record.reporter, '王小明');
+  assert.equal(r.body.record.anomalies[0].itemId, 'acB');
+  r = await call('GET', `/api/inv/point/${e02}`, undefined, H);
+  assert.equal(r.body.lastRecord.reporter, '王小明');
+  r = await call('GET', '/api/inv/progress', undefined, H);
+  assert.equal(r.body.points.find((p) => p.code === e02).lastBy, '王小明（測試院所805）');
+  assert.equal(r.body.openAnomalies[0].reportedBy, '王小明（測試院所805）');
+
+  // 沒填填寫人 → who 只有院名、reporter null
+  r = await call('POST', `/api/inv/point/${e01}/record`, { values: { kwh: 10 } }, H);
+  assert.equal(r.body.record.who, '測試院所805');
+  assert.equal(r.body.record.reporter, null);
 });
 
 // ════════ 登入：記住 30 天 ════════
@@ -376,4 +463,153 @@ test('新版附表三：表三第 25 欄、電號 5 種契約容量、措施代�
   assert.ok(S.isMeasureCode('AA06') && S.isMeasureCode('LG31') && S.isMeasureCode('OA08'));
   assert.ok(!S.isMeasureCode('AZ06') && !S.isMeasureCode('AA98'));
   assert.ok(S.validateEquipment({ category: 'other', kind: '鍋爐', fields: { name: 'B1', subKind: '蒸汽', boilerEnergyType: '電力' } }, S.blankInventory()).ok);
+});
+
+// ════════ 2026-10-22 最後一輪：原因必填、汰換改指向、建築 id、操作人姓名 ════════
+test('API：已有資料的區塊與設備修改沒有原因 → 422 reason_required；初次建檔、沒變動不需要', async () => {
+  const H = { hid: '806' };
+  let r = await call('PUT', '/api/inv/site/buildings', { value: [{ name: '醫療大樓' }] }, H);
+  assert.equal(r.status, 200, '初次建檔不要原因');
+  const bid = r.body.value[0].id;
+  r = await call('PUT', '/api/inv/site/buildings', { value: [{ id: bid, name: '醫療大樓' }] }, H);
+  assert.equal(r.status, 200, '沒變動不要原因');
+  assert.equal(r.body.change, null);
+  r = await call('PUT', '/api/inv/site/buildings', { value: [{ id: bid, name: '醫療大樓 A 棟' }] }, H);
+  assert.equal(r.status, 422);
+  assert.equal(r.body.error, 'reason_required');
+  r = await call('PUT', '/api/inv/site/buildings', { value: [{ id: bid, name: '醫療大樓 A 棟' }], reason: '建物更名' }, H);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.change.reason, '建物更名');
+
+  r = await call('POST', '/api/inv/equipment', { equipment: { category: 'ac', kind: '冰水泵', fields: { name: 'P-1', powerKw: 15, madeYear: 2018, qty: 1 } } }, H);
+  const id = r.body.equipment.id;
+  r = await call('PUT', `/api/inv/equipment/${id}`, { equipment: { fields: { name: 'P-1', powerKw: 18, madeYear: 2018, qty: 1 } } }, H);
+  assert.equal(r.status, 422);
+  assert.equal(r.body.error, 'reason_required');
+  r = await call('PUT', `/api/inv/equipment/${id}`, { equipment: { fields: { name: 'P-1', powerKw: 15, madeYear: 2018, qty: 1 } } }, H);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.unchanged, true, '沒變動不要原因');
+  r = await call('PUT', `/api/inv/equipment/${id}`, { equipment: { status: 'removed' } }, H);
+  assert.equal(r.body.error, 'reason_required', '移除也要原因');
+  const inv = await store.readInventory('806');
+  assert.equal(inv.equipment.find((e) => e.id === id).fields.powerKw, 15, '被擋下的不寫檔');
+});
+
+test('API：汰換帶 replacedBy → 點位項目改指新設備、新設備承接 pointCode、同一筆 change；移除回傳仍連著的項目；GET 檢出不一致', async () => {
+  const H = { hid: '807' };
+  const eq = async (name) => (await call('POST', '/api/inv/equipment', { equipment: { category: 'ac', kind: '中央空調主機', fields: { name, powerKw: 300, madeYear: 2008, qty: 1 } } }, H)).body.equipment.id;
+  const oldId = await eq('CH-1 舊機');
+  let r = await call('POST', '/api/inv/points', { point: { domain: 'power', name: '冰水機房', items: [
+    { id: 'st', label: 'CH-1 狀態', type: 'status', equipmentId: oldId },
+    { id: 'kwh', label: '度數', type: 'reading' },
+  ] } }, H);
+  const code = r.body.point.code;
+  r = await call('POST', '/api/inv/points', { point: { domain: 'power', name: '屋頂', items: [{ id: 'st2', label: 'CH-1 遠端狀態', type: 'status', equipmentId: oldId }] } }, H);
+  const code2 = r.body.point.code;
+  assert.equal((await call('PUT', `/api/inv/equipment/${oldId}`, { equipment: { pointCode: code }, reason: '指定點位' }, H)).status, 200);
+  const newId = await eq('CH-1 變頻機');
+
+  // GET：新設備沒有 pointCode、沒有項目連它 → 沒問題；舊設備 pointCode＝code、項目在 code 和 code2 → 一致
+  let all = (await call('GET', '/api/inv', undefined, H)).body;
+  assert.deepEqual(all.linkIssues, []);
+
+  assert.equal((await call('PUT', `/api/inv/equipment/${oldId}`, { equipment: { replacedBy: newId }, reason: 'x' }, H)).status, 422, '沒改成 replaced 不能帶 replacedBy');
+  assert.equal((await call('PUT', `/api/inv/equipment/${oldId}`, { equipment: { status: 'replaced', replacedBy: 'eq-nope' }, reason: 'x' }, H)).status, 422);
+  assert.equal((await call('PUT', `/api/inv/equipment/${oldId}`, { equipment: { status: 'replaced', replacedBy: oldId }, reason: 'x' }, H)).status, 422);
+
+  r = await call('PUT', `/api/inv/equipment/${oldId}`, { equipment: { status: 'replaced', replacedBy: newId }, reason: '壓縮機故障汰換' }, H);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.change.kind, 'equipment.replace');
+  assert.equal(r.body.change.after.replacedBy, newId);
+  assert.deepEqual(r.body.change.links.items.map((x) => x.pointCode).sort(), [code, code2].sort());
+  assert.deepEqual(r.body.change.links.newPointCode, { from: null, to: code });
+  assert.deepEqual(r.body.linkedItems, [], '都改指了，沒有殘留');
+  const inv = await store.readInventory('807');
+  for (const p of inv.points) for (const it of p.items) assert.notEqual(it.equipmentId, oldId);
+  assert.equal(inv.points.find((p) => p.code === code).items[0].equipmentId, newId);
+  assert.equal(inv.equipment.find((e) => e.id === newId).pointCode, code, '新設備承接舊的所屬點位');
+  assert.equal(inv.changes.filter((c) => c.target === `equipment.${oldId}` && c.kind === 'equipment.replace').length, 1, '只寫一筆 change');
+  all = (await call('GET', '/api/inv', undefined, H)).body;
+  assert.deepEqual(all.linkIssues, []);
+
+  // 移除新設備：回傳仍連到它的點位項目；GET 檢出「項目連到已移除設備」
+  r = await call('PUT', `/api/inv/equipment/${newId}`, { equipment: { status: 'removed' }, reason: '拆除' }, H);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.change.kind, 'equipment.remove');
+  assert.deepEqual(r.body.linkedItems.map((x) => `${x.pointCode}/${x.itemId}`).sort(), [`${code}/st`, `${code2}/st2`].sort());
+  all = (await call('GET', '/api/inv', undefined, H)).body;
+  assert.equal(all.linkIssues.filter((x) => x.type === 'item_inactive_equipment').length, 2);
+
+  // 設備 pointCode 與點位項目對不上（以點位項目為準）
+  const c3 = await eq('CH-2');
+  await call('PUT', `/api/inv/points/${code}`, { point: { items: [{ id: 'st', label: 'CH-2 狀態', type: 'status', equipmentId: c3 }, { id: 'kwh', label: '度數', type: 'reading' }] } }, H);
+  all = (await call('GET', '/api/inv', undefined, H)).body;
+  const mis = all.linkIssues.find((x) => x.type === 'equipment_point_mismatch' && x.equipmentId === c3);
+  assert.ok(mis, JSON.stringify(all.linkIssues));
+  assert.equal(mis.expected, code);
+  const c4 = await eq('CH-3');
+  await call('PUT', `/api/inv/equipment/${c4}`, { equipment: { pointCode: code2 }, reason: '指定點位' }, H);
+  all = (await call('GET', '/api/inv', undefined, H)).body;
+  assert.ok(all.linkIssues.some((x) => x.type === 'equipment_point_unlinked' && x.equipmentId === c4 && x.expected === null));
+});
+
+test('變壓器建築物名稱：存 buildings[].id；舊資料文字讀取時對回 id，對不上保留原文字並列待修', async () => {
+  const H = { hid: '808' };
+  const f = S.siteBlockById('transformers').fields.find((x) => x.key === 'building');
+  assert.equal(f.type, 'ref');
+  assert.equal(f.ref, 'buildings');
+  // 舊資料：直接寫檔（模擬改版前存的文字）
+  const legacy = S.blankInventory();
+  legacy.site.buildings = [{ id: 'bld-a', name: '醫療大樓' }, { id: 'bld-b', name: '行政大樓', code: 'B' }];
+  legacy.site.transformers = [{ id: 'tr-1', code: 'TR-1', kva: 1000, building: '醫療大樓' }, { id: 'tr-2', code: 'TR-2', kva: 500, building: '舊門診棟' }, { id: 'tr-3', code: 'TR-3', kva: 500, building: 'B' }];
+  await store.saveInventory('808', legacy, { what: '舊資料' });
+  const all = (await call('GET', '/api/inv', undefined, H)).body;
+  const tr = all.inventory.site.transformers;
+  assert.equal(tr[0].building, 'bld-a', '名稱對回 id');
+  assert.equal(tr[2].building, 'bld-b', '編號也對得回');
+  assert.equal(tr[1].building, '舊門診棟', '對不上保留原文字');
+  assert.equal(all.siteRefIssues.length, 1);
+  assert.equal(all.siteRefIssues[0].rowId, 'tr-2');
+  assert.match(all.siteRefIssues[0].message, /待修/);
+
+  // 存檔：給名稱也換成 id；對不上只警告不擋
+  const r = await call('PUT', '/api/inv/site/transformers', { value: [{ ...tr[0] }, { ...tr[1], building: '行政大樓' }, { ...tr[2] }, { code: 'TR-4', kva: 300, building: '不存在棟' }], reason: '補建築' }, H);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.value[1].building, 'bld-b');
+  assert.equal(r.body.value[3].building, '不存在棟');
+  assert.ok(r.body.warnings.some((w) => /不存在棟.*待修/.test(w)));
+  // 報表印名稱
+  assert.equal(S.refLabel({ buildings: legacy.site.buildings }, 'buildings', 'bld-a'), '醫療大樓');
+});
+
+test('操作人姓名 reporter：who 存「姓名（院名）」並另存 reporter；過長 422；沒填只有院名', async () => {
+  const H = { hid: '809' };
+  let r = await call('PUT', '/api/inv/site/buildings', { value: [{ name: 'A 棟' }] }, H);
+  const bid = r.body.value[0].id;
+  r = await call('PUT', '/api/inv/site/buildings', { value: [{ id: bid, name: 'A 棟（新）' }], reason: '更名', reporter: ' 王小明 ' }, H);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.change.who, '王小明（測試院所809）');
+  assert.equal(r.body.change.reporter, '王小明');
+  r = await call('POST', '/api/inv/changes', { change: { kind: 'other', reason: '測試' } }, H);
+  assert.equal(r.body.change.who, '測試院所809');
+  assert.equal(r.body.change.reporter, null);
+  r = await call('POST', '/api/inv/changes', { change: { kind: 'other', reason: '測試' }, reporter: '一'.repeat(21) }, H);
+  assert.equal(r.status, 422);
+  assert.equal(r.body.error, 'validation');
+  r = await call('POST', '/api/inv/equipment', { equipment: { category: 'ac', kind: '冰水泵', fields: { name: 'P-9', powerKw: 5, madeYear: 2020, qty: 1 } }, reason: '新購', reporter: '李技士' }, H);
+  assert.equal(r.body.change.who, '李技士（測試院所809）');
+  const eid = r.body.equipment.id;
+  r = await call('PUT', `/api/inv/equipment/${eid}`, { equipment: { status: 'removed' }, reason: '拆', reporter: '李技士' }, H);
+  assert.equal(r.body.change.reporter, '李技士');
+  // 點位、異常結案也帶得到
+  r = await call('POST', '/api/inv/points', { point: { domain: 'power', name: 'X', items: [{ id: 'st', label: '狀態', type: 'status' }] }, reporter: '李技士' }, H);
+  const code = r.body.point.code;
+  r = await call('PUT', `/api/inv/points/${code}`, { point: { name: 'X2' }, reporter: '李技士' }, H);
+  assert.equal(r.body.change.who, '李技士（測試院所809）');
+  r = await call('POST', `/api/inv/point/${code}/record`, { values: { st: '異常' }, note: '異音', reporter: '張護理師' }, H);
+  const an = r.body.record.anomalies[0];
+  r = await call('POST', `/api/inv/anomalies/${an.id}/close`, { note: '修好', reporter: '李技士' }, H);
+  assert.equal(r.body.anomaly.closedBy, '李技士（測試院所809）');
+  assert.equal(r.body.anomaly.closedReporter, '李技士');
+  assert.equal(S.inventorySpec.reporter.storageKey, 'ems.sticker.reporter', '與貼紙頁同一個 localStorage key');
 });

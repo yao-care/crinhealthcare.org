@@ -42,6 +42,7 @@ window.EMSUI = {
   confirmModal: (...a) => confirmModal(...a),
   closeModal: (...a) => closeModal(...a),
   gotoAuditCell: (p) => gotoAuditCell(p),
+  goSection: (id) => goSection(id),
 };
 
 // ─────────────────────────────── 狀態 ───────────────────────────────
@@ -84,18 +85,28 @@ const TASKS = {
   audit: '🔌 電力健檢填報',
   board: '🖥 看板維護',
   progress: '📄 進度與交付',
+  // 能源盤點的任務名稱由 inventory.js 提供（它在 app.js 之後才載入），見 loadInventory()
 };
 const sectionById = (id) => SECTIONS.find((s) => s.id === id) || null;
 const currentTask = () => sectionById(activeId)?.task || 'board';
+// 能源盤點（inventory.js）的任務：各區塊自己存檔，不經過頂列的「送出」
+const isInvTask = (t) => String(t || '').startsWith('inv-');
+// 2026-10-22 改版：第一層改成「點位與進度／初始建檔／異動登錄／申報與報告／看板維護」，
+// 原本的健檢填報三支任務收進次要入口「舊版健檢填報」，功能不動。
+// /api/inv 拿不到（例如後端還沒更新）就維持原本的導覽，畫面不會壞。
+const LEGACY_TASKS = new Set(['contact', 'audit', 'progress']);
+let INV_ON = false;
+let legacyOpen = false;
 
 function buildSections() {
-  const S = [];
+  const S = INV_ON ? window.EMSInventory.sections() : [];
+  const legacy = INV_ON;
 
   // ── 電力健檢填報（公文附件一／三）──
   // 這些區塊的資料存在主機本地、不進公開 repo，由 audit.js 負責渲染與送出。
   for (const b of window.EMSAudit?.spec()?.blocks || []) {
     S.push({ id: `a-${b.id}`, task: b.task === 'contact' ? 'contact' : 'audit', group: '',
-      label: `${b.icon} ${b.label}`, audit: b.id });
+      label: `${b.icon} ${b.label}`, audit: b.id, legacy });
   }
 
   // ── 看板維護 ──
@@ -130,7 +141,9 @@ function buildSections() {
   S.push({ task: 'board', id: 'esg', group: '📊 報表與 ESG', label: 'ESG 面板', base: [], keys: ['esgPanels'] });
 
   // 附件二：流程與權責 ＋ 填報送出紀錄 ＋ 報告交付。放最後，因為它是「看進度」不是「填東西」。
-  if (window.EMSAudit?.spec()) S.push({ task: 'progress', id: 'a-progress', group: '', label: '📄 流程與權責', progress: true });
+  if (window.EMSAudit?.spec()) S.push({ task: 'progress', id: 'a-progress', group: '', label: '📄 流程與權責', progress: true, legacy });
+  // 新版導覽：舊版健檢的三支任務排到最後，收在「舊版健檢填報」底下
+  if (INV_ON) return [...S.filter((s) => !s.legacy), ...S.filter((s) => s.legacy)];
   return S;
 }
 
@@ -584,9 +597,33 @@ function renderNav() {
   let lastGroup = null, lastTask = null;
   // 「常用欄位」的過濾只對看板維護有意義：健檢填報沒有色票與座標那種欄位
   const shown = SECTIONS.filter((s) => s.task !== 'board' || MODE === 'all' || sectionHasCommon(s) || counts.get(s.id));
+  // 目前所在分區屬於舊版健檢時，次要入口自動展開，不然看不到自己在哪
+  const legacyShown = legacyOpen || !!sectionById(activeId)?.legacy;
+  let legacyHead = false;
   for (const s of shown) {
+    if (s.legacy && !legacyHead) {
+      legacyHead = true;
+      const t = el('button', { type: 'button', class: 'navlegacy', text: `${legacyShown ? '▾' : '▸'} 舊版健檢填報` });
+      t.setAttribute('aria-expanded', String(legacyShown));
+      t.title = '原本的電力健檢填報、進度與交付、聯絡人與帳號（功能不變）';
+      t.addEventListener('click', () => { legacyOpen = !legacyShown; renderNav(); });
+      list.append(t);
+      lastTask = null;
+    }
+    if (s.legacy && !legacyShown) continue;
+    // 只有一個分區的任務（點位與進度、異動登錄、申報與報告）直接用任務名當按鈕，不另外印標題
+    if (s.solo) {
+      const btn = el('button', { type: 'button', class: 'navitem navtop' + (s.id === activeId ? ' active' : ''), 'data-sec': s.id }, [
+        el('span', { text: s.label }),
+        s.badge ? el('i', { class: `navn ${s.badge.kind || ''}`, text: s.badge.text }) : null,
+      ]);
+      btn.addEventListener('click', () => goSection(s.id));
+      list.append(btn);
+      lastTask = s.task; lastGroup = null;
+      continue;
+    }
     if (s.task !== lastTask) {
-      list.append(el('div', { class: 'navtask' + (s.task === 'board' ? ' demoted' : ''), text: TASKS[s.task] || '' }));
+      list.append(el('div', { class: 'navtask' + (s.task === 'board' && !INV_ON ? ' demoted' : '') + (s.legacy ? ' legacy' : ''), text: TASKS[s.task] || '' }));
       lastTask = s.task; lastGroup = null;
     }
     if (s.group && s.group !== lastGroup) { list.append(el('div', { class: 'navgroup', text: s.group })); lastGroup = s.group; }
@@ -595,6 +632,7 @@ function renderNav() {
     const btn = el('button', { type: 'button', class: 'navitem' + (s.id === activeId ? ' active' : ''), 'data-sec': s.id }, [
       el('span', { text: s.label }),
       auditBadge(st),
+      s.badge ? el('i', { class: `navn ${s.badge.kind || ''}`, text: s.badge.text }) : null,
       n ? el('i', { class: 'dot', title: `${n} 項未送出的修改` }) : null,
     ]);
     btn.addEventListener('click', () => goSection(s.id));
@@ -628,6 +666,8 @@ function auditBadge(st) {
 function applyTaskChrome() {
   const board = currentTask() === 'board';
   $('editor').classList.toggle('task-board', board);
+  // 盤點各區塊自己存檔：頂列的送出／捨棄、看板送出狀態、健檢九階段在這裡都不適用
+  $('editor').classList.toggle('task-inv', isInvTask(currentTask()));
   for (const id of ['modeCommon', 'modeAll', 'mapBtn']) {
     const n = $(id);
     n.disabled = !board;
@@ -642,8 +682,12 @@ function rerenderPane() {
   const s = SECTIONS.find((x) => x.id === activeId) || SECTIONS[0];
   const root = $('formRoot');
   root.textContent = '';
-  $('crumb').textContent = [TASKS[s.task], s.group, s.label].filter(Boolean).join(' › ');
+  root.classList.toggle('i-wide', !!s.inv);
+  $('crumb').textContent = [...new Set([TASKS[s.task], s.group, s.label].filter(Boolean))].join(' › ');
   applyTaskChrome();
+
+  // 能源盤點（點位與進度／初始建檔／異動登錄／申報與報告）由 inventory.js 負責
+  if (s.inv) { window.EMSInventory.render(s, root); return; }
 
   // 電力健檢填報：欄位樹、表格、上傳與複驗全部由 audit.js 負責
   if (s.audit) { window.EMSAudit.renderSection(s.audit, root); return; }
@@ -761,6 +805,16 @@ function jumpTo(segs) {
 function updateDirtyBadge() {
   const board = changes().length;
   const audit = window.EMSAudit?.dirtyCount?.() || 0;
+  const inv = INV_ON ? window.EMSInventory.dirtyCount() : 0;
+  if (isInvTask(currentTask())) {
+    // 盤點的編輯中區塊各自有「存檔」鈕，這裡只提示數量
+    const b = $('dirtyBadge');
+    b.classList.toggle('hidden', inv === 0);
+    b.querySelector('b').textContent = String(inv);
+    b.title = inv ? '有編輯中尚未存檔的區塊，請在該區塊按「存檔」' : '';
+    $('reloadBtn').textContent = (board + audit) ? '捨棄修改' : '重新載入';
+    return;
+  }
   const here = currentTask() === 'board' ? board : audit;
   const other = currentTask() === 'board' ? audit : board;
   const b = $('dirtyBadge');
@@ -998,9 +1052,22 @@ async function loadAudit() {
   } catch { return false; }
 }
 
+// 能源盤點：拿不到（後端尚未更新、或 inventory.js 沒載入）就不顯示，維持原本的導覽
+async function loadInventory() {
+  INV_ON = false;
+  if (!window.EMSInventory) return false;
+  try {
+    INV_ON = await window.EMSInventory.load();
+    if (INV_ON) Object.assign(TASKS, window.EMSInventory.tasks || {});
+    if (INV_ON) window.EMSInventory.onChange(() => { SECTIONS = buildSections(); renderNav(); updateDirtyBadge(); });
+  } catch { INV_ON = false; }
+  return INV_ON;
+}
+
 async function loadHospital(opts = {}) {
   if (!(await loadSpec())) return false;
   await loadAudit();
+  await loadInventory();
   const { status, body } = await api('/api/hospital');
   if (status === 401) { showLogin('登入逾時，請重新登入'); return false; }
   if (!body?.ok) { toast('載入失敗：' + (body?.error || status), 'err'); return false; }
@@ -1061,6 +1128,7 @@ function endSave() { busy = false; $('saveBtn').disabled = false; $('reloadBtn')
 
 async function save() {
   if (busy) return;
+  if (isInvTask(currentTask())) { toast('這裡的資料在各區塊按「存檔」即儲存，不需要按送出', 'ok'); return; }
   // 送出的是「目前這支任務」：健檢填報走 /api/audit（存主機、自動同步看板彙總），
   // 看板維護走 /api/hospital（直接 push 公開 repo）。兩者門檻不同，不可合併。
   if (currentTask() !== 'board') return window.EMSAudit.submit();
@@ -1123,12 +1191,15 @@ $('loginForm').addEventListener('submit', async (e) => {
   else $('loginErr').textContent = '帳號或密碼錯誤';
 });
 
+const invDirty = () => (INV_ON ? window.EMSInventory.dirtyCount() : 0);
+
 $('reloadBtn').addEventListener('click', async () => {
   if (busy) return;
-  const n = changes().length + (window.EMSAudit?.dirtyCount?.() || 0);
+  const n = changes().length + (window.EMSAudit?.dirtyCount?.() || 0) + invDirty();
   if (n && !(await confirmModal({ title: `捨棄 ${n} 項未送出的修改？`, body: '畫面會重新載入線上目前的內容，這些修改將無法復原。', okText: '捨棄並重新載入', danger: true }))) return;
   dropDraft(); toastHide();
   window.EMSAudit?.discard?.();
+  window.EMSInventory?.discard?.();
   await loadHospital({ notify: true, skipDraft: true });
 });
 
@@ -1136,7 +1207,7 @@ $('saveBtn').addEventListener('click', save);
 
 $('logoutBtn').addEventListener('click', async () => {
   if (busy) return;
-  const n = changes().length + (window.EMSAudit?.dirtyCount?.() || 0);
+  const n = changes().length + (window.EMSAudit?.dirtyCount?.() || 0) + invDirty();
   if (n && !(await confirmModal({ title: `還有 ${n} 項修改未送出`, body: '登出後這些修改會留在本機草稿，下次登入可接續，但不會出現在看板上。', okText: '仍要登出', danger: true }))) return;
   await api('/api/logout', { method: 'POST', headers: { 'X-Requested-With': 'ems-admin' } });
   location.reload();
@@ -1164,13 +1235,18 @@ $('searchBox').addEventListener('input', (e) => runSearch(e.target.value));
 $('searchBox').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.target.value = ''; runSearch(''); } });
 
 window.addEventListener('beforeunload', (e) => {
-  if (!busy && !changes().length && !(window.EMSAudit?.dirtyCount?.() || 0)) return;
+  if (!busy && !changes().length && !(window.EMSAudit?.dirtyCount?.() || 0) && !invDirty()) return;
   e.preventDefault(); e.returnValue = '';
 });
+
+// 表單根節點是 <form>：盤點畫面有很多輸入框，按 Enter 不該觸發表單送出（會整頁重新整理）
+$('formRoot').addEventListener('submit', (e) => e.preventDefault());
 
 async function boot() {
   const { status, body } = await api('/api/me');
   if (status === 200 && body?.ok) { showEditor(body); await loadHospital(); }
   else showLogin();
 }
-boot();
+// 等後面的 audit.js／inventory.js 都定義好再開始（它們在 app.js 之後才載入）
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();

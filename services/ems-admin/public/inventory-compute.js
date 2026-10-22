@@ -323,13 +323,23 @@
   const REPLACE_THRESHOLDS = { fluorescent: 2, led: 8, utility: 10, process: 20 };
   const REPLACE_LABELS = { fluorescent: '螢光燈具', led: 'LED 燈具', utility: '公用設備', process: '製程設備', other: '其他' };
   const CATEGORY_ALIASES = {
-    螢光燈具: 'fluorescent', 螢光燈: 'fluorescent', 日光燈: 'fluorescent', fluorescent: 'fluorescent',
+    螢光燈具: 'fluorescent', 螢光燈: 'fluorescent', 日光燈: 'fluorescent', 省電燈泡: 'fluorescent', fluorescent: 'fluorescent',
     'LED 燈具': 'led', LED燈具: 'led', LED: 'led', led: 'led',
     公用設備: 'utility', utility: 'utility',
     製程設備: 'process', process: 'process',
     其他: 'other', other: 'other',
   };
   const replaceCategory = (c) => CATEGORY_ALIASES[String(c ?? '').trim()] ?? (blank(c) ? undefined : 'other');
+
+  // 設備主檔（表九）→ R6 類別標籤。管理端、報表、伺服器都只用這一支，不各自寫對應表。
+  //   照明：日光燈、省電燈泡＝螢光燈具（2 年）；LED＝LED 燈具（8 年）；其他燈種回「其他」＝不套門檻
+  //   空調與其他系統＝公用設備（10 年）；醫院沒有製程設備
+  const LAMP_REPLACE_CATEGORY = { 日光燈: '螢光燈具', 省電燈泡: '螢光燈具', LED: 'LED 燈具' };
+  function equipmentReplaceCategory(eq) {
+    if (!eq) return undefined;
+    if (eq.category === 'lighting') return LAMP_REPLACE_CATEGORY[String(eq.kind ?? '').trim()] || '其他';
+    return '公用設備';
+  }
 
   function equipmentAge(mfgYear, reportYear) {
     const m = toRocYear(mfgYear);
@@ -520,13 +530,73 @@
     return pass(v, `電能 EUI ${fmt(v)} 度/㎡`, { area: a.value });
   }
 
-  function euiThermal(annualLoe, totalFloor, parking) {
-    const l = num(annualLoe);
+  // 表五之五（115-01-23 新版）：熱能 EUI 單位改「公斤油當量/㎡」（舊版為公升油當量/㎡）。
+  // annualKgoe = 年熱能使用量（公斤油當量）；燃料量換算用 fuelsToKgoe()
+  function euiThermal(annualKgoe, totalFloor, parking) {
+    const l = num(annualKgoe);
     const a = indoorArea(totalFloor, parking);
-    if (l === undefined) return na('未填年熱能使用量（公升油當量）');
+    if (l === undefined) return na('未填年熱能使用量（公斤油當量）');
     if (a.ok !== true) return result(a.ok, a.level, undefined, a.msg);
     const v = round(l / a.value, 3);
-    return pass(v, `熱能 EUI ${fmt(v, 3)} 公升油當量/㎡`, { area: a.value });
+    return pass(v, `熱能 EUI ${fmt(v, 3)} 公斤油當量/㎡`, { area: a.value, unit: '公斤油當量/㎡' });
+  }
+
+  // ── 油當量換算（§6.1 能源署「能源產品單位熱值表」113 年起適用、114 年修正）──
+  // 1 公斤油當量＝10,000 千卡；1 公噸油當量＝10⁷ 千卡。toe = 公噸油當量／申報單位。
+  // 天然氣分 NG1／NG2，熱值表沒寫哪類用戶適用哪一種（spec §9-5a 待確認）：預設 NG1，呼叫端可指定。
+  const ENERGY_UNITS = {
+    E01: { label: '電力', unit: '度', kcal: 860, toe: 0.000086 },
+    E02: { label: '燃料油', unit: '公秉', kcal: 9320000, toe: 0.932 },
+    E03: { label: '液化石油氣', unit: '公斤', kcal: 10832, toe: 0.0010832, note: '公斤↔公升取 1.818（112 年版熱值表註 1），待確認' },
+    E04: { label: '天然氣', unit: '立方公尺', kcal: 8107, toe: 0.0008107, ng: { NG1: 0.0008107, NG2: 0.0008755 }, note: '先用 NG1 8,107 千卡/立方公尺；NG1／NG2 待確認' },
+    E05: { label: '汽油', unit: '公升', kcal: 7520, toe: 0.000752 },
+    E06: { label: '柴油', unit: '公秉', kcal: 8629000, toe: 0.8629 },
+  };
+  // 換成公噸油當量。code：E01–E06；opts.ng='NG2' 改用 NG2
+  function toToe(amount, code, opts = {}) {
+    const a = num(amount);
+    const e = ENERGY_UNITS[code];
+    if (!e) return fail(undefined, `未知的能源種類「${code ?? ''}」，無法換算油當量`);
+    if (a === undefined) return na('未填能源量');
+    const f = code === 'E04' && opts.ng && e.ng[opts.ng] ? e.ng[opts.ng] : e.toe;
+    const v = round(a * f, 6);
+    return pass(v, `${fmt(a)} ${e.unit}${e.label} ≈ ${fmt(v, 4)} 公噸油當量`, { factor: f, unit: e.unit, ng: code === 'E04' ? (opts.ng || 'NG1') : undefined });
+  }
+  // 表五之一各燃料量 → 公斤油當量合計（給表五之五 EUI 用）。fuels = { E02: 公秉, E03: 公斤, … }；電力不算熱能
+  function fuelsToKgoe(fuels, opts = {}) {
+    let total = 0, any = false;
+    const parts = {};
+    for (const code of ['E02', 'E03', 'E04', 'E05', 'E06']) {
+      const r = toToe(fuels?.[code], code, opts);
+      if (r.value === undefined) continue;
+      any = true;
+      parts[code] = round(r.value * 1000, 3);
+      total += r.value * 1000;
+    }
+    if (!any) return na('未填熱能使用量');
+    const v = round(total, 3);
+    return pass(v, `年熱能使用量 ${fmt(v, 3)} 公斤油當量`, { parts });
+  }
+
+  // 附件一 一、診斷摘要：措施項數、節能潛力（公噸油當量）、節電潛力（萬度）。
+  // measures = [{ energyType: 'E01'…, annualSaving }]（3.2＋3.3 全部）
+  function diagnosisSummary(measures, opts = {}) {
+    const list = measures || [];
+    let toe = 0, kwh = 0;
+    const missing = [];
+    let usedNg = false;
+    for (const m of list) {
+      const r = toToe(m?.annualSaving, m?.energyType || 'E01', opts);
+      if (r.value === undefined) { missing.push(m?.id ?? m?.no); continue; }
+      toe += r.value;
+      if ((m?.energyType || 'E01') === 'E01') kwh += num(m.annualSaving);
+      if (m?.energyType === 'E04') usedNg = true;
+    }
+    const value = { count: list.length, toe: round(toe, 3), tenThousandKwh: round(kwh / 10000, 3), missing };
+    const note = usedNg ? `天然氣以 ${opts.ng || 'NG1'} 熱值換算（NG1／NG2 待確認）` : '';
+    const msg = `共包含 ${list.length} 項具體節能改善措施，計發掘節能潛力 ${fmt(value.toe, 3)} 公噸油當量，其中包括節電潛力 ${fmt(value.tenThousandKwh, 3)} 萬度`;
+    if (missing.length) return warn(value, `${msg}（${missing.length} 項未填年節能量，未計入）`, { note });
+    return pass(value, msg, { note });
   }
 
   // 冰水效率 kW/RT = 月耗電 kWh ÷ 系統負荷 RTh（數值越小越省）
@@ -586,7 +656,8 @@
     return pass(1, '契約容量 801～10,000 瓩，平均年節電率目標 1%');
   }
 
-  // 表十之四 年度節電率 = e ÷ (e + 用電量)；e = a+b+c+d，用電量 = f − g（可扣除用電量）
+  // 年度節電率 = 節電量 ÷ (節電量 + 用電量)（114–117 規定；新版附表三表十之四不再提供計算欄，系統自算）
+  //   saving（或 a+b+c+d 各類節電量）、consumption（或 f 全年用電量 − g 可扣除用電量）
   function annualSavingRate({ a, b, c, d, saving, f, consumption, g, targetPct } = {}) {
     const parts = [a, b, c, d].map(num);
     const e = num(saving) ?? (parts.some((v) => v !== undefined) ? parts.reduce((s, v) => s + (v ?? 0), 0) : undefined);
@@ -601,7 +672,8 @@
     return pass(rate, `年度節電率 ${fmt(rate, 3)}%`, extra);
   }
 
-  // 表十之六 平均年節電率 = (累計節電量 + 前期超額節電量) ÷ (累計節電量 + 累計用電量)
+  // 平均年節電率 = (累計節電量 + 前期超額節電量) ÷ (累計節電量 + 累計用電量)（114–117 規定；
+  // 舊版附表三表十之六「歷年平均年節電率總表」已於 115-01-23 版刪除，改由系統依規定自算）
   // years = [{ year, saving(S), consumption(C) }]
   function averageSavingRate(years, { prevExcess = 0, targetPct } = {}) {
     const rows = (years || []).filter((y) => num(y?.saving) !== undefined && num(y?.consumption) !== undefined);
@@ -614,6 +686,71 @@
     const t = num(targetPct);
     if (t !== undefined && rate < t) return warn(rate, `平均年節電率 ${fmt(rate, 3)}%，未達目標 ${fmt(t)}%`, extra);
     return pass(rate, `平均年節電率 ${fmt(rate, 3)}%（${rows.length} 年）`, extra);
+  }
+
+  // 表十之四「年度用電量計算」可扣除用電量（可複選，各填度數並附用印佐證）——新版 8 項
+  const DEDUCTIONS_N = [
+    { key: 'newBuilding', no: 1, label: 'N 年啟用之新建築' },
+    { key: 'newEquipment', no: 2, label: 'N 年啟用之新設備' },
+    { key: 'rail', no: 3, label: '運輸軌道牽引用電' },
+    { key: 'safety', no: 4, label: '具安全考量之用電區域（如醫療安全需求）' },
+    { key: 'construction', no: 5, label: '工程施作區域用電' },
+    { key: 'newRegulation', no: 6, label: '配合 N 年新法規增加之用電' },
+    { key: 'ev', no: 7, label: '電動車充換電設施用電' },
+    { key: 'eus', no: 8, label: '依能管法第 16 條能源使用說明書經核准範疇之用電（核准日起 5 年內；填核准日期及文號）' },
+  ];
+  // 表十一之四「年度用電量估算」可扣除用電量——6 項（無「安全考量區域」與「新法規」）
+  const DEDUCTIONS_N1 = [
+    { key: 'newBuilding', no: 1, label: 'N+1 年啟用之新建築' },
+    { key: 'newEquipment', no: 2, label: 'N+1 年啟用之新設備' },
+    { key: 'rail', no: 3, label: '運輸軌道牽引用電' },
+    { key: 'construction', no: 4, label: '工程施作區域用電' },
+    { key: 'ev', no: 5, label: '電動車充換電設施用電' },
+    { key: 'eus', no: 6, label: '依能管法第 16 條能源使用說明書經核准範疇之用電' },
+  ];
+  const sumDeductions = (list, d) => {
+    const parts = {};
+    let total = 0;
+    for (const x of list) {
+      const v = num(d?.[x.key]);
+      if (v === undefined) continue;
+      if (v < 0) return { error: `可扣除用電量「${x.label}」不可為負數` };
+      parts[x.key] = v;
+      total += v;
+    }
+    return { parts, total };
+  };
+
+  // 表十之四 年度用電量計算：
+  //   N 年全年實際用電量 = 列管電號 1–12 月電費單度數 + 表十之三（二）自發自用認列節電量
+  //   年度用電量 = 全年實際用電量 − 可扣除用電量（8 項）
+  function annualConsumptionN({ billKwh, selfUseKwh, deductions } = {}) {
+    const b = num(billKwh);
+    if (b === undefined) return na('未填列管電號 1–12 月電費單度數');
+    const actual = b + (num(selfUseKwh) ?? 0);
+    const d = sumDeductions(DEDUCTIONS_N, deductions);
+    if (d.error) return fail(undefined, d.error);
+    const v = round(actual - d.total, 2);
+    if (v < 0) return fail(v, '可扣除用電量大於全年實際用電量，請確認');
+    return pass(v, `年度用電量 ${fmt(v)} 度（全年實際 ${fmt(actual)} 度 − 可扣除 ${fmt(d.total)} 度）`, { actual: round(actual, 2), deducted: round(d.total, 2), parts: d.parts });
+  }
+
+  // 表十一之四 年度用電量估算：□沿用 N 年全年實際用電量（再減 6 項可扣除）或 □其他估算方式（須附說明）
+  //   method: 'actual' | 'other'；other 時給 estimateKwh＋note
+  function forecastConsumption({ method = 'actual', actualKwh, deductions, estimateKwh, note } = {}) {
+    if (method === 'other') {
+      const e = num(estimateKwh);
+      if (e === undefined) return na('其他估算方式：未填估算用電量');
+      if (blank(note)) return fail(e, '採其他估算方式須附估算說明');
+      return pass(e, `N+1 年用電量估算 ${fmt(e)} 度（其他估算方式）`, { method });
+    }
+    const a = num(actualKwh);
+    if (a === undefined) return na('未填 N 年全年實際用電量');
+    const d = sumDeductions(DEDUCTIONS_N1, deductions);
+    if (d.error) return fail(undefined, d.error);
+    const v = round(a - d.total, 2);
+    if (v < 0) return fail(v, '可扣除用電量大於 N 年全年實際用電量，請確認');
+    return pass(v, `N+1 年用電量估算 ${fmt(v)} 度（沿用 N 年 ${fmt(a)} 度 − 可扣除 ${fmt(d.total)} 度）`, { method, deducted: round(d.total, 2), parts: d.parts });
   }
 
   // 表九之四：設備利用率 % = 年平均運轉容量 ÷ 總容量；全年運轉時數 % = 實際時數 ÷ 8,760
@@ -698,8 +835,8 @@
     r6: src('附件一', '註 2', LAW.diag, '§2 R6'),
     r7: src('附件二 節能計畫', '註 1、註 2', LAW.diag, '§2 R7'),
     staff: src('附表三', '一、填表人員；二、其他技師或能管人員', LAW.annex, '§2 R9 能管人員人數'),
-    scale: src('附表三', '三、基本資料 16 營業規模', LAW.annex, '§2 R9 營業規模'),
-    occupancy: src('附表三', '三、基本資料 25 出租率', LAW.annex, '§2 R9 出租率'),
+    scale: src('附表三', '表三 第 15 欄 營業規模', LAW.annex, '§2 R9 營業規模'),
+    occupancy: src('附表三', '表三 第 24 欄 出租率', LAW.annex, '§2 R9 出租率'),
     euiDiff: src('附表三', '表五之四、表五之五', LAW.annex, '§2 R9 EUI 差異'),
     pf: src('附表三', '八、電能系統 變壓器運轉值（功因）', LAW.annex, '§2 R9 功因'),
     xfmr: src('附表三', '八、電能系統 變壓器運轉值（負載率）', LAW.annex, '§2 R9 變壓器負載率'),
@@ -709,15 +846,20 @@
     boiler: src('附表三', '表九之五、表九之七', LAW.annex, '§2 R9 蒸汽鍋爐'),
     area: src('附表三', '表五之四（室內面積 = 總樓地板 − 室內停車場）', LAW.annex, '§5.5'),
     eui: src('附表三', '表五之四 電能績效自我評比', LAW.annex, '§6 換算'),
-    euiThermal: src('附表三', '表五之五 熱能績效自我評比', LAW.annex, '§6 換算'),
+    euiThermal: src('附表三', '表五之五 熱能績效自我評比（公斤油當量/㎡）', LAW.annex, '§5.5、§6 換算'),
     kwrt: src('附表三', '表九之一（二）群組系統效率', LAW.annex, '§6 換算'),
     pue: src('附表三', '表九之八 PUE = (a+b) ÷ b', LAW.annex, '§6 換算'),
-    costRatio: src('附表三', '三、基本資料 24 能源費用占總支出比例', LAW.annex, '§6 換算'),
-    dr: src('附表三', '表十之三（二）需量反應', LAW.annex, '§6 換算'),
+    costRatio: src('附表三', '表三 第 23 欄 總能源費用占總支出比例', LAW.annex, '§6 換算'),
+    dr: src('附表三', '表十之三（一）需量反應', LAW.annex, '§6 換算'),
     consumption: src('114–117 規定', '年度用電量 = 購電 + 自發 − 售電', LAW.target, '§6'),
     target: src('114–117 規定', '平均年節電率目標', LAW.target, '§6'),
-    annualRate: src('附表三', '表十之四 年度節電率', `${LAW.annex}；${LAW.target}`, '§5.10、§6'),
-    avgRate: src('附表三', '表十之六 歷年平均年節電率', `${LAW.annex}；${LAW.target}`, '§5.10、§6'),
+    // 新版附表三刪除表十之六、表十之四改為「年度用電量計算」：節電率改依 114–117 規定由系統自算
+    annualRate: src('114–117 規定', '年度節電率 = 節電量 ÷ (節電量 + 用電量)', LAW.target, '§6'),
+    avgRate: src('114–117 規定', '平均年節電率 = (累計節電量 + 前期超額) ÷ (累計節電量 + 累計用電量)', LAW.target, '§6'),
+    consumptionN: src('附表三', '表十之四 年度用電量計算（可扣除用電量 8 項）', LAW.annex, '§5.10'),
+    forecastN1: src('附表三', '表十一之四 年度用電量估算（可扣除用電量 6 項／其他估算方式）', LAW.annex, '§5.11'),
+    toe: src('能源署 能源產品單位熱值表', '113 年起適用、114 年修正熱值（1 公斤油當量＝10,000 千卡）', undefined, '§6.1'),
+    diagSummary: src('附件一 節能診斷報告', '一、診斷摘要（節能潛力 公噸油當量、節電潛力 萬度）', LAW.diag, '§3.1、§6.1'),
     util: src('附表三', '表九之四 系統耗電量彙整', LAW.annex, '§5.9'),
     dueAnnex3: src('申報種類數量項目效率期間及方式', '每年 1 月底前申報前一年資料', LAW.annex, '§1.3'),
     dueSavingRate: src('114–117 規定', '每年 3/31 前申報節電執行情形及節電率', LAW.target, '§1.3、§6'),
@@ -761,6 +903,11 @@
     energyCostRatio: withSource(energyCostRatio, SRC.costRatio),
     demandResponseSaving: withSource(demandResponseSaving, SRC.dr),
     annualConsumption: withSource(annualConsumption, SRC.consumption),
+    annualConsumptionN: withSource(annualConsumptionN, SRC.consumptionN),
+    forecastConsumption: withSource(forecastConsumption, SRC.forecastN1),
+    toToe: withSource(toToe, SRC.toe),
+    fuelsToKgoe: withSource(fuelsToKgoe, SRC.toe),
+    diagnosisSummary: withSource(diagnosisSummary, SRC.diagSummary),
     savingTarget: withSource(savingTarget, SRC.target),
     annualSavingRate: withSource(annualSavingRate, SRC.annualRate),
     averageSavingRate: withSource(averageSavingRate, SRC.avgRate),
@@ -772,9 +919,10 @@
   g.EMSInventoryCompute = {
     ...W,
     // 工具（不是規則，不帶 source）
-    num, round, rocToAd, adToRoc, toRocYear, parseDate, toIso, toRocDate, daysBetween, addYears, replaceCategory,
+    num, round, rocToAd, adToRoc, toRocYear, parseDate, toIso, toRocDate, daysBetween, addYears, replaceCategory, equipmentReplaceCategory,
     // 常數
-    ENERGY_USER_KW, EXCLUSIONS, ENGINEER_DISCIPLINES, REPLACE_THRESHOLDS, FIRST_PERIOD_DUE, LAW, SOURCES: SRC,
+    ENERGY_USER_KW, EXCLUSIONS, ENGINEER_DISCIPLINES, REPLACE_THRESHOLDS, REPLACE_LABELS, PLAN_PAYBACK_YEARS, PLAN_SPAN_YEARS,
+    FIRST_PERIOD_DUE, LAW, SOURCES: SRC, ENERGY_UNITS, DEDUCTIONS_N, DEDUCTIONS_N1,
   };
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
