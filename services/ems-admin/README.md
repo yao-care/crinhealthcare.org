@@ -70,6 +70,7 @@
 - **操作人姓名**：帳號一院一組。所有改變狀態的 `/api/inv`、`/api/inv/report` API 都收選填 `reporter`（≤20 字；DELETE 用 `?reporter=`），有填時 who＝「姓名（院名）」並另存 `reporter`。管理端頂部「操作人」欄與貼紙頁「填寫人」共用 localStorage key `ems.sticker.reporter`。
 - **設備汰換**：異動登錄的「設備汰換」先建新設備，再把舊設備標成已汰換並帶 `replacedBy`；伺服器把所有點位項目的 `equipmentId` 改指新設備、新設備承接舊的所屬點位，記在同一筆異動。設備移除時回傳仍連著它的點位項目，管理端提示去點位移除。
 - **設備↔點位以點位項目為準**：設備主檔的 `pointCode` 跟著點位項目的 `equipmentId` 走。`GET /api/inv` 回 `linkIssues`（對不上的清單），「點位與進度」列出並可一鍵修正。
+- **R1 能源用戶判定不合併計算**（業主 2026-10-22）：一律以單一電號的經常契約容量判定，任一電號 > 800 瓩即為能源用戶。電號的「合併申報」與排除條件區塊的「同一登記主體契約容量合計」只作附表三表三與附錄二的輸出資料。
 - **建築用 id 連結**：設備主檔與變壓器的建築存 `buildings[].id`（下拉選）。舊資料存的是名稱文字，讀取時自動對回 id；對不上保留原文字、列「待修」（`siteRefIssues`）。發電機的官方欄位沒有建築物名稱，不受影響。
 
 ### 規則與依據的單一來源
@@ -83,6 +84,21 @@
 - 每張工作表第 1 列表名、第 2 列依據（文件、表號、文號）、第 3 列院所與資料年。系統推不出的格子留空，逐項列在最後的「待補欄位」工作表；`GET /api/inv/report/missing?kind=annex3|diagnosis|plan&year=N` 回同一份清單（JSON）。
 - R6 機齡超過門檻的設備自動列入設備汰換表、R7 回收 < 10 年自動列入節能計畫，兩者都不可刪（409 `mandatory`）；計畫改已填過的值要原因（R8 版本紀錄）。
 - 能源署申報系統沒有公開匯入格式，xlsx 是對照官方表格的轉填稿。
+- 「申報與報告」分頁（第 24 項）：**申報對照**（依附表三章節順序列每欄的值，每欄可複製，空值連到填寫處）、**單表匯出**（`/api/inv/report/table/<tableId>?year=N&format=xlsx|csv`，整包 `/bundle`）、**報表資料輸入**（每年重填、系統原本推不出的欄位，存 `annual[N]`）、**年度沿用**（新年度逐區塊看與去年的差異後確認，記確認人；存 `snapshots`／`confirmations`）。欄位覆蓋盤點見 `../../docs/annex3-field-map.md`（`node scripts/field-map.mjs` 產生）。
+- 節能計畫匯出檔 `/api/inv/report/plan-export`：能源署「匯出 → 填 → 匯入」格式未取得，欄位對照集中在 `src/report-export.js` 的 `PLAN_EXPORT_MAP`，拿到樣本後只改它。
+
+### 點位批次匯入（管理端＋維護者 CLI）
+
+院方在「📍 點位與進度 › 批次匯入點位」：下載範本（`GET /api/inv/points/template.xlsx`，預設帶本院現有點位；`?blank=1` 空白）→ 在 Excel 填好 → 上傳看預覽（綠＝新增、藍＝更新、紅＝錯誤）→ 確認套用。一列一個項目；點位代碼空白＝新增並自動配號，填既有代碼＝更新名稱／位置／項目（代碼與類別不能改）。有任何錯誤整批不寫入；套用成功整批一次 commit，異動登錄記一筆「點位批次匯入」。院方仍可用「＋ 新增點位」自行建立。
+
+維護者匯入業主提供的清單（xlsx 或 csv，欄名照範本）：
+
+```bash
+node scripts/import-points.mjs 803 業主點位清單.xlsx                          # 預覽，不寫檔
+node scripts/import-points.mjs 803 業主點位清單.xlsx --apply --reporter 王小明  # 寫入（who＝王小明（維護者））
+```
+
+資料目錄取 `AUDIT_DATA_DIR`（沒設就讀 `.env`）；`--reason` 指定異動原因、`--json` 輸出完整預覽。有錯誤 exit 1。規則與管理端同一支（`src/points-import.js`）。
 
 ### 舊資料轉移（健檢填報 → 盤點）
 

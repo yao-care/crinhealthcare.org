@@ -125,7 +125,7 @@
     b.setAttribute('aria-expanded', 'false');
     const rows = [
       ['文件', s.doc], ['條次／表號', s.ref], ['文號', s.law],
-      ['規格對照', s.spec && `docs/energy-audit-spec.md ${s.spec}`], ['註記', s.note],
+      ['規格對照', s.spec && `${s.specDoc || 'docs/energy-audit-spec.md'} ${s.spec}`], ['註記', s.note],
     ].filter(([, v]) => v);
     const box = el('span', { class: 'i-srcbox hidden' }, rows.map(([k, v]) => el('span', { class: 'i-srcrow' }, [el('b', { text: k }), el('span', { text: String(v) })])));
     b.addEventListener('click', (e) => {
@@ -291,11 +291,10 @@
 
   // ════════════════════════ 規則即時檢核（inventory-compute.js） ════════════════════════
   const totalKw = (meters) => (meters || []).reduce((s, m) => s + (typeof m.contractKw === 'number' ? m.contractKw : 0), 0);
-  // R1：exemption 有填「同一登記主體契約容量合計」就用它；否則以電號區塊判定，勾了合併申報的電號才合併計算
-  function r1Args(meters, ex) {
-    const combined = typeof ex?.combinedContractKw === 'number' ? ex.combinedContractKw : undefined;
-    if (combined !== undefined) return { meters: [], contractKw: combined, combine: true };
-    return { meters: meters || [], combine: (meters || []).some((m) => m.combined) };
+  // R1：一律以單一電號的契約容量判定（任一電號 > 800 瓩即為能源用戶），不合併計算（業主 2026-10-22）。
+  // 「合併申報」與「同一登記主體契約容量合計」只是附表三表三與附錄二的輸出資料，不進 R1。
+  function r1Args(meters) {
+    return { meters: meters || [] };
   }
   function r1r2Args(meters, ex, userClass) {
     const exclusions = ex?.exempt && ex.exemptCode ? [{
@@ -718,6 +717,7 @@
 
   async function drawPoints(root, tk) {
     if (ui.point) { root.append(pointEditor(ui.point)); return; }
+    if (ui.imp) { root.append(importPanel(ui.imp)); return; }
     const period = ui.prog || PERIOD;
     if (!PROGRESS || PROGRESS.period !== period) {
       root.append(note('載入本期進度…'));
@@ -738,6 +738,7 @@
       el('span', { class: 'grow' }),
       btn('＋ 新增點位', () => openPointEditor(null), 'primary'),
       btn('列印全部 QR', printAllQr),
+      btn('批次匯入點位', openImport),
     ]));
     if (P.error) root.append(el('div', { class: 'i-err', text: `本期進度載入失敗：${P.error}` }));
 
@@ -876,6 +877,113 @@
     return box;
   }
 
+  // ── 批次匯入點位（POST /api/inv/points/import；舊後端沒有這支時提示尚未上線）──
+  const IMP_LABEL = { add: ['新增', 'add'], update: ['更新', 'upd'], unchanged: ['不變', 'off'], error: ['錯誤', 'err'] };
+  function openImport() { ui.imp = { file: null, res: null, busy: false, err: '', reason: '' }; draw(); scrollTop(); }
+  const importMissing = (r) => r.status === 404 || r.status === 501 || (r.status === 400 && r.body?.error === 'bad_code');
+  async function downloadTemplate(blank) {
+    let res;
+    try { res = await fetch(`/api/inv/points/template.xlsx${blank ? '?blank=1' : ''}`, { credentials: 'same-origin' }); } catch { toast('網路連線失敗，請再試一次', 'err'); return; }
+    if (!res.ok || !(res.headers.get('content-type') || '').includes('spreadsheet')) {
+      toast(res.status === 401 ? '登入逾時，請重新整理頁面後再登入' : '伺服器尚未支援下載範本（新版上線後即可使用）', 'warn');
+      return;
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const a = el('a', { href: url, download: `點位匯入範本-${HID}${blank ? '-空白' : ''}.xlsx` });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+  async function sendImport(st, apply) {
+    const fd = new FormData();
+    fd.append('file', st.file, st.file.name);
+    if (apply) fd.append('apply', 'true');
+    if (reporter()) fd.append('reporter', reporter());
+    if (st.reason.trim()) fd.append('reason', st.reason.trim());
+    try { return await api('/api/inv/points/import', { method: 'POST', body: fd }); } catch { return { status: 0, body: { message: '網路連線失敗，請再試一次' } }; }
+  }
+  function importItems(items) {
+    return (items || []).map((i) => `${i.label}（${itemType(i.type)?.label || i.type}${i.unit ? `·${i.unit}` : ''}）`).join('、');
+  }
+  function importTable(P) {
+    const t = el('table', { class: 'i-table i-imptable' });
+    t.append(el('thead', {}, el('tr', {}, ['', '點位', '類別', '項目', '說明', '列'].map((h) => el('th', { text: h })))));
+    const tb = el('tbody');
+    for (const p of P.points) {
+      const [lab, cls] = IMP_LABEL[p.action] || [p.action, ''];
+      const notes = [...p.errors.map((e) => `第 ${e.row} 列：${e.message}`), ...p.changes, ...p.warnings.map((w) => `⚠ ${w}`)];
+      tb.append(el('tr', { class: `i-imp-${cls}` }, [
+        el('td', {}, pill(lab, cls)),
+        el('td', {}, [el('b', { text: p.name || '（未填名稱）' }), el('div', { class: 'muted i-mono', text: p.code ? `${p.code}${p.autoCode ? '（自動配號）' : ''}` : '（未配號）' }), p.location ? el('div', { class: 'muted', text: p.location }) : null]),
+        el('td', { text: SPEC.domains[p.domain]?.label || '' }),
+        el('td', { text: importItems(p.items) }),
+        el('td', {}, notes.length ? el('ul', { class: 'i-impnotes' }, notes.map((n) => el('li', { text: n }))) : null),
+        el('td', { class: 'muted', text: p.rows.join('、') }),
+      ]));
+    }
+    for (const e of P.errors.filter((x) => !P.points.some((p) => p.errors.some((y) => y.row === x.row && y.message === x.message)))) {
+      tb.append(el('tr', { class: 'i-imp-err' }, [el('td', {}, pill('錯誤', 'err')), el('td', { colSpan: 4, text: e.message }), el('td', { class: 'muted', text: e.row ? String(e.row) : '' })]));
+    }
+    t.append(tb);
+    return el('div', { class: 'i-tablewrap' }, t);
+  }
+  function importPanel(st) {
+    const box = el('section', { class: 'i-import' });
+    box.append(el('div', { class: 'i-head' }, [el('h2', { text: '批次匯入點位' }), el('span', { class: 'i-tag', text: '點位與進度' })]));
+    box.append(note('一列一個項目：下載範本 → 在 Excel 填好 → 上傳看預覽（綠＝新增、藍＝更新、紅＝錯誤）→ 確認套用。點位代碼空白＝新增並自動配號；填既有代碼＝更新名稱、位置、項目（代碼與類別不能改）。有任何錯誤整批不寫入。'));
+    box.append(el('div', { class: 'i-tools' }, [
+      btn('下載範本（含本院現有點位）', () => downloadTemplate(false), 'primary'),
+      btn('下載空白範本', () => downloadTemplate(true)),
+      el('span', { class: 'grow' }),
+      btn('返回點位清單', () => { ui.imp = null; draw(); }),
+    ]));
+    const inp = el('input', { type: 'file', accept: '.xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv' });
+    inp.addEventListener('change', async () => {
+      const f = inp.files?.[0];
+      if (!f) return;
+      st.file = f; st.res = null; st.err = ''; st.busy = true; draw();
+      const r = await sendImport(st, false);
+      st.busy = false;
+      if (importMissing(r)) st.err = '伺服器尚未支援批次匯入（新版上線後即可使用）；目前請用「＋ 新增點位」逐一建立。';
+      else if (r.status !== 200 || !r.body?.preview) st.err = errText(r);
+      else st.res = r.body.preview;
+      draw();
+    });
+    box.append(el('label', { class: 'i-reason' }, [el('span', { text: st.file ? `已選檔案：${st.file.name}（重新選檔會重新預覽）` : '選擇填好的檔案（xlsx 或 csv）' }), inp]));
+    if (st.busy) box.append(note('讀取與檢查中…'));
+    if (st.err) box.append(el('div', { class: 'i-err', role: 'alert', text: st.err }));
+    const P = st.res;
+    if (!P) return box;
+    const c = P.counts;
+    box.append(el('div', { class: 'i-kpis' }, [
+      el('div', { class: 'i-kpi' }, [el('div', { class: 'v', text: String(c.add) }), el('div', { class: 'l', text: '新增' })]),
+      el('div', { class: 'i-kpi' }, [el('div', { class: 'v', text: String(c.update) }), el('div', { class: 'l', text: '更新' })]),
+      el('div', { class: 'i-kpi' }, [el('div', { class: 'v', text: String(c.unchanged) }), el('div', { class: 'l', text: '不變' })]),
+      el('div', { class: 'i-kpi' + (P.errors.length ? ' bad' : '') }, [el('div', { class: 'v', text: String(P.errors.length) }), el('div', { class: 'l', text: '錯誤' })]),
+    ]));
+    if (c.skipped) box.append(note(`略過範例列 ${c.skipped} 列。`));
+    box.append(importTable(P));
+    const can = P.ok && (c.add + c.update) > 0;
+    if (!P.ok) box.append(el('div', { class: 'i-err', role: 'alert', text: `有 ${P.errors.length} 個錯誤：請在檔案裡修正後重新選檔。整批不會寫入。` }));
+    else if (!can) box.append(note('檔案內容與目前的點位相同，沒有要新增或更新的。'));
+    const reason = el('input', { type: 'text', value: st.reason, maxLength: 200, placeholder: '例：依業主 10/22 提供的點位清單建立' });
+    reason.addEventListener('input', () => { st.reason = reason.value; });
+    const err = errBox();
+    const ok = btn(`確認套用（新增 ${c.add}、更新 ${c.update}）`, async () => {
+      ok.disabled = true;
+      const r = await sendImport(st, true);
+      ok.disabled = false;
+      if (r.status === 422 && r.body?.preview) { st.res = r.body.preview; toast('資料在預覽後有變動，請看最新的錯誤清單', 'warn'); draw(); return; }
+      if (r.status !== 200 || !r.body?.ok) { err.textContent = errText(r); return; }
+      toast(r.body.applied ? `已匯入：新增 ${r.body.preview.counts.add}、更新 ${r.body.preview.counts.update}，並記一筆異動` : '沒有要寫入的變更', 'ok');
+      ui.imp = null;
+      await refreshAll(); draw();
+    }, 'primary');
+    ok.disabled = !can;
+    box.append(el('label', { class: 'i-reason' }, [el('span', { text: '匯入原因（記進異動登錄，可留白）' }), reason]), err,
+      el('div', { class: 'i-tools' }, [ok, btn('取消', () => { ui.imp = null; draw(); })]));
+    return box;
+  }
+
   // ── 點位編輯 ──
   function openPointEditor(code) {
     const p = code ? INV.points.find((x) => x.code === code) : null;
@@ -906,10 +1014,85 @@
     // 表九之一（二）冰水機群組：畫面沒有編輯欄，但存檔時不能把既有設定丟掉
     if (it.chillerGroup) o.chillerGroup = it.chillerGroup;
     if (it.chillerRole) o.chillerRole = it.chillerRole;
+    // 水足跡盤查（工作清單 23）：流向與連結
+    for (const k of WATER_KEYS) if (it[k]) o[k] = it[k];
     return o;
   }
 
-  function itemCard(it, i, items, locked) {
+  // ── 水足跡盤查：點位項目的水屬性與用水點位範本（spec.water；舊後端沒有就整段不出現）──
+  const WATER_KEYS = ['waterFlow', 'waterSourceId', 'waterUnitId', 'waterDischargeId', 'waterParam'];
+  const WATER_LINKS = { intake: ['waterSourceId'], use: ['waterUnitId'], saving: ['waterUnitId'], discharge: ['waterDischargeId'], quality: ['waterDischargeId', 'waterParam'] };
+  function waterControls(it, cell) {
+    const WS = SPEC.water;
+    if (!WS || (it.type !== 'reading' && it.type !== 'number')) return [];
+    const out = [];
+    const flows = Object.entries(WS.flows).filter(([k]) => it.type === 'number' || !['quality', 'saving'].includes(k));
+    const fs = el('select', {}, [el('option', { value: '', text: '（不列入水足跡計算）' }), ...flows.map(([k, f]) => el('option', { value: k, text: f.label, selected: k === it.waterFlow }))]);
+    fs.addEventListener('change', () => {
+      if (fs.value) it.waterFlow = fs.value; else delete it.waterFlow;
+      const keep = WATER_LINKS[it.waterFlow] || [];
+      for (const k of WATER_KEYS) if (k !== 'waterFlow' && !keep.includes(k)) delete it[k];
+      draw(); touch();
+    });
+    const F = WS.flows[it.waterFlow];
+    out.push(cell('水的流向', fs, F ? F.hint : '標了流向才會算進取水、排放、用水單元'));
+    const pick = (key, block, label, empty, hintNone) => {
+      const rows = INV.site[block] || [];
+      const s = el('select', {}, [el('option', { value: '', text: empty }), ...rows.map((r) => el('option', { value: r.id, text: r.name || r.id, selected: r.id === it[key] }))]);
+      if (it[key] && !rows.some((r) => r.id === it[key])) s.append(el('option', { value: it[key], text: `${it[key]}（已刪除，待修）`, selected: true }));
+      s.addEventListener('change', () => { if (s.value) it[key] = s.value; else delete it[key]; touch(); });
+      out.push(cell(label, s, rows.length ? null : hintNone));
+    };
+    if (it.waterFlow === 'intake') pick('waterSourceId', 'waterSources', '水源', '（未指定水源）', '尚未建立水源：初始建檔 › 水源');
+    if (it.waterFlow === 'use' || it.waterFlow === 'saving') pick('waterUnitId', 'waterUnits', '用水單元', '（未指定用水單元）', '尚未建立用水單元：初始建檔 › 主要用水單元');
+    if (it.waterFlow === 'discharge' || it.waterFlow === 'quality') pick('waterDischargeId', 'waterDischarges', '排放口', '（未指定排放口）', '尚未建立排放口：初始建檔 › 排放與回收');
+    if (it.waterFlow === 'quality') {
+      const opts = [...new Set([...(WS.qualityParams || []), ...(it.waterParam ? [it.waterParam] : [])])];
+      const q = el('select', {}, [el('option', { value: '', text: '（用項目名稱）' }), ...opts.map((x) => el('option', { value: x, text: x, selected: x === it.waterParam }))]);
+      q.addEventListener('change', () => { if (q.value) it.waterParam = q.value; else delete it.waterParam; touch(); });
+      out.push(cell('水質項目', q));
+    }
+    return out;
+  }
+
+  // 套用範本：沒有項目就整組帶入；已有項目就接在後面（代號重複的自動改號）
+  function applyWaterTemplate(d, t) {
+    const used = new Set(d.items.map((x) => x.id));
+    const items = clone(t.items).map((it) => {
+      let id = it.id, n = 2;
+      while (used.has(id)) id = `${it.id}${n++}`;
+      used.add(id);
+      return { ...it, id };
+    });
+    d.domain = 'water';
+    if (!String(d.name || '').trim()) d.name = t.name;
+    d.items.push(...items);
+    return items.length;
+  }
+  function waterTemplateBox(d, isNew) {
+    const T = SPEC.water?.pointTemplates;
+    if (!T?.length || (!isNew && d.domain !== 'water')) return null;
+    const box = el('fieldset', { class: 'i-grp' }, [el('legend', {}, [el('span', { text: '套用用水點位範本' }), srcChip(SPEC.water.source)])]);
+    const sel = el('select', {}, T.map((t) => el('option', { value: t.id, text: `${t.label}（${t.purpose}）` })));
+    const hint = el('div', { class: 'note' });
+    const show = () => { const t = T.find((x) => x.id === sel.value); hint.textContent = t ? `${t.hint}｜項目：${t.items.map((x) => x.label).join('、')}` : ''; };
+    sel.addEventListener('change', show); show();
+    const go = btn(d.items.length ? '加入範本項目' : '套用範本', () => {
+      const t = T.find((x) => x.id === sel.value);
+      if (!t) return;
+      const n = applyWaterTemplate(d, t);
+      toast(`已帶入「${t.label}」${n} 個項目；水源、用水單元、排放口請在項目裡選`, 'ok');
+      draw(); touch();
+    }, 'primary');
+    box.append(
+      note(isNew ? '水表總表、冷卻水塔補水、雨水回收、污水排放、水質抽測、節水改善回報等常用點位，一鍵帶入項目與流向（類別自動改成「水」）。' : '把範本的項目加到這個點位後面。'),
+      el('div', { class: 'i-field' }, [el('div', { class: 'i-flabel' }, [el('span', { text: '範本' })]), el('div', { class: 'i-fctl' }, [sel, hint])]),
+      el('div', { class: 'i-tools' }, [go]),
+    );
+    return box;
+  }
+
+  function itemCard(it, i, items, locked, domain) {
     const T = itemType(it.type) || { id: it.type, label: it.type };
     const card = el('div', { class: 'i-item' });
     const up = btn('↑', () => { items.splice(i - 1, 0, items.splice(i, 1)[0]); draw(); touch(); }, 'i-mini');
@@ -941,6 +1124,7 @@
         if (!NT.usesUnit) delete it.unit;
         if (it.type === 'bill') delete it.equipmentId;
         if (it.type !== 'reading' && it.type !== 'bill') delete it.meterId;
+        if ((it.type !== 'reading' && it.type !== 'number') || (it.type === 'reading' && ['quality', 'saving'].includes(it.waterFlow))) for (const k of WATER_KEYS) delete it[k];
         draw(); touch();
       });
       grid.append(cell('類型', ts));
@@ -982,7 +1166,8 @@
       s.addEventListener('change', () => { if (s.value) it.equipmentId = s.value; else delete it.equipmentId; touch(); });
       grid.append(cell('連結設備', s, it.type === 'status' ? '貼紙頁只顯示設備名稱' : null));
     }
-    if (it.type === 'reading' || it.type === 'bill') {
+    if (domain === 'water') for (const c of waterControls(it, cell)) grid.append(c);
+    if ((it.type === 'reading' || it.type === 'bill') && (domain !== 'water' || it.meterId)) {
       const ms = INV.site.meters || [];
       const s = el('select', {}, [el('option', { value: '', text: '（不連結電號）' }), ...ms.map((m) => el('option', { value: m.id, text: m.meterNo || m.id, selected: m.id === it.meterId }))]);
       s.addEventListener('change', () => { if (s.value) it.meterId = s.value; else delete it.meterId; touch(); });
@@ -1007,7 +1192,7 @@
     const idf = el('fieldset', { class: 'i-grp' }, [el('legend', {}, [el('span', { text: '點位代碼與類別' })])]);
     if (isNew) {
       const ds = el('select', {}, Object.entries(SPEC.domains).map(([k, v]) => el('option', { value: k, text: `${v.label}（代碼 ${v.letter}）`, selected: k === d.domain })));
-      ds.addEventListener('change', () => { d.domain = ds.value; draw(); });
+      ds.addEventListener('change', () => { d.domain = ds.value; if (d.domain !== 'water') for (const it of d.items) for (const k of WATER_KEYS) delete it[k]; draw(); });
       idf.append(
         el('div', { class: 'i-field' }, [el('div', { class: 'i-flabel' }, [el('span', { text: '類別' })]), el('div', { class: 'i-fctl' }, [ds])]),
         el('div', { class: 'i-field' }, [el('div', { class: 'i-flabel' }, [el('span', { text: '點位代碼' })]), el('div', { class: 'i-fctl' }, [
@@ -1026,6 +1211,8 @@
       );
     }
     box.append(idf);
+    const wt = waterTemplateBox(d, isNew);
+    if (wt) box.append(wt);
 
     const bf = el('fieldset', { class: 'i-grp' }, [el('legend', {}, [el('span', { text: '名稱與位置' })])]);
     const nm = el('input', { type: 'text', value: d.name, placeholder: '例：B1 中央機房 冰水主機區' });
@@ -1040,7 +1227,7 @@
 
     const itf = el('fieldset', { class: 'i-grp' }, [el('legend', {}, [el('span', { text: `每次要記的項目（${d.items.length}）` })])]);
     itf.append(note('貼紙頁的表單依這裡的項目類型自動長出來；設備只顯示名稱，型號容量不出現。'));
-    d.items.forEach((it, i) => itf.append(itemCard(it, i, d.items, st.locked.has(it.id))));
+    d.items.forEach((it, i) => itf.append(itemCard(it, i, d.items, st.locked.has(it.id), d.domain)));
     if (!d.items.length) itf.append(note('至少要有一個項目。', 'empty'));
     itf.append(el('div', { class: 'i-tools i-addtypes' }, [
       el('span', { class: 'note', text: '新增項目：' }),
@@ -1130,13 +1317,14 @@
 
   // ════════════════════════ 異動登錄 ════════════════════════
   const kindLabel = (k) => KINDS[k] || SPEC.changeKinds[k] || k;
-  const kindTone = (k) => (k.startsWith('equipment.') ? (k === 'equipment.remove' || k === 'equipment.replace' ? 'warn' : 'eq') : k === 'staff' ? 'staff' : k === 'point' ? 'pt' : '');
+  const kindTone = (k) => (k.startsWith('equipment.') ? (k === 'equipment.remove' || k === 'equipment.replace' ? 'warn' : 'eq') : k === 'staff' ? 'staff' : k === 'point' || k === 'point.import' ? 'pt' : '');
   function splitTarget(t) { const s = String(t || ''); const i = s.indexOf('.'); return i > 0 ? [s.slice(0, i), s.slice(i + 1)] : [s, '']; }
   function targetLabel(t) {
     const [a, b] = splitTarget(t);
     if (a === 'equipment' && b) { const e = eqById(b); return e ? `${eqName(e)}（${catOf(e.category)?.label || ''}·${e.kind}）` : `設備 ${b}`; }
     if (a === 'point' && b) { const p = INV.points.find((x) => x.code === b); return `點位 ${b}${p ? ` ${p.name}` : ''}`; }
     if (a === 'site' && b) return `初始建檔·${blockOf(b)?.label || b}`;
+    if (a === 'points' && !b) return '點位清單（批次匯入）';
     return String(t || '（未指定對象）');
   }
   const plain = (v) => (v == null || v === '' ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v));
@@ -1163,6 +1351,14 @@
     const isObj = (v) => v && typeof v === 'object';
     if (!isObj(b) && !isObj(a)) { if (!blankVal(b) || !blankVal(a)) push('內容', plain(b), plain(a)); return rows; }
     const [tt, tid] = splitTarget(c.target);
+    if (c.kind === 'point.import') {
+      const bef = new Map((b?.updated || []).map((p) => [p.code, p]));
+      for (const p of a?.added || []) push('新增點位', '', `${p.code} ${p.name}（${p.items.length} 個項目）`);
+      for (const p of a?.updated || []) { const o = bef.get(p.code); push(`更新點位 ${p.code}`, o ? `${o.name}（${o.items.length} 個項目）` : '', `${p.name}（${p.items.length} 個項目）`); }
+      for (const x of c.links?.equipmentPointCode || []) push('設備所屬點位補上', '', `${eqName(eqById(x.equipmentId)) || x.equipmentId} → ${x.pointCode}`);
+      if (c.links?.source) push('來源檔案', '', c.links.source);
+      return rows;
+    }
     if (tt === 'equipment') {
       const cat = catOf((a || b).category);
       for (const [k, l] of [['status', '狀態'], ['kind', '種類'], ['building', '所屬建築'], ['pointCode', '所屬點位'], ['replacedBy', '取代的新設備']]) if (!same(b?.[k] ?? null, a?.[k] ?? null)) push(l, metaFmt(k, b?.[k]), metaFmt(k, a?.[k]));
@@ -1527,7 +1723,7 @@
       S.push({ id: 'i-site', task: 'inv-site', group: '', label: '建檔總覽', inv: 'overview' });
       for (const b of SPEC.site) {
         const v = INV.site[b.id];
-        S.push({ id: `i-site-${b.id}`, task: 'inv-site', group: '基本資料（附表三）', label: b.label, inv: 'site', block: b.id,
+        S.push({ id: `i-site-${b.id}`, task: 'inv-site', group: b.navGroup || '基本資料（附表三）', label: b.label, inv: 'site', block: b.id,
           badge: isEmpty(v) ? null : { text: b.kind === 'table' ? `${v.length} 筆` : '已建', kind: 'ok' } });
       }
       for (const c of SPEC.equipment.categories) {

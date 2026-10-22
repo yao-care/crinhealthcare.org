@@ -152,20 +152,22 @@
 
   const ENERGY_USER_KW = 800;
 
-  // meters: [{ contractKw }]。combine=true → 同一商工登記主體的契約容量合併計算（114–117 規定）；
-  // false → 各電號分開看，任一電號 > 800 瓩即列管。
-  // 國軍各院區是否合併尚待業主確認（spec §9-2），所以做成參數而不寫死。
-  function energyUserCheck({ meters, contractKw, combine = false } = {}) {
-    const list = (meters || []).map((m) => num(m?.contractKw ?? m?.contract_capacity_kw)).filter((v) => v !== undefined);
-    if (num(contractKw) !== undefined) list.push(num(contractKw));
+  // meters: [{ meterNo?, contractKw }]。一律以「單一電號」的經常契約容量判定：任一電號 > 800 瓩即為能源用戶。
+  // 業主 2026-10-22 確認契約容量「不用」合併計算——勾「合併申報」或填合計都不影響 R1，
+  // 那些欄位只是附表三表三電號資料與附錄二的輸出資料。舊呼叫端傳的 combine 參數一律忽略。
+  function energyUserCheck({ meters, contractKw } = {}) {
+    const list = (meters || []).map((m) => ({ no: m?.meterNo ?? m?.meter_no ?? null, kw: num(m?.contractKw ?? m?.contract_capacity_kw) })).filter((x) => x.kw !== undefined);
+    if (num(contractKw) !== undefined) list.push({ no: null, kw: num(contractKw) });
     if (!list.length) return na('未填契約容量，無法判定是否為能源用戶');
-    const basisKw = combine ? list.reduce((a, b) => a + b, 0) : Math.max(...list);
+    const basisKw = Math.max(...list.map((x) => x.kw));
     const isUser = basisKw > ENERGY_USER_KW;
-    const how = combine ? `合併計算 ${list.length} 個電號` : '單一電號最大';
+    const over = list.filter((x) => x.kw > ENERGY_USER_KW);
+    const overMeters = over.map((x) => x.no).filter((x) => x != null && x !== '');
+    const n = list.length > 1 ? `${list.length} 個電號分開看，` : '';
     const msg = isUser
-      ? `契約容量（${how}）${fmt(basisKw)} 瓩 > 800 瓩，屬能源用戶`
-      : `契約容量（${how}）${fmt(basisKw)} 瓩 ≤ 800 瓩，非能源用戶`;
-    return pass(isUser, msg, { basisKw, combine, isEnergyUser: isUser });
+      ? `${n}${overMeters.length ? `電號 ${overMeters.join('、')} ` : ''}契約容量 ${fmt(basisKw)} 瓩 > 800 瓩，屬能源用戶（以單一電號判定，不合併計算）`
+      : `${n}單一電號契約容量最大 ${fmt(basisKw)} 瓩 ≤ 800 瓩，非能源用戶（以單一電號判定，不合併計算）`;
+    return pass(isUser, msg, { basisKw, combine: false, overMeters, meterCount: list.length, isEnergyUser: isUser });
   }
 
   // ── R2 排除條件 ──
@@ -243,8 +245,8 @@
   }
 
   // R1 + R2 合起來的最終判定
-  function energyUserStatus({ meters, contractKw, combine, exclusions, today, userClass } = {}) {
-    const r1 = W.energyUserCheck({ meters, contractKw, combine });
+  function energyUserStatus({ meters, contractKw, exclusions, today, userClass } = {}) {
+    const r1 = W.energyUserCheck({ meters, contractKw });
     const r2 = W.exclusionsCheck(exclusions, { today, userClass });
     if (r1.ok === null) return na(r1.msg, { r1, r2 });
     const excluded = r2.value === true;
@@ -828,7 +830,7 @@
   const src = (doc, ref, law, spec) => ({ doc, ref, law, spec });
   const SRC = {
     usage: src('ems-admin 改版工作清單', '項目 4（本次讀數 − 上次）', undefined, 'docs/ems-admin-revamp.md'),
-    r1: src('附表三', '前言（契約容量 > 800 瓩列管）；合併計算依 114–117 規定', `${LAW.annex}；${LAW.target}`, '§2 R1'),
+    r1: { ...src('附表三', '前言（契約容量 > 800 瓩列管）', `${LAW.annex}；${LAW.target}`, '§2 R1'), note: '以單一電號契約容量判定，不合併計算（業主 2026-10-22）；合併申報欄位只用於附表三表三與附錄二' },
     ex: Object.fromEntries(Object.keys(EXCLUSIONS).map((k) => [k, src('能源用戶排除條件', k, k === 'EX08' ? `${LAW.act}第 16 條第 1 項` : LAW.exPending, '§2 R2')])),
     r3: src('附件一 節能診斷報告', '規定第三點第二項；附件一第四段診斷團隊聲明', LAW.diag, '§2 R3、§3.4'),
     r5: src('附件一 節能診斷報告', '表二、表三「回收年限」欄', LAW.diag, '§2 R5'),
@@ -925,4 +927,348 @@
     FIRST_PERIOD_DUE, LAW, SOURCES: SRC, ENERGY_UNITS, DEDUCTIONS_N, DEDUCTIONS_N1,
   };
 
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+// ════════════════════════════════════════════════════════════════
+// 水足跡盤查（工作清單 23）：取水／排放／消耗、用水單元占比、用水績效指標、基線比較、資料完整度。
+// 依據：ISO 14046:2014（盤查 5.3）、ISO 46001:2019（用水審查 6.2.4、指標 6.2.5～6.2.7）；
+// 條號與取得程度見 docs/water-footprint-spec.md §3。另起一段 IIFE 掛到同一個 EMSInventoryCompute 上，
+// 不動上面任何既有函式。輸入是 inventory 的形狀 { site, points, records }，年份一律西元（records.period 是 YYYY-MM）。
+// 單位：m³（水費單的「度」＝m³）；項目單位是公升時 ÷ 1,000。
+// ════════════════════════════════════════════════════════════════
+(function (g) {
+  'use strict';
+  const C = g.EMSInventoryCompute;
+  if (!C) return;
+  const num = C.num, round = C.round;
+  const SPEC_DOC = 'docs/water-footprint-spec.md';
+  const s14 = (ref, spec, note) => ({ doc: 'ISO 14046:2014', ref, spec, specDoc: SPEC_DOC, ...(note ? { note } : {}) });
+  const s46 = (ref, spec, note) => ({ doc: 'ISO 46001:2019', ref, spec, specDoc: SPEC_DOC, ...(note ? { note } : {}) });
+  const WSRC = {
+    intake: s14('3.2.2 取水；5.3.2 基本流（依水源別）', '§3.1', '5.3.2 條文內容取自二手來源'),
+    replace: s46('第 1 章 註 2 replace（以雨水、再生水取代自來水）', '§3.1'),
+    discharge: s14('3.1.9 基本水流；3.2.1 註 2', '§3.2'),
+    reuse: s46('第 1 章 註 3 reuse', '§3.2'),
+    consumption: s14('3.2.1 註 2 消耗（取出後未回到同一流域）', '§3.3'),
+    units: s46('6.2.4 用水審查；附錄 C 水平衡', '§3.4', '6.2.4 條文內容取自二手來源'),
+    quality: s14('3.2.4 水質；5.3.2', '§2.5'),
+    indicator: s46('3.4 營運活動指標；6.2.5、6.2.6', '§3.5'),
+    baseline: s46('3.2 基線用水效率指標；6.2.7；6.3', '§3.6'),
+    completeness: s14('4.8 完整性；5.2.4 資料品質要求', '§3.7'),
+    saving: s46('6.3 目標與行動計畫；10.2 持續改善', '§2.6'),
+    inventory: s14('5.3 水足跡盤查分析', '§3', '只做盤查，不做 5.4 衝擊評估'),
+  };
+  // 用水績效指標（ISO 46001 3.4）。label 與 src/water-schema.js 的 REPORTING_UNITS 相同（測試有對）
+  const WATER_INDICATORS = [
+    { id: 'bedDay', label: '每床日', unit: 'L/床日', per: 'L', denom: (a) => num(a?.bedDays), denomLabel: '住院人日' },
+    { id: 'visit', label: '每人次（門急診＋住院）', unit: 'L/人次', per: 'L',
+      denom: (a) => { const xs = [a?.outpatientVisits, a?.erVisits, a?.admissions].map(num).filter((v) => v !== undefined); return xs.length ? xs.reduce((s, v) => s + v, 0) : undefined; },
+      denomLabel: '門診＋急診＋住院人次' },
+    { id: 'area', label: '每平方公尺樓地板', unit: 'm³/m²·年', per: 'm3', denom: (a) => num(a?.floorArea), denomLabel: '樓地板面積' },
+    { id: 'fte', label: '每員工（FTE）', unit: 'm³/人·年', per: 'm3', denom: (a) => num(a?.staffFte), denomLabel: '員工（FTE）' },
+  ];
+  const REPLACE_TYPES = ['雨水回收', '再生水（外購）', '院內回收水'];
+
+  // 單位換算成 m³；空白視為 m³；認不得回 undefined
+  function waterUnitFactor(unit) {
+    const u = String(unit ?? '').trim().toLowerCase().replace(/\s/g, '');
+    if (!u || ['m³', 'm3', '度', '立方公尺', '立方米', 'cmd', '噸', 'ton', 't'].includes(u)) return 1;
+    if (['l', '公升', '升', 'litre', 'liter'].includes(u)) return 0.001;
+    if (['kl', '公秉', '千公升'].includes(u)) return 1;
+    return undefined;
+  }
+  // 一筆紀錄裡某項目的量（m³）：reading 取用量、number 取數值
+  function waterItemAmount(item, record) {
+    const raw = item.type === 'reading' ? record?.usage?.[item.id] : record?.values?.[item.id];
+    const v = num(raw);
+    if (v === undefined) return undefined;
+    const f = waterUnitFactor(item.unit);
+    return f === undefined ? undefined : v * f;
+  }
+  const monthIdx = (period) => { const m = /^(\d{4})-(\d{2})$/.exec(String(period || '')); return m ? Number(m[2]) - 1 : -1; };
+  const inYear = (period, year) => String(period || '').startsWith(`${year}-`);
+  const zeros = () => Array(12).fill(undefined);
+  const addM = (arr, i, v) => { if (i >= 0 && i < 12 && v !== undefined) arr[i] = (arr[i] || 0) + v; };
+  const sumM = (arr) => { const xs = arr.filter((v) => v !== undefined); return xs.length ? xs.reduce((a, b) => a + b, 0) : undefined; };
+  const r3 = (v) => (v === undefined ? undefined : round(v, 3));
+  const rowsOf = (inv, id) => (Array.isArray(inv?.site?.[id]) ? inv.site[id] : []);
+
+  // 全院所有水類點位的項目（含停用點位：停用前的紀錄照算）
+  function waterItems(inv) {
+    const out = [];
+    for (const p of inv?.points || []) {
+      if (p.domain !== 'water') continue;
+      for (const it of p.items || []) out.push({ point: p, item: it });
+    }
+    return out;
+  }
+
+  // ── 取水／用水單元／排放／回收／水質／節水改善：資料年 year（西元）──
+  function waterFlows(inv, { year } = {}) {
+    const Y = num(year);
+    const recs = (inv?.records || []).filter((r) => inYear(r.period, Y));
+    const all = waterItems(inv);
+    const tagged = all.filter((x) => x.item.waterFlow);
+    // 退路：整院沒有任何項目標「取水」時，水類點位上沒標流向的讀數項目推定為取水（標 inferred）
+    const anyIntake = tagged.some((x) => x.item.waterFlow === 'intake');
+    const untaggedReadings = all.filter((x) => !x.item.waterFlow && x.item.type === 'reading');
+    const intakeItems = anyIntake ? tagged.filter((x) => x.item.waterFlow === 'intake') : untaggedReadings;
+    const inferred = !anyIntake && untaggedReadings.length > 0;
+    const badUnits = [];
+    const recsOf = (code) => recs.filter((r) => r.pointCode === code);
+    const amountMonths = ({ point, item }) => {
+      const ms = zeros();
+      if (waterUnitFactor(item.unit) === undefined) { badUnits.push({ pointCode: point.code, itemId: item.id, label: item.label, unit: item.unit }); return ms; }
+      for (const r of recsOf(point.code)) addM(ms, monthIdx(r.period), waterItemAmount(item, r));
+      return ms;
+    };
+
+    // 取水（依水源）
+    const sources = rowsOf(inv, 'waterSources');
+    const bySrc = new Map();
+    const srcBucket = (id) => {
+      const key = id && sources.some((s) => s.id === id) ? id : '';
+      if (!bySrc.has(key)) {
+        const s = sources.find((x) => x.id === key);
+        bySrc.set(key, { id: key || null, name: s?.name || '未指定水源', type: s?.sourceType || '', accountNo: s?.accountNo || '', freshness: s?.freshness || '', waterBody: s?.waterBody || '', months: zeros(), items: [] });
+      }
+      return bySrc.get(key);
+    };
+    for (const s of sources) srcBucket(s.id);
+    const intakeM = zeros();
+    for (const x of intakeItems) {
+      const b = srcBucket(x.item.waterSourceId);
+      const ms = amountMonths(x);
+      ms.forEach((v, i) => { addM(b.months, i, v); addM(intakeM, i, v); });
+      b.items.push({ pointCode: x.point.code, itemId: x.item.id, label: x.item.label });
+    }
+    const W = sumM(intakeM);
+    const bySource = [...bySrc.values()].filter((b) => b.id || b.items.length).map((b) => {
+      const total = sumM(b.months);
+      return { ...b, months: b.months.map(r3), total: r3(total), share: W && total !== undefined ? round(total / W * 100, 1) : undefined };
+    });
+    const replaceTotal = bySource.filter((b) => REPLACE_TYPES.includes(b.type)).reduce((s, b) => (b.total === undefined ? s : (s || 0) + b.total), undefined);
+
+    // 排放（依排放口）
+    const dests = rowsOf(inv, 'waterDischarges');
+    const byDest = new Map();
+    const dBucket = (id) => {
+      const key = id && dests.some((d) => d.id === id) ? id : '';
+      if (!byDest.has(key)) {
+        const d = dests.find((x) => x.id === key);
+        byDest.set(key, { id: key || null, name: d?.name || '未指定排放口', destination: d?.destination || '', receivingBody: d?.receivingBody || '', permitNo: d?.permitNo || '', months: zeros(), items: [] });
+      }
+      return byDest.get(key);
+    };
+    for (const d of dests) dBucket(d.id);
+    const disM = zeros();
+    let dischargeMeasured = false;
+    for (const x of tagged.filter((y) => y.item.waterFlow === 'discharge')) {
+      dischargeMeasured = true;
+      const b = dBucket(x.item.waterDischargeId);
+      amountMonths(x).forEach((v, i) => { addM(b.months, i, v); addM(disM, i, v); });
+      b.items.push({ pointCode: x.point.code, itemId: x.item.id, label: x.item.label });
+    }
+    const D = sumM(disM);
+    const byDestination = [...byDest.values()].filter((b) => b.id || b.items.length).map((b) => ({ ...b, months: b.months.map(r3), total: r3(sumM(b.months)) }));
+
+    // 回收再利用
+    const reuseM = zeros();
+    for (const x of tagged.filter((y) => y.item.waterFlow === 'reuse')) amountMonths(x).forEach((v, i) => addM(reuseM, i, v));
+    const R = sumM(reuseM);
+
+    // 用水單元
+    const unitRows = rowsOf(inv, 'waterUnits');
+    const useBy = new Map();
+    for (const x of tagged.filter((y) => y.item.waterFlow === 'use')) {
+      const key = x.item.waterUnitId && unitRows.some((u) => u.id === x.item.waterUnitId) ? x.item.waterUnitId : '';
+      const cur = useBy.get(key) || { months: zeros(), items: [] };
+      amountMonths(x).forEach((v, i) => addM(cur.months, i, v));
+      cur.items.push({ pointCode: x.point.code, itemId: x.item.id, label: x.item.label });
+      useBy.set(key, cur);
+    }
+    let meteredSum;
+    const units = unitRows.map((u) => {
+      const m = useBy.get(u.id);
+      const metered = !!m;
+      let use = metered ? sumM(m.months) : undefined;
+      let estimated = false;
+      if (!metered && num(u.estimatedShare) !== undefined && W !== undefined) { use = W * num(u.estimatedShare) / 100; estimated = true; }
+      if (metered && use !== undefined) meteredSum = (meteredSum || 0) + use;
+      const cp = num(u.consumptionPct);
+      return {
+        id: u.id, name: u.name || u.kind || u.id, kind: u.kind || '', building: u.building || '', useForm: u.useForm || '', significant: !!u.significant,
+        metered, estimated, use: r3(use), months: metered ? m.months.map(r3) : zeros(), share: W && use !== undefined ? round(use / W * 100, 1) : undefined,
+        consumptionPct: cp, consumption: use !== undefined && cp !== undefined ? r3(use * cp / 100) : undefined, items: m?.items || [],
+      };
+    });
+    const orphan = useBy.get('');
+    if (orphan) {
+      const use = sumM(orphan.months);
+      if (use !== undefined) meteredSum = (meteredSum || 0) + use;
+      units.push({ id: null, name: '未指定用水單元', kind: '', metered: true, estimated: false, use: r3(use), months: orphan.months.map(r3), share: W && use !== undefined ? round(use / W * 100, 1) : undefined, items: orphan.items });
+    }
+    const unmetered = W !== undefined ? r3(W - (meteredSum || 0)) : undefined;
+
+    // 消耗量：有排放量 → 質量平衡；沒有 → 用水單元消耗比例估算
+    let consumption;
+    if (W !== undefined && D !== undefined) {
+      const v = W - D;
+      // 排放有缺月時質量平衡會高估消耗：照算但提示
+      const mi = intakeM.filter((x) => x !== undefined).length, md = disM.filter((x) => x !== undefined).length;
+      const gap = md < mi ? `（排放只有 ${md} 個月資料、取水 ${mi} 個月，消耗量會偏高）` : '';
+      consumption = { value: r3(v), method: 'balance', msg: `消耗量＝取水 ${C_fmt(W)} − 排放 ${C_fmt(D)} ＝ ${C_fmt(v)} m³${v < 0 ? '（排放大於取水，請檢查讀數或是否有未登錄的水源）' : gap}`, level: v < 0 || gap ? 'warn' : 'ok' };
+    } else {
+      const est = units.filter((u) => u.consumption !== undefined);
+      if (W !== undefined && est.length) {
+        const v = est.reduce((s, u) => s + u.consumption, 0);
+        consumption = { value: r3(v), method: 'units', msg: `排放量未量測，依 ${est.length} 個用水單元的消耗比例估算：${C_fmt(v)} m³（估算）`, level: 'warn' };
+      } else consumption = { value: undefined, method: null, msg: '排放量未量測，用水單元也沒有消耗比例，算不出消耗量', level: 'na' };
+    }
+    consumption.source = WSRC.consumption;
+
+    // 水質（依排放口 × 項目）
+    const qmap = new Map();
+    for (const x of tagged.filter((y) => y.item.waterFlow === 'quality')) {
+      const param = x.item.waterParam || x.item.label;
+      const key = `${x.item.waterDischargeId || ''}|${param}`;
+      const q = qmap.get(key) || { dischargeId: x.item.waterDischargeId || null, dischargeName: dests.find((d) => d.id === x.item.waterDischargeId)?.name || '未指定排放口', param, unit: x.item.unit || '', values: [] };
+      for (const r of recsOf(x.point.code)) { const v = num(r.values?.[x.item.id]); if (v !== undefined) q.values.push({ v, period: r.period, at: r.at }); }
+      qmap.set(key, q);
+    }
+    const quality = [...qmap.values()].map((q) => {
+      const vs = q.values.map((x) => x.v);
+      const last = q.values.slice().sort((a, b) => (String(a.at) < String(b.at) ? 1 : -1))[0];
+      return { dischargeId: q.dischargeId, dischargeName: q.dischargeName, param: q.param, unit: q.unit, n: vs.length,
+        min: vs.length ? Math.min(...vs) : undefined, max: vs.length ? Math.max(...vs) : undefined,
+        avg: vs.length ? round(vs.reduce((a, b) => a + b, 0) / vs.length, 3) : undefined, last: last?.v, lastPeriod: last?.period };
+    });
+
+    // 節水改善回報
+    const savings = [];
+    for (const x of tagged.filter((y) => y.item.waterFlow === 'saving')) {
+      for (const r of recsOf(x.point.code)) {
+        const v = num(r.values?.[x.item.id]);
+        const texts = (x.point.items || []).filter((i) => i.type === 'text').map((i) => r.values?.[i.id]).filter(Boolean);
+        if (v === undefined && !texts.length) continue;
+        const u = unitRows.find((y) => y.id === x.item.waterUnitId);
+        savings.push({ period: r.period, at: r.at, pointCode: x.point.code, pointName: x.point.name, action: texts.join('；'), saving: v, unitName: u?.name || '', who: r.who || '', note: r.note || '' });
+      }
+    }
+
+    return {
+      year: Y,
+      intake: { total: r3(W), months: intakeM.map(r3), bySource, inferred, replace: r3(replaceTotal), replacePct: W && replaceTotal !== undefined ? round(replaceTotal / W * 100, 1) : undefined, source: WSRC.intake },
+      discharge: { total: r3(D), months: disM.map(r3), byDestination, measured: dischargeMeasured, source: WSRC.discharge },
+      reuse: { total: r3(R), months: reuseM.map(r3), rate: R !== undefined && (W || 0) + R > 0 ? round(R / ((W || 0) + R) * 100, 1) : undefined, source: WSRC.reuse },
+      consumption,
+      units, unmetered, unitsSource: WSRC.units,
+      quality, qualitySource: WSRC.quality,
+      savings, savingTotal: r3(savings.reduce((s, x) => (x.saving === undefined ? s : (s || 0) + x.saving), undefined)), savingSource: WSRC.saving,
+      badUnits,
+      untagged: all.filter((x) => !x.item.waterFlow && (x.item.type === 'reading' || x.item.type === 'number')).map((x) => ({ pointCode: x.point.code, pointName: x.point.name, itemId: x.item.id, label: x.item.label })),
+      source: WSRC.inventory,
+    };
+  }
+  // 訊息裡的數字（共用 fmt 沒有對外，這裡用 round＋千分位自做）
+  function C_fmt(v) { if (v === undefined) return '—'; const [i, f] = String(round(v, 2)).split('.'); return i.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (f ? '.' + f : ''); }
+
+  // 營運活動資料（site.waterActivity 該年那一筆；樓地板面積空白用表三第 18 欄）
+  function waterActivityOf(inv, year) {
+    const Y = num(year);
+    const row = rowsOf(inv, 'waterActivity').find((a) => num(a.year) === Y || (num(a.year) !== undefined && num(a.year) + 1911 === Y));
+    const fa = num(row?.floorArea) ?? num(inv?.site?.basic?.floorArea);
+    return row ? { ...row, floorArea: fa, floorAreaFrom: num(row.floorArea) !== undefined ? 'waterActivity' : (fa !== undefined ? 'basic' : null) } : (fa !== undefined ? { year: Y, floorArea: fa, floorAreaFrom: 'basic', partial: true } : null);
+  }
+  // 報告單位（範疇勾的）→ 指標 id；都沒勾＝全部
+  function waterIndicatorIds(scope) {
+    const picked = (Array.isArray(scope?.reportingUnits) ? scope.reportingUnits : []).map((l) => WATER_INDICATORS.find((x) => x.label === l)?.id).filter(Boolean);
+    return picked.length ? picked : WATER_INDICATORS.map((x) => x.id);
+  }
+
+  // ── 用水績效指標（ISO 46001 3.4、6.2.6）──
+  function waterPerformance({ intake, activity, ids } = {}) {
+    const W = num(intake);
+    const use = ids && ids.length ? WATER_INDICATORS.filter((x) => ids.includes(x.id)) : WATER_INDICATORS;
+    return use.map((x) => {
+      const d = x.denom(activity);
+      const base = { id: x.id, label: x.label, unit: x.unit, denominator: d, denomLabel: x.denomLabel, source: WSRC.indicator };
+      if (W === undefined) return { ...base, ok: null, level: 'na', value: undefined, msg: `${x.label}：沒有取水量，算不出` };
+      if (!d) return { ...base, ok: null, level: 'na', value: undefined, msg: `${x.label}：缺${x.denomLabel}，算不出` };
+      const v = round((x.per === 'L' ? W * 1000 : W) / d, 3);
+      return { ...base, ok: true, level: 'ok', value: v, msg: `${x.label}用水 ${C_fmt(v)} ${x.unit}` };
+    });
+  }
+
+  // ── 與基線比較（ISO 46001 3.2、6.2.7、6.3）──
+  function waterBaselineCompare(curr, base, { targetPct } = {}) {
+    const T = num(targetPct);
+    return (curr || []).map((c) => {
+      const b = (base || []).find((x) => x.id === c.id);
+      const out = { id: c.id, label: c.label, unit: c.unit, value: c.value, baseline: b?.value, source: WSRC.baseline };
+      if (c.value === undefined || b?.value === undefined || !b.value) return { ...out, ok: null, level: 'na', diffPct: undefined, met: undefined, msg: `${c.label}：本年或基線年缺資料，無法比較` };
+      const diff = round((c.value - b.value) / b.value * 100, 1);
+      const met = T === undefined ? undefined : diff <= -T;
+      const dir = diff > 0 ? `增加 ${diff}%` : diff < 0 ? `減少 ${-diff}%` : '持平';
+      const msg = `${c.label}較基線${dir}${T === undefined ? '' : met ? `，已達目標（降低 ${T}%）` : `，未達目標（降低 ${T}%）`}`;
+      return { ...out, diffPct: diff, met, ok: met === undefined ? diff <= 0 : met, level: (met === false || (met === undefined && diff > 0)) ? 'warn' : 'ok', msg };
+    });
+  }
+
+  // ── 資料完整度（ISO 14046 4.8、5.2.4）──
+  function waterCompleteness(inv, flows, { activity, baselineYear, baselineFlows } = {}) {
+    const checks = [];
+    const add = (key, label, ok, msg) => checks.push({ key, label, ok: !!ok, msg, source: WSRC.completeness });
+    const scope = inv?.site?.waterScope || {};
+    const months = flows.intake.months.filter((v) => v !== undefined).length;
+    const all = waterItems(inv);
+    const has = (f) => all.some((x) => x.item.waterFlow === f);
+    add('scope', '範疇必填（目的、系統邊界、報告單位、基線年）', scope.goal && scope.boundary && Array.isArray(scope.reportingUnits) && scope.reportingUnits.length && scope.baselineYear,
+      '請到初始建檔「水足跡範疇與基線」填目的、系統邊界、報告單位、基線年');
+    add('intakeTagged', '有標示「取水」的點位項目', has('intake'), flows.intake.inferred ? '沒有項目標「取水」，目前以水類點位的讀數推定；請在點位項目設定流向' : '請建立自來水總表等取水點位（可套用範本）');
+    add('months', `取水 12 個月都有資料（目前 ${months}/12）`, months === 12, `取水只有 ${months} 個月有資料`);
+    const srcs = rowsOf(inv, 'waterSources');
+    const unlinked = srcs.filter((s) => !all.some((x) => x.item.waterSourceId === s.id));
+    add('sources', '每個水源都有點位量測', srcs.length && !unlinked.length, srcs.length ? `尚未連到點位的水源：${unlinked.map((s) => s.name || s.id).join('、')}` : '尚未登錄水源');
+    const sig = rowsOf(inv, 'waterUnits').filter((u) => u.significant);
+    const sigNo = flows.units.filter((u) => u.id && u.significant && !u.metered);
+    add('units', '主要用水單元都有分表', sig.length && !sigNo.length, sig.length ? `沒有分表的主要用水單元：${sigNo.map((u) => u.name).join('、')}（目前用估計占比）` : '尚未標示主要用水單元');
+    add('discharge', '排放量有量測', flows.discharge.measured, '沒有「排放」點位項目：消耗量只能估算');
+    add('activity', '營運活動資料（本年）', activity && !activity.partial, '請到初始建檔「營運活動資料」填本年住院人日、門急診人次、員工');
+    add('baseline', '基線年有取水資料', baselineYear && baselineFlows && baselineFlows.intake.total !== undefined, baselineYear ? `基線年 ${baselineYear} 沒有取水資料` : '尚未設定基線年');
+    const needQ = rowsOf(inv, 'waterDischarges').flatMap((d) => (d.qualityParams || []).map((p) => ({ d, p })));
+    const missQ = needQ.filter(({ d, p }) => !flows.quality.some((q) => q.dischargeId === d.id && q.param === p && q.n > 0));
+    add('quality', '排放口登錄的水質項目都有抽測值', !missQ.length, needQ.length ? `沒有抽測值：${missQ.map(({ d, p }) => `${d.name || d.id}·${p}`).join('、')}` : '排放口沒有登錄水質檢測項目');
+    add('units-ok', '點位項目單位可換算成 m³', !flows.badUnits.length, `單位認不得：${flows.badUnits.map((b) => `${b.pointCode}「${b.label}」(${b.unit})`).join('、')}`);
+    const okN = checks.filter((c) => c.ok).length;
+    return { pct: round(okN / checks.length * 100, 0), passed: okN, total: checks.length, monthsCovered: months, checks, source: WSRC.completeness };
+  }
+
+  // ── 整合：一年的水足跡盤查 ──
+  function waterInventory(inv, { year } = {}) {
+    const Y = num(year);
+    const scope = inv?.site?.waterScope || {};
+    const flows = waterFlows(inv, { year: Y });
+    const activity = waterActivityOf(inv, Y);
+    const ids = waterIndicatorIds(scope);
+    const performance = waterPerformance({ intake: flows.intake.total, activity, ids });
+    let BY = num(scope.baselineYear);
+    if (BY !== undefined && BY < 1911) BY += 1911;
+    let baseline = null;
+    if (BY !== undefined) {
+      const bf = BY === Y ? flows : waterFlows(inv, { year: BY });
+      const ba = waterActivityOf(inv, BY);
+      const bp = waterPerformance({ intake: bf.intake.total, activity: ba, ids });
+      baseline = { year: BY, flows: { intake: bf.intake.total }, rawFlows: bf, activity: ba, performance: bp, compare: waterBaselineCompare(performance, bp, { targetPct: scope.targetPct }), source: WSRC.baseline };
+    }
+    const completeness = waterCompleteness(inv, flows, { activity, baselineYear: BY, baselineFlows: baseline?.rawFlows });
+    if (baseline) delete baseline.rawFlows;
+    return { year: Y, scope, flows, activity, performance, baseline, completeness, source: WSRC.inventory };
+  }
+
+  Object.assign(C, {
+    waterUnitFactor, waterItemAmount, waterFlows, waterActivityOf, waterIndicatorIds, waterPerformance, waterBaselineCompare, waterCompleteness, waterInventory,
+    WATER_INDICATORS: WATER_INDICATORS.map(({ id, label, unit, denomLabel }) => ({ id, label, unit, denomLabel })),
+    WATER_SOURCES: WSRC,
+  });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -8,6 +8,8 @@
 // 電費單），院方要能在管理端自己加點位、改欄位。寫死一次就要改一次程式。
 import { z } from 'zod';
 import { coerce, blockById, pendingCells, validateAudit } from './audit-schema.js';
+// 水足跡盤查（工作清單 23）：水的初始建檔區塊、點位項目水屬性、用水點位範本
+import { WATER_SITE_BLOCKS, WATER_SPEC, waterItemErrors } from './water-schema.js';
 
 // ── 欄位型別（site 區塊與設備主檔共用）──
 // year：西元年；輸入 3 位數以下視為民國年自動 +1911（各表原文多用民國年，院方兩種都會填）。
@@ -78,12 +80,12 @@ const METER_FIELDS = [
   { key: 'seq', label: '序號', type: 'number', group: '電號資料' },
   { key: 'meterNo', label: '電號', type: 'text', required: true, group: '電號資料' },
   // 新版每個電號 5 種契約容量（舊版只有經常契約容量一欄）
-  { key: 'contractKw', label: '經常契約容量', type: 'number', unit: 'kW', required: true, group: '契約容量', hint: 'R1：同一登記主體合計 > 800 瓩即為能源用戶' },
+  { key: 'contractKw', label: '經常契約容量', type: 'number', unit: 'kW', required: true, group: '契約容量', hint: 'R1：任一電號 > 800 瓩即為能源用戶（以單一電號判定，不合併計算）' },
   { key: 'contractHalfPeakKw', label: '半尖峰／非夏月契約容量', type: 'number', unit: 'kW', group: '契約容量' },
   { key: 'contractSatHalfPeakKw', label: '週六半尖峰契約容量', type: 'number', unit: 'kW', group: '契約容量' },
   { key: 'contractOffPeakKw', label: '離峰契約容量', type: 'number', unit: 'kW', group: '契約容量' },
   { key: 'contractStandbyKw', label: '備用契約容量', type: 'number', unit: 'kW', group: '契約容量' },
-  { key: 'combined', label: '合併申報', ...YES, group: '合併申報', hint: '須先依附錄二申請核准' },
+  { key: 'combined', label: '合併申報', ...YES, group: '合併申報', hint: '須先依附錄二申請核准；只作附表三表三與附錄二的輸出資料，不影響 R1 判定' },
   { key: 'combinedApproval', label: '合併申報核准文號', type: 'text', group: '合併申報' },
   { key: 'accountName', label: '戶名', type: 'text', group: '表五之二 表頭' },
   { key: 'tariffType', label: '契約用電別', type: 'text', group: '表五之二 表頭', hint: '例：高壓三段式時間電價' },
@@ -197,13 +199,13 @@ export const EXEMPTION_CODES = [
   { code: 'EX11', label: '其他經中央主管機關認定之用戶' },
 ];
 const EXEMPTION_FIELDS = [
-  { key: 'combinedContractKw', label: '同一登記主體契約容量合計', type: 'number', unit: 'kW', hint: 'R1；留白則以「電號」區塊加總' },
+  { key: 'combinedContractKw', label: '同一登記主體契約容量合計', type: 'number', unit: 'kW', hint: '僅供附錄二合併申報參考；R1 一律以單一電號判定，不用這個合計（業主 2026-10-22）' },
   { key: 'exempt', label: '符合排除條件', ...YES },
   { key: 'exemptCode', label: '排除條件', type: 'select', options: EXEMPTION_CODES.filter((e) => e.applicable !== false).map((e) => e.code), optionLabels: Object.fromEntries(EXEMPTION_CODES.map((e) => [e.code, e.label])) },
   { key: 'reason', label: '理由', type: 'text', hint: '符合排除條件時必填' },
   { key: 'evidence', label: '佐證文件', type: 'text' },
   { key: 'approvalDate', label: '能源使用說明書核准日', type: 'date', hint: 'EX08：自動算 5 年到期日' },
-  { key: 'isoValidUntil', label: 'ISO 50001 證書效期', type: 'date', hint: 'EX10：到期提醒' },
+  { key: 'isoValidUntil', label: 'ISO 50001 證書效期', type: 'date', hint: 'EX10：與「能源政策」的證書效期是同一件事，留白即沿用那裡的值（只需填一處）' },
 ];
 
 // 欄位群（field.group）各自的依據。未列到的群組沿用區塊的 source。
@@ -225,8 +227,10 @@ export const SITE_BLOCKS = [
   { id: 'staff', label: '能管人員', source: A3('一、填表人員；二、其他技師或能管人員', '契約容量 > 100,000 瓩須 ≥2 名、≥1 名自置（R9）'), kind: 'table', rowLabel: '人員', private: true, fields: STAFF_FIELDS },
   { id: 'org', label: '能源查核組織', source: A3('表四之一', '管理／推行／執行三階層須齊全；管理不得兼推行或執行'), kind: 'table', rowLabel: '成員', fields: ORG_FIELDS },
   { id: 'policy', label: '能源政策', source: A3('表四之二', '已通過 ISO 50001 → 第 2–5 題免填（R9）'), kind: 'form', fields: POLICY_FIELDS },
-  { id: 'exemption', label: '能源用戶判定與排除條件', source: { doc: '114–117 年節約能源目標及執行計畫規定', ref: 'R1 能源用戶判定、R2 排除條件', law: LAW_TARGET, spec: '§2', note: '契約用電容量 > 800 瓩；同一商工登記主體合併計算。國軍醫院不適用 EX01（業主 2026-10-22 確認）' }, kind: 'form', fields: EXEMPTION_FIELDS },
+  { id: 'exemption', label: '能源用戶判定與排除條件', source: { doc: '114–117 年節約能源目標及執行計畫規定', ref: 'R1 能源用戶判定、R2 排除條件', law: LAW_TARGET, spec: '§2', note: '契約用電容量 > 800 瓩；以單一電號判定，不合併計算（業主 2026-10-22）。國軍醫院不適用 EX01（業主 2026-10-22 確認）' }, kind: 'form', fields: EXEMPTION_FIELDS },
 ];
+// 水足跡盤查的區塊（水源、用水單元、排放、範疇與基線、營運活動）接在最後；navGroup 讓管理端另成一組
+SITE_BLOCKS.push(...WATER_SITE_BLOCKS);
 export const siteBlockById = (id) => SITE_BLOCKS.find((b) => b.id === id) || null;
 
 // ════════════════════════════════════════════════════════════════
@@ -317,6 +321,9 @@ const OTHER_FIELDS = [
   { key: 'boilerEnergyType', label: '能源種類', type: 'select', options: ['燃料油', '液化石油氣', '天然氣', '柴油', '電力'], group: '鍋爐操作概況', kinds: ['鍋爐'] },
   { key: 'boilerAnnualUse', label: '年度使用量', type: 'number', group: '鍋爐操作概況', kinds: ['鍋爐'], hint: '單位依能源種類：燃料油、柴油 公秉；液化石油氣 公斤；天然氣 立方公尺；電力 度' },
   { key: 'boilerOpStatus', label: '操作狀態', type: 'select', options: ['正常使用中', '已無操作', '平時不使用設備維修時使用'], group: '鍋爐操作概況', kinds: ['鍋爐'] },
+  // 表九之五 重大使用能源設備（陸用燃煤／燃油／燃氣蒸汽鍋爐，不含貫流式）：設備的屬性，跟著設備主檔存一次（工作清單 24）
+  { key: 'opManagement', label: '操作管理現況', type: 'select', options: ['依標準程序', '依使用者經驗'], group: '重大使用能源設備', kinds: ['鍋爐'], source: A3('表九之五') },
+  { key: 'maintenance', label: '實施設備維護現況', type: 'select', options: ['定期', '不定期'], group: '重大使用能源設備', kinds: ['鍋爐'], source: A3('表九之五') },
 ];
 
 export const EQUIPMENT_CATEGORIES = [
@@ -336,7 +343,7 @@ export const EQUIPMENT_CATEGORIES = [
     id: 'other', label: '其他系統', source: A3('表九之三', '鍋爐、熱泵型式有固定選項；變頻與電力回生僅電梯'),
     kinds: ['冷凍冷藏', '事務設備', '送排風', '給水污水', '電梯', '鍋爐', '熱泵', '壓縮空氣', '其他'],
     fields: OTHER_FIELDS,
-    groups: groupsOf(OTHER_FIELDS, { '': A3('表九之三'), 馬達資料: A3('表九之三', '泵浦、風車、電梯必填'), 鍋爐操作概況: A3('表九之六', '能源種類含電力（新版）') }),
+    groups: groupsOf(OTHER_FIELDS, { '': A3('表九之三'), 馬達資料: A3('表九之三', '泵浦、風車、電梯必填'), 鍋爐操作概況: A3('表九之六', '能源種類含電力（新版）'), 重大使用能源設備: A3('表九之五', '陸用燃煤／燃油／燃氣蒸汽鍋爐（不含貫流式）') }),
   },
 ];
 export const categoryById = (id) => EQUIPMENT_CATEGORIES.find((c) => c.id === id) || null;
@@ -440,6 +447,12 @@ const itemSchema = z.object({
   // 量的是月耗電量（kwh）還是系統負荷（rth）。2026-10-22 報表項目新增，舊點位沒有這兩個鍵也照常通過。
   chillerGroup: z.string().trim().min(1).max(60).optional(),
   chillerRole: z.enum(['kwh', 'rth']).optional(),
+  // 水足跡盤查（water-schema.js）：流向與連結。2026-10-22 新增，只限水類點位；舊點位沒有這些鍵照常通過。
+  waterFlow: z.enum(['intake', 'use', 'discharge', 'reuse', 'quality', 'saving']).optional(),
+  waterSourceId: z.string().max(60).optional(),
+  waterUnitId: z.string().max(60).optional(),
+  waterDischargeId: z.string().max(60).optional(),
+  waterParam: z.string().trim().min(1).max(20).optional(),
 }).strict();
 
 const pointSchema = z.object({
@@ -472,6 +485,7 @@ export function validatePoint(point, inv) {
     if (it.chillerRole && it.type !== 'reading' && it.type !== 'number') errors.push(`「${it.label}」只有累計讀數或一般數值能標成冰水機群組的 kWh／RTh`);
     if (it.equipmentId && inv && !inv.equipment.some((e) => e.id === it.equipmentId)) errors.push(`「${it.label}」連結的設備不存在：${it.equipmentId}`);
     if (it.meterId && inv && !(inv.site.meters || []).some((m) => m.id === it.meterId)) errors.push(`「${it.label}」連結的電號不存在：${it.meterId}`);
+    errors.push(...waterItemErrors(p, it, inv));
   }
   return errors.length ? { ok: false, errors } : { ok: true, point: p };
 }
@@ -779,6 +793,7 @@ export const CHANGE_KINDS = {
   'staff': '人員異動',
   'site': '初始建檔資料修改',
   'point': '點位異動',
+  'point.import': '點位批次匯入',
   'measure.done': '措施完工',
   'plan.change': '計畫變更',
   'other': '其他',
@@ -873,6 +888,7 @@ export const inventorySpec = {
   chillerRoles: { kwh: '月耗電量（kWh）', rth: '系統負荷（RTh）' },
   measureCodes: MEASURE_CODES,
   reporter: { max: REPORTER_MAX, storageKey: REPORTER_STORAGE_KEY },
+  water: WATER_SPEC,   // 水足跡盤查：流向、範本、報告單位（舊後端沒有這個鍵，前端據此隱藏水的功能）
 };
 
 // ── 空白骨架 ──

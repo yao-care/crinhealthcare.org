@@ -84,14 +84,23 @@ test('R1：契約容量 > 800 瓩為能源用戶，剛好 800 不是', () => {
   assert.equal(C.energyUserCheck({}).ok, null);
 });
 
-test('R1：合併計算參數', () => {
-  const meters = [{ contractKw: 500 }, { contractKw: 400 }];
-  const sep = C.energyUserCheck({ meters, combine: false });
-  assert.equal(sep.value, false);
-  assert.equal(sep.basisKw, 500);
-  const comb = C.energyUserCheck({ meters, combine: true });
-  assert.equal(comb.value, true);
-  assert.equal(comb.basisKw, 900);
+test('R1：一律以單一電號判定，不合併計算（業主 2026-10-22）', () => {
+  // 合計 900 > 800，但每個電號都 ≤ 800 → 不是能源用戶；勾了合併申報、傳 combine 也一樣
+  const meters = [{ meterNo: '01', contractKw: 500, combined: true }, { meterNo: '02', contractKw: 400, combined: true }];
+  for (const r of [C.energyUserCheck({ meters }), C.energyUserCheck({ meters, combine: true })]) {
+    assert.equal(r.value, false);
+    assert.equal(r.basisKw, 500);
+    assert.equal(r.combine, false);
+    assert.match(r.msg, /不合併計算/);
+  }
+  // 任一電號 > 800 即為能源用戶，並指出是哪個電號
+  const one = C.energyUserCheck({ meters: [{ meterNo: '01', contractKw: 300 }, { meterNo: '02', contractKw: 801 }] });
+  assert.equal(one.value, true);
+  assert.deepEqual(one.overMeters, ['02']);
+  assert.match(one.msg, /電號 02/);
+  // R1＋R2 也照單一電號
+  assert.equal(C.energyUserStatus({ meters, combine: true, exclusions: [] }).value, false);
+  assert.match(C.energyUserCheck({ meters }).source.note, /不合併/);
 });
 
 test('R2 EX08：核准日 +5 年內成立，到期日當天仍成立，隔天失效', () => {
@@ -481,6 +490,6 @@ test('依據：每條規則與期限的結果都帶 source', () => {
   }
   assert.match(C.upcomingDeadlines('2026-10-22').find((d) => d.key === 'first-period').source.ref, /第四點/);
   // 沒漏包：規則函式數＝上面清單＋recordUsage／upcomingDeadlines
-  const ruleFns = Object.keys(C).filter((k) => typeof C[k] === 'function' && !['num', 'round', 'rocToAd', 'adToRoc', 'toRocYear', 'parseDate', 'toIso', 'toRocDate', 'daysBetween', 'addYears', 'replaceCategory', 'equipmentReplaceCategory', 'recordUsage', 'upcomingDeadlines'].includes(k));
+  const ruleFns = Object.keys(C).filter((k) => typeof C[k] === 'function' && !['num', 'round', 'rocToAd', 'adToRoc', 'toRocYear', 'parseDate', 'toIso', 'toRocDate', 'daysBetween', 'addYears', 'replaceCategory', 'equipmentReplaceCategory', 'recordUsage', 'upcomingDeadlines'].includes(k) && !k.startsWith('water'));   // water*：水足跡盤查，source 在 test/water.test.js 檢查
   assert.deepEqual(ruleFns.sort(), Object.keys(calls).sort());
 });

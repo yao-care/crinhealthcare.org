@@ -11,6 +11,8 @@ import {
   materialize, measuresView, plansView, measureView, planView, reportYearOf, diagnosisOf, todayIso, r6For,
 } from './report-model.js';
 import { buildAnnex3, buildDiagnosis, buildPlan, toXlsx } from './report-xlsx.js';
+import { buildWater } from './report-water.js';   // 水足跡盤查清冊（工作清單 23）
+import { handleExport } from './report-export-routes.js';
 import '../public/inventory-compute.js';
 
 const C = globalThis.EMSInventoryCompute;
@@ -85,7 +87,7 @@ function sendXlsx(res, buf, filename) {
   return true;
 }
 
-const BUILDERS = { annex3: buildAnnex3, diagnosis: buildDiagnosis, plan: buildPlan };
+const BUILDERS = { annex3: buildAnnex3, diagnosis: buildDiagnosis, plan: buildPlan, water: buildWater };
 
 export async function handleReport({ req, res, sess, kind, json, readBody, originOk, readInventory }) {
   const hid = sess.hid;
@@ -109,6 +111,10 @@ export async function handleReport({ req, res, sess, kind, json, readBody, origi
     A = { who: whoLabel(who(sess), rp.reporter), reporter: rp.reporter };
   }
 
+  // ── 匯出、年度報表資料、年度沿用（工作清單 24；src/report-export-routes.js）──
+  const exported = await handleExport({ res, sess, method, head, id, q, body, A, json, readInventory, today });
+  if (exported !== null) return exported;
+
   const run = async (fn, what) => {
     try {
       const r = await mutateInventory(hid, (inv) => { materialize(inv, reportYearOf(inv, today)); return fn(inv, reportYearOf(inv, today)); }, { who: A.who, what });
@@ -128,8 +134,9 @@ export async function handleReport({ req, res, sess, kind, json, readBody, origi
     const inv = await readInventory(hid);
     const year = q.get('year');
     if (head === 'annex3' && year !== null && !/^\d{2,3}$/.test(year)) return json(res, 400, { ok: false, error: 'bad_year', message: '資料年請填民國年，例：114' });
+    if (head === 'water' && year !== null && !/^\d{2,4}$/.test(year)) return json(res, 400, { ok: false, error: 'bad_year', message: '資料年請填民國年（例：114）或西元年' });
     const built = BUILDERS[head](inv, { year: year ? Number(year) : undefined, today, hospitalName: sess.name });
-    if (q.get('format') === 'json') return json(res, 200, { ok: true, filename: built.filename, sheets: built.sheets.map((s) => ({ name: s.name, source: s.source })), missing: built.missing });
+    if (q.get('format') === 'json') return json(res, 200, { ok: true, filename: built.filename, sheets: built.sheets.map((s) => ({ name: s.name, source: s.source })), missing: built.missing, ...(built.summary ? { summary: built.summary } : {}) });
     return sendXlsx(res, toXlsx(built), built.filename);
   }
   if (GET && head === 'missing' && !id) {
@@ -267,7 +274,9 @@ export async function handleReport({ req, res, sess, kind, json, readBody, origi
         const before = { ...(p.fields || {}) };
         const next = mergeFields(p.fields, input, n.values);
         const check = C.planRowCheck({ paybackYears: planView(p, inv, ry, 0).paybackYears, completionYear: next.completionYear, note: next.note, reportYear: ry });
-        if (check.ok === false) throw new HttpErr(422, { error: 'validation', rule: 'R7', details: check.issues, message: check.msg, source: check.source });
+        // 已完工的舊計畫（完工年度早於提報年度）沒動到完工年度／備註時不擋：要能補表十的執行資料（第 24 項）
+        const doneUntouched = next.status === '已完工' && ['completionYear', 'note'].every((k) => JSON.stringify(before[k]) === JSON.stringify(next[k]));
+        if (check.ok === false && !doneUntouched) throw new HttpErr(422, { error: 'validation', rule: 'R7', details: check.issues, message: check.msg, source: check.source });
         const keys = [...new Set([...Object.keys(before), ...Object.keys(next)])].filter((k) => JSON.stringify(before[k]) !== JSON.stringify(next[k]));
         if (!keys.length) return { plan: planView(p, inv, ry, inv.plans.indexOf(p) + 1), unchanged: true };
         // R8：已填過的值被改掉才是「變更」，要原因；空格第一次填寫不必

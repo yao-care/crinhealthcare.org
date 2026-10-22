@@ -84,7 +84,8 @@ test('規格：每個區塊、設備類別、項目類型都有中文標籤與�
     const keys = b.fields.map((f) => f.key);
     assert.equal(new Set(keys).size, keys.length, `${b.id} 欄位鍵重複`);
   }
-  assert.deepEqual(S.SITE_BLOCKS.map((b) => b.id), ['basic', 'meters', 'buildings', 'transformers', 'generators', 'staff', 'org', 'policy', 'exemption']);
+  // 附表三的 9 個區塊在前，水足跡盤查（工作清單 23）的 5 個區塊接在後面
+  assert.deepEqual(S.SITE_BLOCKS.map((b) => b.id), ['basic', 'meters', 'buildings', 'transformers', 'generators', 'staff', 'org', 'policy', 'exemption', 'waterScope', 'waterActivity', 'waterSources', 'waterUnits', 'waterDischarges']);
   assert.deepEqual(S.EQUIPMENT_CATEGORIES.map((c) => c.id), ['ac', 'lighting', 'other']);
   for (const c of S.EQUIPMENT_CATEGORIES) {
     assert.ok(c.kinds.length && c.source?.ref, `${c.id} 缺 kinds 或 source`);
@@ -360,7 +361,7 @@ test('API：停用的點位不能再填；spec 與整份資料讀得到', async 
   assert.equal(r.body.point.code, '803-E02');
 
   const s = await call('GET', '/api/inv/spec');
-  assert.equal(s.body.spec.site.length, 9);
+  assert.equal(s.body.spec.site.length, 14);   // 附表三 9 ＋ 水足跡盤查 5
   assert.ok(s.body.spec.site[0].source.law);
   const all = await call('GET', '/api/inv');
   assert.equal(all.body.inventory.points.length, 2);

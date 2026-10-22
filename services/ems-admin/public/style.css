@@ -1540,3 +1540,63 @@ a.i-btnlink.primary:hover { background: var(--color-primary-dark); }
 .r-year { max-width: 10rem; }
 .r-missing { margin-top: var(--space-md); }
 .r-misssheet ul { margin: var(--space-2xs) 0; padding-left: var(--space-xl); font-size: var(--text-sm); }
+
+/* ── 點位批次匯入預覽（第 25 項）：綠＝新增、藍＝更新、紅＝錯誤 ── */
+.i-pill.add { background: var(--color-primary-pale); color: var(--color-primary-dark); border-color: var(--color-accent); }
+.i-pill.upd { background: var(--color-info-pale); color: var(--color-info-dark); border-color: var(--color-info); }
+.i-import .i-kpis { grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); }
+.i-imptable td { vertical-align: top; }
+.i-imptable td:nth-child(2) { min-width: 12rem; }
+.i-imptable tr.i-imp-add td:first-child { box-shadow: inset 4px 0 0 var(--color-accent); }
+.i-imptable tr.i-imp-upd td:first-child { box-shadow: inset 4px 0 0 var(--color-info); }
+.i-imptable tr.i-imp-err td { background: var(--color-alert-pale); }
+.i-imptable tr.i-imp-err td:first-child { box-shadow: inset 4px 0 0 var(--color-alert-strong); }
+.i-imptable tr.i-imp-off td { color: var(--color-text-secondary); }
+.i-impnotes { margin: 0; padding-left: var(--space-lg); font-size: var(--text-xs); }
+.i-imp-err .i-impnotes { color: var(--color-alert-dark); }
+
+/* ── 申報與報告·匯出分頁（工作清單 24：申報對照、單表匯出、報表資料輸入、年度沿用） ── */
+.r-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2xs); border-bottom: 1px solid var(--color-border); }
+.r-tab { min-height: var(--tap); padding: 0 var(--space-md); border: 1px solid transparent; border-bottom: none; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: transparent; color: var(--color-text-secondary); font-weight: 600; cursor: pointer; }
+.r-tab:hover { background: var(--color-hover); }
+.r-tab.on { background: var(--color-paper); border-color: var(--color-border); color: var(--color-text); margin-bottom: -1px; }
+.r-yearbar { margin: 0; }
+.r-inline { display: inline-flex; align-items: center; gap: var(--space-xs); }
+.r-cardhead { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+.r-cardhead h3, .r-cardhead h4 { margin: 0; }
+.r-tocwrap { margin-top: var(--space-sm); }
+.r-toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: var(--space-2xs) var(--space-md); margin-top: var(--space-xs); }
+.r-toc a { display: inline-flex; align-items: center; gap: var(--space-xs); color: var(--color-info-dark); }
+.r-sheet { margin-top: var(--space-sm); }
+.r-flist { display: grid; gap: 0; }
+.r-fline { display: grid; grid-template-columns: minmax(10rem, 2fr) minmax(8rem, 2fr) auto; align-items: center; gap: var(--space-2xs) var(--space-sm); padding: var(--space-2xs) 0; border-bottom: 1px solid var(--color-border-soft); }
+.r-fline.r-fmiss .r-fname { color: var(--color-warn); }
+.r-fname { font-size: var(--text-sm); }
+.r-fval { min-width: 0; overflow-wrap: anywhere; }
+.r-fact { justify-self: end; }
+.r-fnote { grid-column: 1 / -1; }
+.r-copy { min-height: var(--tap); padding: 0 var(--space-sm); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); cursor: pointer; }
+.r-copy:hover { background: var(--color-hover); }
+.r-rows { display: grid; gap: var(--space-2xs); }
+.r-frow { border: 1px solid var(--color-border-soft); border-radius: var(--radius-sm); padding: var(--space-2xs) var(--space-sm); }
+.r-frow > summary { cursor: pointer; }
+.r-tlist { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2xs); }
+.r-tlist li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); padding: var(--space-2xs) 0; border-bottom: 1px solid var(--color-border-soft); }
+.r-tname { flex: 1 1 18rem; min-width: 0; }
+.r-anblock > summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; }
+.r-arow { border-top: 1px dashed var(--color-border-soft); padding-top: var(--space-xs); margin-top: var(--space-xs); }
+.r-tablewrap { overflow-x: auto; max-width: 100%; }
+.r-mtable { border-collapse: collapse; font-size: var(--text-sm); }
+.r-mtable th, .r-mtable td { border: 1px solid var(--color-border-soft); padding: var(--space-2xs); text-align: left; white-space: nowrap; }
+.r-mtable input { width: 7rem; }
+.r-checks-inline { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.r-subform { margin: var(--space-sm) 0; }
+.r-subform > summary { cursor: pointer; font-weight: 600; }
+.r-diff { margin: var(--space-xs) 0; padding-left: var(--space-xl); font-size: var(--text-sm); }
+.r-carry-stale { border-color: var(--color-alert-border); }
+.r-carry-confirmed { border-color: var(--color-border-soft); }
+.r-offscreen { position: fixed; left: -9999rem; top: 0; }
+@media (max-width: 40rem) {
+  .r-fline { grid-template-columns: 1fr auto; }
+  .r-fname { grid-column: 1 / -1; }
+}

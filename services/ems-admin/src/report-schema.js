@@ -102,6 +102,18 @@ export const PLAN_FIELDS = [
   { key: 'status', label: '計畫狀態', type: 'select', options: PLAN_STATUS, default: '規劃中', system: true },
   { key: 'actualDoneDate', label: '實際完工日期', type: 'date', system: true },
   { key: 'officialCode', label: '節約能源措施代碼', type: 'text', system: true, hint: '留白沿用措施的代碼；申報表十／十一用' },
+  // ── 附表三表十／表十一要的執行資料（工作清單 24：原本沒有來源的欄位）。同一筆計畫在表十（N 年執行）與表十一（N+1 年規劃）共用 ──
+  { key: 'beforeState', label: '改善前狀況', type: 'text', max: 2000, group: '申報表十／十一', source: T3('表十之一、表十一之一') },
+  { key: 'afterState', label: '改善後狀況（規劃時填預計）', type: 'text', max: 2000, group: '申報表十／十一' },
+  { key: 'execStart', label: '執行計畫期間·起', type: 'month', group: '申報表十／十一', hint: 'YYYY-MM 或民國 115-03' },
+  { key: 'execEnd', label: '執行計畫期間·迄', type: 'month', group: '申報表十／十一', hint: '表十之一最多 12 個月' },
+  { key: 'valueSource', label: '數值來源與單位說明', type: 'text', max: 2000, group: '申報表十／十一' },
+  { key: 'formula', label: '節能量計算方式', type: 'select', options: ['1', '2', '3'], optionLabels: { 1: '(1) 全年總耗能 × 提升效益% × 認列月數比例%', 2: '(2) Σ(功率 × 台數 × 運轉時數 × 負載率或使用率 × 認列月數比例) 改善前 − 改善後', 3: '(3) 文字說明' }, group: '申報表十／十一' },
+  { key: 'formulaText', label: '節能量計算說明', type: 'text', max: 2000, group: '申報表十／十一' },
+  { key: 'actualSaving', label: '實際總節能量', type: 'number', group: '申報表十／十一', hint: '單位同措施能源種類；留白以診斷預估值申報' },
+  { key: 'actualInvestment', label: '實際投資金額', type: 'number', unit: '元', group: '申報表十／十一', hint: '留白以診斷預估投資金額申報' },
+  { key: 'peakReductionKw', label: '抑低尖峰需量', type: 'number', unit: '瓩', group: '申報表十／十一' },
+  { key: 'manpower', label: '執行計畫所需人力', type: 'text', group: '申報表十／十一', hint: '表十一之一' },
 ];
 
 export const DIAGNOSIS_FIELDS = [
@@ -172,6 +184,14 @@ function normOne(f, raw) {
     case 'date': {
       const d = C.parseDate(raw);
       return d ? { value: C.toIso(d) } : { error: '日期格式錯誤（YYYY-MM-DD 或民國 115-03-31）' };
+    }
+    case 'month': {
+      // 存西元 YYYY-MM；民國 115-03 也收
+      const m = /^(\d{2,4})[-/.](\d{1,2})$/.exec(String(raw).trim());
+      if (!m) return { error: '月份格式錯誤（YYYY-MM 或民國 115-03）' };
+      const y = Number(m[1]) <= 1911 ? Number(m[1]) + 1911 : Number(m[1]), mo = Number(m[2]);
+      if (mo < 1 || mo > 12 || y < 1900 || y > 2100) return { error: '月份不合理' };
+      return { value: `${y}-${String(mo).padStart(2, '0')}` };
     }
     case 'boolean': return typeof raw === 'boolean' ? { value: raw } : { error: '必須是是／否' };
     case 'select': return f.options.includes(String(raw)) ? { value: String(raw) } : { error: `不在選項內（${f.options.join('／')}）` };

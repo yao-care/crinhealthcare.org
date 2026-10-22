@@ -21,6 +21,7 @@ import {
   readInventory, mutateInventory, newId, storePhoto, findPhoto, readPhoto, photoMime, inventoryHistory,
 } from './inventory-store.js';
 import { readRawBody, parseMultipart } from './upload-io.js';
+import { handlePointsImport } from './points-import.js';
 import { extractFile, extractionEnabled } from './extract.js';
 
 const RE_MONTH = /^\d{4}-\d{2}$/;
@@ -86,10 +87,11 @@ const isEmpty = (v) => v == null || (Array.isArray(v) ? v.length === 0 : typeof 
 // 貼紙頁頁尾那一行依據（工作清單第 21 項：貼紙頁只放一行）
 function pointSource(point) {
   const types = new Set(point.items.map((i) => i.type));
+  // 水類點位：ISO 14046 5.3 水足跡盤查、ISO 46001 9.1 監測量測（docs/water-footprint-spec.md；非附表三申報欄位）
   const text = point.domain === 'water'
-    ? '依據：院內水足跡紀錄（非附表三申報欄位）'
+    ? '依據：ISO 14046 5.3 水足跡盤查、ISO 46001 9.1 監測與量測（院內紀錄，非附表三申報欄位）'
     : `依據：能源查核制度申報表 附表三${types.has('reading') || types.has('bill') ? ' 表五之二' : ''}${types.has('status') ? '、表九之五' : ''}（${SOURCES.LAW_ANNEX3}）`;
-  return { doc: point.domain === 'water' ? '院內紀錄' : '附表三', law: point.domain === 'water' ? undefined : SOURCES.LAW_ANNEX3, text };
+  return { doc: point.domain === 'water' ? 'ISO 14046:2014／ISO 46001:2019' : '附表三', ...(point.domain === 'water' ? { ref: '5.3／9.1' } : {}), law: point.domain === 'water' ? undefined : SOURCES.LAW_ANNEX3, text };
 }
 
 // 點位對外的樣子：補上解析後的狀態選項、設備名稱與電號（貼紙頁只顯示設備名稱，型號容量不出現）
@@ -165,6 +167,11 @@ export async function handleInventory({ req, res, sess, pathname, json, readBody
   // 操作人姓名：格式錯回 null（呼叫端回 422）
   const actorFrom = (body) => { const r = parseReporter(body?.reporter); return r.ok ? actorOf(sess, r.reporter) : null; };
   const badReporter = () => json(res, 422, { ok: false, error: 'validation', details: [`填寫人姓名最長 ${REPORTER_MAX} 字`], message: `填寫人姓名最長 ${REPORTER_MAX} 字` });
+
+  // ── 點位批次匯入（src/points-import.js）：放在代碼比對之前，template.xlsx／import 不是點位代碼 ──
+  if (pathname === '/api/inv/points/template.xlsx' || pathname === '/api/inv/points/import') {
+    return handlePointsImport({ req, res, sess, pathname, json, readBody, originOk });
+  }
 
   // 路徑帶點位代碼的，一律先比對 hid
   const codeM = /^\/api\/inv\/(?:point|points)\/([^/]+)/.exec(pathname);
