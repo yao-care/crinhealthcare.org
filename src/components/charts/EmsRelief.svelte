@@ -34,10 +34,12 @@
   }
 
   const cur = $derived(sites[active] ?? sites[0]);
-  // 比較長條：共用同一把尺（刻度取 6 小時的倍數，最久者不頂滿）
+  // 比較長條：共用同一把尺（刻度見 tickH，最久者不頂滿）
   const maxH = $derived(Math.max(...sites.map((s) => s.sum.hours), 1));
-  const axisH = $derived(Math.ceil((maxH * 1.08) / 6) * 6);
-  const ticks = $derived(Array.from({ length: axisH / 6 + 1 }, (_, i) => i * 6));
+  // 刻度間距跟著最久那處放大（6／12／24 小時），右欄寬度下維持 ≤8 格不擠
+  const tickH = $derived(maxH <= 40 ? 6 : maxH <= 80 ? 12 : 24);
+  const axisH = $derived(Math.ceil((maxH * 1.08) / tickH) * tickH);
+  const ticks = $derived(Array.from({ length: axisH / tickH + 1 }, (_, i) => i * tickH));
   // 卡片內設備長條：三張卡共用同一把尺，跨卡也比得出哪項吃電
   const maxPartW = $derived(Math.max(...relief.sites.flatMap((s) => s.loads.map((l) => l.qty * l.w)), 1));
 </script>
