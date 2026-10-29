@@ -4,7 +4,7 @@
   // 單一計算源：各據點負載／負載率／續航一律由 sites[].loads（台數×瓦數）推導，JSON 不存彙總值。
   import { carousel } from '@utils/carousel';
   import { reliefSiteSummary, reliefUsableKwh, barFills, type ReliefSite, type ReliefCabinet } from '@utils/ems';
-  interface Relief { title?: string; sub?: string; cabinet: ReliefCabinet; steps?: { label: string; sub?: string; dest?: boolean }[]; sites: ReliefSite[]; rotateSec?: number; defaultSite?: string; }
+  interface Relief { title?: string; sub?: string; cabinet: ReliefCabinet; steps?: { label: string; sub?: string; dest?: boolean }[]; sites: ReliefSite[]; defaultSite?: string; }
 
   let { relief, onBoard }: { relief: Relief; onBoard: () => void } = $props();
 
@@ -16,25 +16,9 @@
   const hrsText = (h: number) => (h && isFinite(h) ? `${Math.floor(h)} 小時` : '—');
 
   // 1 台櫃子一次只能供一處：active 那張亮起＝供電中，其餘淡化＝未供電（數字是「若改推過來」的試算）。
-  // 現在櫃子推到哪：kiosk 無人操作時依 rotateSec 輪播；有人點選後暫停輪播 HOLD_MS 再接續
-  const HOLD_MS = 60000;
-  // 進救災情境時預設推在 defaultSite（804＝勤指中心）
+  // 現在櫃子推到哪：預設 defaultSite（804＝勤指中心），只在有人點選時才換——不自動輪播（業主 2026-10-29）
   let active = $state(Math.max(0, relief.sites.findIndex((s) => s.id === relief.defaultSite)));
-  let holdUntil = 0;
-  $effect(() => {
-    const n = relief.sites.length;
-    const ms = (relief.rotateSec ?? 12) * 1000;
-    if (n < 2 || !ms) return;
-    const id = window.setInterval(() => {
-      if (Date.now() < holdUntil) return;
-      active = (active + 1) % n;
-    }, ms);
-    return () => clearInterval(id);
-  });
-  function pick(i: number) {
-    active = i;
-    holdUntil = Date.now() + HOLD_MS;
-  }
+  const pick = (i: number) => (active = i);
 
   const cur = $derived(sites[active] ?? sites[0]);
   // 比較長條：共用同一把尺（刻度見 tickH，最久者不頂滿）
