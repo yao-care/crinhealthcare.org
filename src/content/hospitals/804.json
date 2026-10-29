@@ -1476,7 +1476,8 @@
               ]
             }
           ],
-          "rotateSec": 12
+          "rotateSec": 12,
+          "defaultSite": "eoc"
         }
       },
       "devices": [

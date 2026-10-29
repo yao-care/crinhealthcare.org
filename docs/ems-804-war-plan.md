@@ -220,7 +220,7 @@
 ## 救災電力異常（儲電櫃機動調度）
 
 - 元件：`src/components/charts/EmsRelief.svelte`；資料：`804.json` → `resources[power].war.relief`；計算：`reliefSiteSummary()`（`src/utils/ems.ts`）
-- 情境：**1 台 XBE50、一次只能供一處**，依需求推往地下捐血站／勤指中心／急診室。
+- 情境：**1 台儲電櫃、一次只能供一處**（預設推在 `defaultSite`＝勤指中心；續航一律以小時呈現、無條件捨去，不換算成天），依需求推往地下捐血站／勤指中心／急診室。
   亮起的卡＝供電中，其餘淡化標「未供電」、數字是「若改推過來可撐」。kiosk 無人操作每 `rotateSec` 秒換一處；有人點選後停 60 秒再接續。
 - 數字同樣只存台數×每台瓦數，負載／負載率／續航由 `reliefSiteSummary()` 算：
   續航＝容量 ×（目前電量 − 保留線）÷（負載 ÷ 逆變效率 ＋ 待機耗電）。

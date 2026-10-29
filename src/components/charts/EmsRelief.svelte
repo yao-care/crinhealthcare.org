@@ -3,8 +3,8 @@
   // 上：事件時間軸；左：各據點卡（亮起＝櫃子現在推到這裡）；右：同一台櫃子在各據點能撐多久的比較。
   // 單一計算源：各據點負載／負載率／續航一律由 sites[].loads（台數×瓦數）推導，JSON 不存彙總值。
   import { carousel } from '@utils/carousel';
-  import { reliefSiteSummary, reliefUsableKwh, endurText, barFills, type ReliefSite, type ReliefCabinet } from '@utils/ems';
-  interface Relief { title?: string; sub?: string; cabinet: ReliefCabinet; steps?: { label: string; sub?: string; dest?: boolean }[]; sites: ReliefSite[]; rotateSec?: number; }
+  import { reliefSiteSummary, reliefUsableKwh, barFills, type ReliefSite, type ReliefCabinet } from '@utils/ems';
+  interface Relief { title?: string; sub?: string; cabinet: ReliefCabinet; steps?: { label: string; sub?: string; dest?: boolean }[]; sites: ReliefSite[]; rotateSec?: number; defaultSite?: string; }
 
   let { relief, onBoard }: { relief: Relief; onBoard: () => void } = $props();
 
@@ -12,11 +12,14 @@
   const usableKwh = $derived(reliefUsableKwh(cab));
   const sites = $derived(relief.sites.map((s) => ({ ...s, sum: reliefSiteSummary(s, cab) })));
   const kw2 = (w: number) => (w / 1000).toFixed(2);
+  // 續航一律以小時呈現（業主 2026-10-29：不換算成天）
+  const hrsText = (h: number) => (h && isFinite(h) ? `${Math.floor(h)} 小時` : '—');
 
   // 1 台櫃子一次只能供一處：active 那張亮起＝供電中，其餘淡化＝未供電（數字是「若改推過來」的試算）。
   // 現在櫃子推到哪：kiosk 無人操作時依 rotateSec 輪播；有人點選後暫停輪播 HOLD_MS 再接續
   const HOLD_MS = 60000;
-  let active = $state(0);
+  // 進救災情境時預設推在 defaultSite（804＝勤指中心）
+  let active = $state(Math.max(0, relief.sites.findIndex((s) => s.id === relief.defaultSite)));
   let holdUntil = 0;
   $effect(() => {
     const n = relief.sites.length;
@@ -76,7 +79,7 @@
           {#if s.role}<div class="srole">{s.role}</div>{/if}
           <div class="sbig">
             <span class="cap">{i === active ? '可撐' : '若改推過來可撐'}</span>
-            <b>{endurText(s.sum.hours)}</b>
+            <b>{hrsText(s.sum.hours)}</b>
           </div>
           <div class="skw">負載 <b>{s.sum.kw.toFixed(2)} kW</b> · 負載率 {s.sum.loadPct.toFixed(1)}%</div>
           <div class="lh"><span>關鍵設備</span><span class="lhk">用電</span></div>
@@ -109,7 +112,7 @@
         <div class="mh">推到哪裡 · 撐多久 <small>一次只供一處</small></div>
         {#each sites as s, i}
           <button type="button" class="crow" class:on={i === active} onclick={() => pick(i)}>
-            <div class="ctop"><span>{s.icon} {s.name}</span><b>{endurText(s.sum.hours)}</b></div>
+            <div class="ctop"><span>{s.icon} {s.name}</span><b>{hrsText(s.sum.hours)}</b></div>
             <div class="cbar"><i style="width:{(s.sum.hours / axisH) * 100}%"></i></div>
           </button>
         {/each}
@@ -121,7 +124,7 @@
           <div class="mh">現在供電 · {cur.icon} {cur.name}</div>
           <div class="grow"><span>目前負載</span><b>{cur.sum.kw.toFixed(2)} kW</b></div>
           <div class="grow"><span>可再承接</span><b>{cur.sum.marginKw.toFixed(1)} kW</b></div>
-          <div class="grow big"><span>依現況可用</span><b>{endurText(cur.sum.hours)}</b></div>
+          <div class="grow big"><span>依現況可用</span><b>{hrsText(cur.sum.hours)}</b></div>
         </div>
       {/if}
     </aside>

@@ -287,6 +287,7 @@ const emsScenario = z.object({
       loads: z.array(z.object({ n: z.string(), qty: z.number(), w: z.number() })).default([]),
     })).default([]),
     rotateSec: z.number().default(12),      // kiosk 無人操作時，幾秒換下一個據點
+    defaultSite: z.string().default(''),    // 進救災情境時櫃子預設在哪（sites[].id）；空＝第一個
   }).optional(),
 });
 
