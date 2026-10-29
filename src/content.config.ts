@@ -270,7 +270,10 @@ const emsScenario = z.object({
     cabinet: z.object({
       name: z.string(),
       kwh: z.number(), kw: z.number(),
-      usablePct: z.number().default(100),   // 可放電比例（DoD）
+      socPct: z.number().default(100),      // 目前電量（%）；可放電＝容量 ×（目前 − 保留線）
+      floorPct: z.number().default(0),      // 保留線（%），放到這裡就停
+      eff: z.number().default(1),           // 逆變效率（負載 ÷ 效率＝實際從電池抽的功率）
+      standbyKw: z.number().default(0),     // 櫃體自身待機耗電（kW），停電期間一直在吃
       switchMs: z.number().default(0),      // 市電中斷切換時間（ms）；0＝不顯示
     }),
     // 事件時間軸（市電異常 → 切換 → 推櫃到位 → 供電中）

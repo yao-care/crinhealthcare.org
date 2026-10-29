@@ -3,13 +3,13 @@
   // 上：事件時間軸；左：各據點卡（亮起＝櫃子現在推到這裡）；右：同一台櫃子在各據點能撐多久的比較。
   // 單一計算源：各據點負載／負載率／續航一律由 sites[].loads（台數×瓦數）推導，JSON 不存彙總值。
   import { carousel } from '@utils/carousel';
-  import { reliefSiteSummary, endurText, barFills, type ReliefSite, type ReliefCabinet } from '@utils/ems';
+  import { reliefSiteSummary, reliefUsableKwh, endurText, barFills, type ReliefSite, type ReliefCabinet } from '@utils/ems';
   interface Relief { title?: string; sub?: string; cabinet: ReliefCabinet; steps?: { label: string; sub?: string; dest?: boolean }[]; sites: ReliefSite[]; rotateSec?: number; }
 
   let { relief, onBoard }: { relief: Relief; onBoard: () => void } = $props();
 
   const cab = $derived(relief.cabinet);
-  const usableKwh = $derived((cab.kwh * (cab.usablePct ?? 100)) / 100);
+  const usableKwh = $derived(reliefUsableKwh(cab));
   const sites = $derived(relief.sites.map((s) => ({ ...s, sum: reliefSiteSummary(s, cab) })));
   const kw2 = (w: number) => (w / 1000).toFixed(2);
 
@@ -95,10 +95,10 @@
       <div class="cab">
         <div class="ch">🔋 {cab.name} <small>×1</small></div>
         <div class="cgrid">
-          <div><span>可放電</span><b>{usableKwh} kWh</b></div>
+          <div><span>目前電量</span><b>{cab.socPct ?? 100}%</b></div>
+          <div><span>可放電（保留 {cab.floorPct ?? 0}%）</span><b>{usableKwh.toFixed(1)} kWh</b></div>
+          <div><span>容量</span><b>{cab.kwh} kWh</b></div>
           <div><span>額定輸出</span><b>{cab.kw} kW</b></div>
-          <div><span>額定容量</span><b>{cab.kwh} kWh</b></div>
-          {#if cab.switchMs}<div><span>切換時間</span><b>&lt;{cab.switchMs} ms</b></div>{/if}
         </div>
       </div>
 

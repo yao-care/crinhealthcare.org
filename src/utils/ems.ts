@@ -139,17 +139,23 @@ export function warPowerSummary(p?: WarPower | null): WarPowerSummary | null {
 // 同樣只存台數×瓦數；各據點負載／負載率／續航都從這裡算，卡片與比較長條共用同一份。
 export interface ReliefLoad { n: string; qty: number; w: number }
 export interface ReliefSite { id: string; name: string; icon?: string; role?: string; loads: ReliefLoad[] }
-export interface ReliefCabinet { name: string; kwh: number; kw: number; usablePct?: number; switchMs?: number }
+export interface ReliefCabinet { name: string; kwh: number; kw: number; socPct?: number; floorPct?: number; eff?: number; standbyKw?: number; switchMs?: number }
 export interface ReliefSiteSummary { kw: number; loadPct: number; marginKw: number; hours: number }
+
+// 可放電＝容量 ×（目前電量 − 保留線）；與現場「儲電櫃待命看板」同一組參數
+export const reliefUsableKwh = (cab: ReliefCabinet) =>
+  (cab.kwh * Math.max(0, (cab.socPct ?? 100) - (cab.floorPct ?? 0))) / 100;
 
 export function reliefSiteSummary(site: ReliefSite, cab: ReliefCabinet): ReliefSiteSummary {
   const kw = site.loads.reduce((s, l) => s + l.qty * l.w, 0) / 1000;
-  const usableKwh = (cab.kwh * (cab.usablePct ?? 100)) / 100;
+  // 電池實際輸出＝負載 ÷ 逆變效率 ＋ 櫃體待機耗電（待命看板同算法；
+  // 它另用電壓曲線細算，同負載下兩邊差 <1%）
+  const drawKw = kw / (cab.eff ?? 1) + (cab.standbyKw ?? 0);
   return {
     kw,
     loadPct: cab.kw ? (kw / cab.kw) * 100 : 0,
     marginKw: cab.kw - kw,
-    hours: kw ? usableKwh / kw : 0,
+    hours: drawKw ? reliefUsableKwh(cab) / drawKw : 0,
   };
 }
 
