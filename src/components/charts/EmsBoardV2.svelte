@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { ComponentProps } from 'svelte';
   // v2 五大區塊 Dashboard（電/環境參數/水/油/氣）。骨架用比例(%)、卡片固定尺寸+自適應換行。
   // 平時主軸＝效率/成本/ESG；戰時主軸＝續航/餘裕/維生（標題列推出 ⏳續航 徽章）。
   // 「資料→呈現」規則集中在 @utils/ems（供給紅底/bar 前三高配色/環境分級底色）。
@@ -8,6 +9,7 @@
   import { carousel } from '@utils/carousel';
   import PeakShaveChart from './PeakShaveChart.svelte';
   import EmsWarPlan from './EmsWarPlan.svelte';
+  import EmsRelief from './EmsRelief.svelte';
   interface Supply { name: string; value: string; online: boolean; esg: string; pct?: string; react?: string; autonomous?: boolean; warn?: boolean; live?: string; }
   interface Store { name: string; days: string; cap: string; pct: number; warn?: boolean; state?: string; critical?: boolean; metrics?: { k: string; v: string }[]; flags?: { label: string; tone: string }[]; live?: string; }
   interface UseBlock { name: string; value?: string; pctOfTotal?: string; lastYear?: string; current?: string; unit?: string; daily?: number[]; lastYearDaily?: number[]; critical?: boolean; color?: string; items?: string[]; img?: string; imgs?: string[]; caption?: string; }
@@ -17,7 +19,7 @@
   interface PlanZone { id: string; label: string; kind: string; x: number; y: number; w: number; h: number; rot?: number; sub?: string; star?: boolean; }
   interface Plan { title?: string; sub?: string; zones: PlanZone[]; legend?: { label: string; kind: string }[]; }
   interface PowerPlan { title?: string; note?: string; usablePct?: number; cabinets: { name: string; kwh: number; kw: number; out?: string; loc?: string; state?: string }[]; loads: { name: string; parts: { zone?: string; n?: string; qty: number; w: number }[] }[]; }
-  interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[]; map?: UseMap }; plan?: Plan; power?: PowerPlan; }
+  interface Scenario { perf: { text: string }; endur: { days: string; pct: string; live?: string }; supply: Supply[]; supplySum: string; store: Store[]; use: { headline: string; sub: string; blocks: UseBlock[]; map?: UseMap }; plan?: Plan; power?: PowerPlan; relief?: ComponentProps<typeof EmsRelief>['relief']; }
   interface Device { name: string; system?: string; loc?: string; reading?: string; status?: string; }
   interface Resource { id: string; icon: string; name: string; peace: Scenario; war: Scenario; devices?: Device[]; }
   interface ReportRow { item: string; value: string; unit: string; }
@@ -34,11 +36,21 @@
   let { hospital }: { hospital: Hospital } = $props();
   let scenario = $state('peace');
   const war = $derived(scenario !== 'peace');
+  // 情境資料只有 peace/war 兩份：第三情境（804「救災電力異常」）的五區塊盤面沿用 war 那份
+  const dk = $derived<'peace' | 'war'>(war ? 'war' : 'peace');
   // 戰時且該院有平面配置圖 → 預設整頁就是配置圖；按「水·油·氣·環境」才切到五區塊盤面。
-  // 每次轉戰時都回到配置圖（kiosk 無人操作時的預設面貌）。
-  const warPlan = $derived(war ? hospital.resources.find((r) => r.id === 'power')?.war?.plan : undefined);
+  // 每次轉情境都回到該情境的主畫面（kiosk 無人操作時的預設面貌）。
+  // 救災電力異常（scenario 'relief'）→ 主畫面換成儲電櫃機動調度（EmsRelief）。
+  const powerWar = $derived(hospital.resources.find((r) => r.id === 'power')?.war);
+  const warPlan = $derived(scenario === 'war' ? powerWar?.plan : undefined);
+  const relief = $derived(scenario === 'relief' ? powerWar?.relief : undefined);
   let planView = $state(true);
   const showPlan = $derived(!!warPlan?.zones?.length && planView);
+  const showRelief = $derived(!!relief?.sites?.length && planView);
+  // 三個以上情境（804）→ 標題列每個非平時情境一顆按鈕，再按一次同一顆回平時；
+  // 其餘院所維持原本單顆「轉戰時/救災」切換
+  const multiScn = $derived(hospital.scenarios.length > 2);
+  function toggleScn(id: string) { scenario = scenario === id ? 'peace' : id; planView = true; }
   // 戰時電力續航：JSON 沒填 endur.days 時，用配置圖那份供電規劃算（同一個 warPowerSummary，
   // 不會出現「配置圖 7 天 12 小時、五區塊撐 —」這種自打嘴巴）
   const warPowerSum = $derived(war ? warPowerSummary(hospital.resources.find((r) => r.id === 'power')?.war?.power) : null);
@@ -85,7 +97,7 @@
   const ess = hospital.liveData ? createEssPoller() : null;
   $effect(() => { if (ess) return ess.start(); });
   const essScenario = (r: Resource): Scenario =>
-    ess && r.id === 'power' ? applyEssToScenario(r[scenario as 'peace' | 'war'], ess.data, war) : r[scenario as 'peace' | 'war'];
+    ess && r.id === 'power' ? applyEssToScenario(r[dk], ess.data, war) : r[dk];
   const other = $derived(hospital.scenarios.find((s) => s.id !== scenario) ?? hospital.scenarios[0]);
 
   // hospital.show：限定只顯示這些區塊（power/water/oil/gas/env）；未設則全顯示。隱藏其餘後，留下的區塊靠 flex 自動撐滿。
@@ -340,11 +352,21 @@
     <!-- 盤面抬頭：「<院名> 🔋 韌性電網決策支援系統」（2026-08-06 業主定名「平 - 戰(災) 韌性即時看板」，2026-08-19 業主改名並要求帶回院名）；
          個別醫院仍可在 JSON 用 boardTitle 覆寫 -->
     <h1 class="ttl">{hospital.boardTitle || `${hospital.name} 🔋 韌性電網決策支援系統`}</h1>
-    <button type="button" class="scn" class:war onclick={() => { scenario = other.id; planView = true; }}>
-      {war ? '☀️ ' : '🚨 '}轉{other.label}
-    </button>
-    {#if warPlan?.zones?.length && !planView}
-      <button type="button" class="toplan" onclick={() => (planView = true)}>🗺 回配置圖</button>
+    {#if multiScn}
+      <div class="scns">
+        {#each hospital.scenarios.filter((s) => s.id !== 'peace') as s}
+          <button type="button" class="scn" class:war={scenario === s.id} aria-pressed={scenario === s.id} onclick={() => toggleScn(s.id)}>
+            {scenario === s.id ? '☀️ 回平時 · ' : s.id === 'relief' ? '⚠️ ' : '🚨 '}{s.label}
+          </button>
+        {/each}
+      </div>
+    {:else}
+      <button type="button" class="scn" class:war onclick={() => { scenario = other.id; planView = true; }}>
+        {war ? '☀️ ' : '🚨 '}轉{other.label}
+      </button>
+    {/if}
+    {#if (warPlan?.zones?.length || relief?.sites?.length) && !planView}
+      <button type="button" class="toplan" onclick={() => (planView = true)}>{relief ? '🔋 回調度圖' : '🗺 回配置圖'}</button>
     {/if}
     {#if !hospital.hideMeta}
       <dl class="meta">
@@ -365,7 +387,10 @@
 
   {#if showPlan && warPlan}
     <!-- 戰時主畫面：B1 開設配置圖 + 行動儲電櫃供電（水/油/氣/環境改由按鈕切換） -->
-    <EmsWarPlan plan={warPlan} power={hospital.resources.find((r) => r.id === 'power')?.war?.power} onBoard={() => (planView = false)} />
+    <EmsWarPlan plan={warPlan} power={powerWar?.power} onBoard={() => (planView = false)} />
+  {:else if showRelief && relief}
+    <!-- 救災電力異常主畫面：1 台儲電櫃依需求推往各據點（水/油/氣/環境同樣由按鈕切換） -->
+    <EmsRelief {relief} onBoard={() => (planView = false)} />
   {:else}
   <div class="grid">
     <!-- 上半：電力（寬）+ 環境參數（窄） -->
@@ -469,6 +494,9 @@
   .ttl { font-size: var(--text-xl); font-weight: 700; margin: 0; }
   .scn { margin-left: auto; font-size: var(--text-base); font-weight: 700; padding: 0.4rem 1.1rem; border-radius: var(--radius-md); border: 2px solid var(--color-text-secondary); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; white-space: nowrap; }
   .scn.war { border-color: var(--color-alert); background: var(--color-alert); color: var(--color-paper); }
+  /* 多情境按鈕組：整組推到右側，組內按鈕不再各自 margin-left:auto */
+  .scns { margin-left: auto; display: flex; gap: var(--space-xs); }
+  .scns .scn { margin-left: 0; }
   /* 從五區塊盤面回戰時配置圖（僅該院有 plan 且已切走時出現） */
   .toplan { font-size: var(--text-base); font-weight: 700; padding: 0.4rem 1.1rem; border-radius: var(--radius-md); border: 2px solid var(--color-primary); background: var(--color-paper); color: var(--color-primary); cursor: pointer; white-space: nowrap; }
   .meta { display: flex; gap: var(--space-sm); margin: 0; }

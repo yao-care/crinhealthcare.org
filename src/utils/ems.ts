@@ -135,6 +135,24 @@ export function warPowerSummary(p?: WarPower | null): WarPowerSummary | null {
   };
 }
 
+// ── 救災電力異常（1 台儲電櫃 → 多個據點）─────────────────────────────────
+// 同樣只存台數×瓦數；各據點負載／負載率／續航都從這裡算，卡片與比較長條共用同一份。
+export interface ReliefLoad { n: string; qty: number; w: number }
+export interface ReliefSite { id: string; name: string; icon?: string; role?: string; loads: ReliefLoad[] }
+export interface ReliefCabinet { name: string; kwh: number; kw: number; usablePct?: number; switchMs?: number }
+export interface ReliefSiteSummary { kw: number; loadPct: number; marginKw: number; hours: number }
+
+export function reliefSiteSummary(site: ReliefSite, cab: ReliefCabinet): ReliefSiteSummary {
+  const kw = site.loads.reduce((s, l) => s + l.qty * l.w, 0) / 1000;
+  const usableKwh = (cab.kwh * (cab.usablePct ?? 100)) / 100;
+  return {
+    kw,
+    loadPct: cab.kw ? (kw / cab.kw) * 100 : 0,
+    marginKw: cab.kw - kw,
+    hours: kw ? usableKwh / kw : 0,
+  };
+}
+
 // 續航顯示：≥48h 以「X 天 Y 小時」讀，較短就直接給小時（戰情室要一眼看懂還能撐多久）
 export function endurText(hours: number): string {
   if (!hours || !isFinite(hours)) return '—';

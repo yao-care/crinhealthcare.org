@@ -262,6 +262,29 @@ const emsScenario = z.object({
       })).default([]),
     })).default([]),
   }).optional(),
+  // v2 救災電力異常看板（選用，目前只有 804）：1 台儲電櫃依需求推往不同據點。
+  // 單一計算源＝sites[].loads（台數×每台瓦數）：各據點負載／負載率／續航由元件即時算，JSON 不存彙總值。
+  relief: z.object({
+    title: z.string().default(''),
+    sub: z.string().default(''),
+    cabinet: z.object({
+      name: z.string(),
+      kwh: z.number(), kw: z.number(),
+      usablePct: z.number().default(100),   // 可放電比例（DoD）
+      switchMs: z.number().default(0),      // 市電中斷切換時間（ms）；0＝不顯示
+    }),
+    // 事件時間軸（市電異常 → 切換 → 推櫃到位 → 供電中）
+    // dest:true 的那一步，副標改顯示「→ 目前推往的據點」
+    steps: z.array(z.object({ label: z.string(), sub: z.string().default(''), dest: z.boolean().default(false) })).default([]),
+    sites: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      icon: z.string().default(''),
+      role: z.string().default(''),         // 這個據點斷電的後果／為什麼要保
+      loads: z.array(z.object({ n: z.string(), qty: z.number(), w: z.number() })).default([]),
+    })).default([]),
+    rotateSec: z.number().default(12),      // kiosk 無人操作時，幾秒換下一個據點
+  }).optional(),
 });
 
 // v2 環境參數：多棟大樓 × 樓層的 溫/濕/CO₂ 矩陣（依情境）＋ 異常門檻 ＋ 碳盤查表（與情境無關）
