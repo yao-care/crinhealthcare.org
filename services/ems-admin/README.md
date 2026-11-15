@@ -12,6 +12,15 @@
 
 > ⚠️ **兩套儲存不可以合併。** `REPO_DIR` 指向的 repo 是 public。附件一那張表上有姓名、電話、電子郵件；電費單與逐筆排放源清單也不是該公開的東西。它們只能走 `AUDIT_DATA_DIR`。能源盤點（能管人員個資、電費單、設備清冊）同樣只走 `AUDIT_DATA_DIR`。
 
+## 油水電氣資料治理平台（`/p/`，2026-11-15 起）
+
+同一個服務另有一個入口 `/p/`：以「盤點標的與原始證據」為中心的油水電氣資料治理平台（一人一帳號、九種角色、多來源比對、裁決定版、計算、報告、看板）。舊入口照常運作，兩邊共用登入；舊院所帳號登入時自動對應為該院「院所管理者」。
+
+- 需求：`../../docs/ems-platform-prd.md`；架構約定與工作清單：`../../docs/ems-platform-v2.md`
+- 操作手冊：`../../docs/ems-platform-manual.md`；維運：`../../docs/ems-platform-ops.md`；資料字典：`../../docs/ems-platform-dictionary.md`；API：`GET /api/v1/openapi.json`
+- 程式：後端 `src/platform/`（SQLite，`AUDIT_DATA_DIR/platform/`），前端 `public/p/`；測試 `test/platform*.test.js`
+- 🔴 **兩套儲存仍不可合併**：平台資料庫與佐證檔只在主機本地，絕不寫進 `REPO_DIR`。
+
 ## 特性
 
 - **每院獨立帳號**：一組帳號只能編輯自家院所（`hospitalId` 綁在 session，前後端都以此限定範圍）。

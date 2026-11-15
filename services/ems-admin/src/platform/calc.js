@@ -109,7 +109,10 @@ const KINDS = {
     }
     const as = assetsFor(cx, def.items).filter((a) => a.applicability !== 'not_applicable');
     const covered = new Set(inputs.map((i) => i.assetId));
-    const lacking = as.filter((a) => a.applicability === 'applicable' && !covered.has(a.id) && FUEL_ACTIVITY[a.attrs.fuel || DEFAULT_FUEL[a.item_code]] && !['fuel_tank'].includes(a.asset_type));
+    // 共用油槽：同槽任一設備（或油槽本身）已有消耗採用值，其他設備不算缺（不可把同一槽重複算給每台）
+    const sharedCovered = (a) => q.all("SELECT parent_id FROM asset_links WHERE child_id = ? AND relation IN ('feeds','supplies') AND valid_to IS NULL", a.id)
+      .some((l) => covered.has(l.parent_id) || q.all("SELECT child_id FROM asset_links WHERE parent_id = ? AND relation IN ('feeds','supplies') AND valid_to IS NULL", l.parent_id).some((s) => covered.has(s.child_id)));
+    const lacking = as.filter((a) => a.applicability === 'applicable' && !covered.has(a.id) && FUEL_ACTIVITY[a.attrs.fuel || DEFAULT_FUEL[a.item_code]] && !['fuel_tank'].includes(a.asset_type) && !sharedCovered(a));
     if (lacking.length) { state = worse(state, any ? 'partial' : 'missing'); notes.push(`缺活動數據：${lacking.map((a) => a.name).join('、')}`); }
     if (!any && !lacking.length) return result(cx, def.unit, null, state === 'blocked' ? 'blocked' : emptyState(cx, def.items), { formula: '查無燃料消耗採用值', inputs, factors, notes });
     return result(cx, def.unit, totalKg / 1000, state, { formula: `Σ 燃料消耗量 × 排放係數(CO₂、CH₄、N₂O) × GWP(${gwpSet}) ÷ 1000`, inputs, factors, notes, gwpSet });

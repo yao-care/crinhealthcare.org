@@ -37,7 +37,8 @@ export function getDataset(ctx, id) {
     JOIN assets a ON a.id = af.asset_id JOIN metrics m ON m.code = af.metric_code LEFT JOIN users u ON u.id = af.approved_by
     WHERE af.dataset_id = ? AND af.is_current = 1 ORDER BY a.domain, a.name, af.metric_code, af.period_start`, id).map((f) => parseJson(f, ['observation_ids']));
   const decisions = q.all(`SELECT x.*, a.name AS asset_name, m.name AS metric_name, u.display_name AS proposed_by_name FROM decisions x JOIN assets a ON a.id = x.asset_id
-    JOIN metrics m ON m.code = x.metric_code LEFT JOIN users u ON u.id = x.proposed_by WHERE x.dataset_id = ? ORDER BY x.proposed_at DESC`, id);
+    JOIN metrics m ON m.code = x.metric_code LEFT JOIN users u ON u.id = x.proposed_by WHERE x.dataset_id = ? ORDER BY x.proposed_at DESC`, id)
+    .map((x) => parseJson(x, ['method', 'input_observation_ids', 'evidence_ids']));
   const sensitive = can(ctx, 'view.sensitive', d.org_id);
   const costCodes = new Set(q.all("SELECT code FROM metrics WHERE semantics = 'cost'").map((m) => m.code));
   return { ...d, facts: facts.map((f) => (!sensitive && costCodes.has(f.metric_code) ? { ...f, value: null, masked: true } : f)), decisions };

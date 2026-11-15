@@ -95,7 +95,7 @@ route('POST', '/api/v1/inventory-items', '新增／修改盤點項目（config.w
   const t = nowIso();
   const cols = { domain: body.domain, subtype: body.subtype, name: body.name, description: body.description, asset_types: body.assetTypes, metrics: body.metrics, required_data: body.requiredData,
     source_hints: body.sourceHints, expected_frequency: body.expectedFrequency, collection_guidance: body.collectionGuidance, applicability_rules: body.applicabilityRules,
-    special_rules: body.specialRules, usage_candidates: body.usageCandidates, active: body.active === false ? 0 : 1, updated_at: t };
+    special_rules: body.specialRules, usage_candidates: body.usageCandidates, ghg_ref: body.ghgRef, active: body.active === undefined ? undefined : (body.active === false ? 0 : 1), updated_at: t };
   const ex = q.get('SELECT * FROM inventory_items WHERE code = ?', body.code);
   if (ex) { update('inventory_items', ex.id, { ...cols, version: ex.version + 1 }); audit({ actor: ctx.userId, actorName: ctx.name, action: 'item.update', targetType: 'item', targetId: ex.id, before: ex, after: cols }); return { id: ex.id, version: ex.version + 1 }; }
   if (!body.code || !body.name || !body.domain) throw bad('代碼、名稱、面向必填');
@@ -223,7 +223,7 @@ route('GET', '/api/v1/import-templates/:kind', '下載匯入範本（observation
   res.writeHead(200, { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(params.kind.startsWith('assets') ? '標的匯入範本.xlsx' : '觀測值匯入範本.xlsx')}` });
   res.end(buf); return RAW;
 });
-route('GET', '/api/v1/reference-activities', '歷史碳盤查表項目（含原始座標）', (ctx) => I.listReferenceActivities(ctx));
+route('GET', '/api/v1/reference-activities', '歷史碳盤查表項目（含原始座標）', (ctx) => { if (!can(ctx, 'view.internal', null)) throw new Forbidden('view.internal'); return I.listReferenceActivities(ctx); });
 route('POST', '/api/v1/reference-activities/:id/mapping', '人工指定參照項目對應的盤點項目', (ctx, { params, body }) => { I.setReferenceMapping(ctx, params.id, body.itemCodes || []); return { ok: true }; });
 
 // ── 檢核與差異 ──
@@ -266,8 +266,8 @@ route('GET', '/api/v1/datasets/:id/indicators', '試算指標（codes 以逗號�
 const KIND_TABLE = { factors: 'factor', rules: 'rule', templates: 'template', 'configuration-versions': 'config' };
 route('GET', '/api/v1/admin/factors', '係數庫（全部版本）', (ctx) => { assertCan(ctx, 'view.internal', null); return q.all('SELECT * FROM factors ORDER BY category, code, version DESC'); });
 route('GET', '/api/v1/admin/rules', '計算規則（全部版本）', (ctx) => { assertCan(ctx, 'view.internal', null); return q.all('SELECT * FROM calculation_rules ORDER BY code, version DESC').map((r) => parseJson(r, ['definition'])); });
-route('GET', '/api/v1/admin/templates', '報告模板（全部版本）', () => R.listTemplates());
-route('GET', '/api/v1/admin/templates/:id', '模板欄位映射', (ctx, { params }) => R.templateDetail(params.id));
+route('GET', '/api/v1/admin/templates', '報告模板（全部版本）', (ctx) => { if (!can(ctx, 'view.internal', null)) throw new Forbidden('view.internal'); return R.listTemplates(); });
+route('GET', '/api/v1/admin/templates/:id', '模板欄位映射', (ctx, { params }) => { if (!can(ctx, 'view.internal', null)) throw new Forbidden('view.internal'); return R.templateDetail(params.id); });
 route('POST', '/api/v1/admin/templates/:id/mappings', '新增／修改模板欄位（草稿）', (ctx, { params, body }) => { R.saveMapping(ctx, params.id, body); return { ok: true }; });
 route('DELETE', '/api/v1/admin/templates/:id/mappings/:fieldId', '刪除模板欄位（草稿）', (ctx, { params }) => { R.deleteMapping(ctx, params.id, decodeURIComponent(params.fieldId)); return { ok: true }; });
 route('GET', '/api/v1/admin/configuration-versions', '系統設定（全部版本）', (ctx) => { assertCan(ctx, 'view.internal', null); return q.all('SELECT * FROM configuration_versions ORDER BY key, version DESC').map((r) => parseJson(r, ['value', 'impact'])); });
@@ -288,6 +288,7 @@ function kindOf(k) { const v = KIND_TABLE[k]; if (!v) throw notFound('設定類�
 route('GET', '/api/v1/report-templates', '可用的報告模板（依發布日期選版次）', (ctx, { query }) => R.listTemplates().filter((t) => t.status === 'published' && (!query.publishDate || ((!t.applies_from || t.applies_from <= query.publishDate) && (!t.applies_to || t.applies_to >= query.publishDate)))));
 route('GET', '/api/v1/report-cases', '報告案件', (ctx, { query }) => R.listCases(ctx, query.orgId));
 route('POST', '/api/v1/report-cases', '建立報告案件', (ctx, { body }) => R.createCase(ctx, body));
+route('GET', '/api/v1/report-cases/:id', '報告案件詳細', (ctx, { params }) => R.getCase(ctx, params.id));
 route('PATCH', '/api/v1/report-cases/:id', '修改報告案件（資料集、審核人、文字段落）', (ctx, { params, body }) => { R.updateCase(ctx, params.id, body); return { ok: true }; });
 route('GET', '/api/v1/report-cases/:id/readiness', '報告就緒度與缺漏', (ctx, { params }) => R.readiness(ctx, params.id));
 route('GET', '/api/v1/report-cases/:id/runs', '報告版本清單', (ctx, { params }) => R.listRuns(ctx, params.id));
@@ -348,10 +349,10 @@ route('GET', '/api/v1/audit-events', '稽核日誌查詢', (ctx, { query }) => {
 route('GET', '/api/v1/audit-events/verify', '驗證稽核雜湊鏈', (ctx) => { if (!can(ctx, 'audit.read', null)) throw new Forbidden('audit.read'); return verifyAuditChain(); });
 route('GET', '/api/v1/admin/backups', '備份清單', (ctx) => { assertCan(ctx, 'backup.run', null); return BK.listBackups(); });
 route('POST', '/api/v1/admin/backups', '立即備份並驗證', (ctx) => { assertCan(ctx, 'backup.run', null); return BK.backupNow(ctx.userId); });
-route('POST', '/api/v1/admin/backups/:name/drill', '還原演練（唯讀比對）', (ctx, { params }) => { assertCan(ctx, 'backup.run', null); return BK.restoreDrill(params.name); });
+route('POST', '/api/v1/admin/backups/:name/drill', '還原演練（唯讀比對）', (ctx, { params }) => { assertCan(ctx, 'backup.run', null); return BK.restoreDrill(params.name, ctx.userId); });
 route('GET', '/api/v1/admin/evidence-verify', '驗證全部佐證檔雜湊', async (ctx) => { assertCan(ctx, 'backup.run', null); return E.verifyAllEvidence(); });
 
-route('GET', '/api/v1/openapi.json', 'API 文件（OpenAPI 3）', () => openapi(), { public: true });
+route('GET', '/api/v1/openapi.json', 'API 文件（OpenAPI 3）', (ctx, { res }) => { const b = JSON.stringify(openapi(), null, 2); res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(b); return RAW; }, { public: true });
 
 // 不需登入：外部系統推送（Bearer 權杖）
 route('POST', '/api/v1/integrations/:id/push', '外部系統推送觀測（Authorization: Bearer 權杖；PRD §16.3 格式）', (ctx, { params, body, req }) =>

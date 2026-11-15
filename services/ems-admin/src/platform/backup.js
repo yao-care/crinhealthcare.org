@@ -17,7 +17,7 @@ export function backupNow(actor = 'scheduler') {
   const v = verifyBackup(path);
   audit({ actor, action: 'backup.create', targetType: 'backup', targetId: name, after: v });
   prune();
-  return { name, path, ...v };
+  return { name, ...v };
 }
 
 export function verifyBackup(path) {
@@ -45,11 +45,11 @@ function prune() {
 }
 
 // 還原演練：把備份開到唯讀、比對與現行資料庫的筆數（不覆蓋現行資料）
-export function restoreDrill(name) {
+export function restoreDrill(name, actor = 'admin') {
   if (!/^platform-[\w-]+\.sqlite$/.test(name)) throw new Error('備份檔名不正確');
   const path = join(backupDir(), name);
   const v = verifyBackup(path);
   const live = Object.fromEntries(Object.keys(v.counts).map((t) => [t, q.get(`SELECT COUNT(*) n FROM ${t}`).n]));
-  audit({ actor: 'admin', action: 'backup.restore_drill', targetType: 'backup', targetId: name, after: { ok: v.ok } });
+  audit({ actor, action: 'backup.restore_drill', targetType: 'backup', targetId: name, after: { ok: v.ok } });
   return { ...v, live };
 }

@@ -31,9 +31,9 @@ const MATRIX = {
   approver: ['view.internal', 'view.sensitive', 'view.evidence', 'report.approve', 'export.download', 'task.write'],
   manager: ['view.internal', 'view.sensitive', 'view.management', 'dashboard.manage', 'export.download', 'case.assign', 'task.write'],
   staff: [],
-  sysadmin: ['view.internal', 'config.write', 'config.approve', 'user.manage', 'integration.write', 'audit.read', 'org.write', 'backup.run'],
+  sysadmin: ['view.internal', 'import.write', 'config.write', 'config.approve', 'user.manage', 'integration.write', 'audit.read', 'org.write', 'backup.run'],
   auditor: ['view.internal', 'view.sensitive', 'view.evidence', 'view.management', 'audit.read', 'export.download'],
-  org_admin: ['view.internal', 'user.manage', 'integration.write', 'org.write'],
+  org_admin: ['view.internal', 'import.write', 'user.manage', 'integration.write', 'org.write'],
 };
 // 任何登入者都有公開看板
 const BASE = ['view.public'];

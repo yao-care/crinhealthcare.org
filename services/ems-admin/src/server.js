@@ -179,6 +179,8 @@ const server = createServer(async (req, res) => {
   }
 });
 
+export function stop() { return new Promise((r) => server.close(r)); }
+
 export function start() {
   server.listen(config.httpPort, '0.0.0.0', () => {
     console.log(`[ems-admin] listening on 0.0.0.0:${config.httpPort} · repo=${config.repoDir}`);

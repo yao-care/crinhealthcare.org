@@ -40,7 +40,7 @@ export function createDraft(ctx, kind, key, patch, reason) {
   const latest = q.get(`SELECT * FROM ${m.table} WHERE ${m.keyCol} = ? ORDER BY version DESC LIMIT 1`, key);
   if (kind === 'config' && !latest && DEFAULT_CONFIG[key] === undefined && !patch.allowNew) throw notFound('設定項目');
   const base = latest ? { ...latest } : { [m.keyCol]: key };
-  delete base.id; delete base.allowNew;
+  delete base.id; delete base.allowNew; delete base.effective_at; delete base.impact;
   const row = { ...base, ...patch, id: newId(kind), version: (latest?.version || 0) + 1, status: 'draft', reason,
     created_by: ctx.userId, created_at: nowIso(), approved_by: null, approved_at: null };
   delete row.allowNew;

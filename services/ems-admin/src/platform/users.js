@@ -99,7 +99,7 @@ export function ensureLegacyUser({ username, hid, name, passwordHash }) {
 const PUBLIC_COLS = 'id, username, display_name, email, phone, unit, status, must_change, totp_enabled, legacy, created_at, last_login_at';
 
 export function listUsers(ctx, orgId) {
-  const scope = orgId ? [...descendants(orgId)] : null;
+  const scope = orgId ? descendants(orgId) : null;
   const users = q.all(`SELECT ${PUBLIC_COLS} FROM users ORDER BY created_at`);
   const grants = q.all('SELECT * FROM grants WHERE revoked_at IS NULL');
   return users.map((u) => ({ ...u, grants: grants.filter((g) => g.user_id === u.id) }))

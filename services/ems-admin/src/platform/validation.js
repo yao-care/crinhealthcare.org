@@ -3,7 +3,7 @@
 import { q, insert, update, newId, nowIso, audit, tx } from './db.js';
 import { assertCan } from './authz.js';
 import { getConfig, configVersion } from './config-store.js';
-import { allocateMonthly, isCalendarMonth, round, j, yearRange } from './util.js';
+import { allocateMonthly, isCalendarMonth, round, j, yearRange, nextMonth } from './util.js';
 import { openCase } from './cases.js';
 import { setWorkStatus } from './assets.js';
 
@@ -128,7 +128,7 @@ export function runValidation(ctx, { orgId, assetId, from, to, year } = {}, { sy
         const severity = aligned ? 'info' : rules.cross_source.severity;
         const msg = `${month.slice(0, 7)} ${ref.o.source_name} ${round(ref.value, 2)} vs ${s.o.source_name} ${round(s.value, 2)} ${unit}（差 ${round(absDiff, 2)}${relDiff !== null ? `，${round(relDiff, 2)}%` : ''}）${aligned ? '；含計費期間分攤，僅供參考' : ''}`;
         const caseRes = aligned ? null : openCase({ orgId, kind: 'cross_source', ruleCode: 'cross_source', severity: relDiff !== null && relDiff > th.rel_pct * 3 ? 'high' : 'medium',
-          assetId: assetIdK, metricCode: s.o.metric_code, periodStart: month, periodEnd: null,
+          assetId: assetIdK, metricCode: s.o.metric_code, periodStart: month, periodEnd: nextMonth(month),
           observationIds: [ref.o.id, s.o.id], summary: msg, absDiff: round(absDiff, 6), relDiff: relDiff === null ? null : round(relDiff, 4),
           details: { reference: ref.o.source_name, compared: s.o.source_name, thresholds: th }, fingerprint: `cross|${assetIdK}|${semantics}|${month}|${[ref.o.source_id, s.o.source_id].sort().join(',')}` });
         push({ observation_id: s.o.id, asset_id: assetIdK, rule_code: 'cross_source', severity, message: msg, case_id: caseRes?.id || null,

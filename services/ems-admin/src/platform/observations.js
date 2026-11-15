@@ -237,7 +237,7 @@ export function comparison(ctx, assetId, { metricCode, from, to } = {}) {
     return { month, values: vals, sources: vals.length, absDiff: round(spread, 3), relDiffPct: nums.length > 1 && Math.max(...nums) ? round(spread / Math.max(...nums) * 100, 2) : 0 };
   });
   return { asset: { id: a.id, name: a.name, domain: a.domain }, metric: metricRow, peers, rows, aligned,
-    notes: ['帳單期間與自然月不一致時，分攤後的值只能作為比對參考，不能直接判斷哪一筆正確', '不同計量邊界（boundary_note 不同）的資料不應直接比較'] };
+    notes: ['帳單期間與自然月不一致時，分攤後的值只能作為比對參考，不能直接判斷哪一筆正確', '計量邊界不同的資料不應直接比較'] };
 }
 
 // 標的的資料需求（指標）完整度：給工作台「來源完整度」欄

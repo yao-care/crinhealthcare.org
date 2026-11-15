@@ -100,8 +100,10 @@ export function saveBoundary(ctx, body) {
 }
 
 // ── 盤點計畫（PRD §6.1）──
+const canPlan = (ctx, orgId) => { if (!can(ctx, 'asset.write', orgId)) assertCan(ctx, 'org.write', orgId); };
 export function savePlan(ctx, body) {
-  assertCan(ctx, 'asset.write', body.orgId);
+  canPlan(ctx, body.orgId);
+  if (body.id && !q.get('SELECT 1 FROM inventory_plans WHERE id = ? AND org_id = ?', body.id, body.orgId)) throw notFound('盤點計畫');
   const t = nowIso();
   if (!body.year || !isDate(body.periodStart) || !isDate(body.periodEnd)) throw bad('請填年度與期間');
   const row = { year: body.year, name: body.name || `${body.year} 年度油水電氣盤點`, period_start: body.periodStart, period_end: body.periodEnd,
@@ -120,7 +122,7 @@ export function listPlans(ctx, orgId) {
 
 // 套用盤點模板：依項目字典替尚未有標的的項目建「待建檔」草稿標的（PRD §6.1 第 2、3 點）
 export function applyPlanTemplate(ctx, orgId, { domains = ['oil', 'water', 'electricity', 'gas'], itemCodes } = {}) {
-  assertCan(ctx, 'asset.write', orgId);
+  canPlan(ctx, orgId);
   const items = q.all("SELECT * FROM inventory_items WHERE active = 1 AND domain IN ('oil','water','electricity','gas')")
     .filter((i) => domains.includes(i.domain) && (!itemCodes || itemCodes.includes(i.code)));
   const site = q.get('SELECT id FROM sites WHERE org_id = ? ORDER BY created_at LIMIT 1', orgId);

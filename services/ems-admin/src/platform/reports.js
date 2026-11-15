@@ -71,6 +71,14 @@ export function updateCase(ctx, id, body) {
   if (patch.dataset_id) markMapped(id);
 }
 
+export function getCase(ctx, id) {
+  const c = q.get(`SELECT c.*, t.code AS template_code, t.name AS template_name, t.version AS template_version, t.standard_version, d.name AS dataset_name, d.status AS dataset_status, d.version AS dataset_version
+    FROM report_cases c JOIN report_templates t ON t.id = c.template_id LEFT JOIN datasets d ON d.id = c.dataset_id WHERE c.id = ?`, id);
+  if (!c) throw notFound('報告案件');
+  assertCan(ctx, 'view.internal', c.org_id);
+  return parseJson(c, ['manual_values']);
+}
+
 export function listCases(ctx, orgId) {
   const orgIds = orgId ? [orgId] : orgsFor(ctx, 'view.internal');
   if (!orgIds.length) return [];
@@ -87,7 +95,7 @@ export function readiness(ctx, caseId) {
   const c = q.get('SELECT * FROM report_cases WHERE id = ?', caseId); if (!c) throw notFound('報告案件');
   assertCan(ctx, 'view.internal', c.org_id);
   const maps = mappingsFor(c.template_id);
-  if (!c.dataset_id) return { ready: 0, total: maps.filter((m) => m.required).length, fields: maps.map((m) => ({ ...m, state: 'missing', note: '尚未指定資料集' })), datasetMissing: true };
+  if (!c.dataset_id) return { ready: 0, total: maps.filter((m) => m.required).length, fields: maps.map((m) => ({ ...m, state: 'missing', note: '尚未指定資料集' })), datasetMissing: true, blockers: ['尚未指定資料集'] };
   const codes = maps.filter((m) => m.source_kind === 'indicator').map((m) => m.source_ref);
   const { results } = computeAll(c.dataset_id, codes);
   const manual = j(c.manual_values, {});

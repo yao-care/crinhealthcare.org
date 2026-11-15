@@ -223,7 +223,7 @@ export const REFERENCE_ITEMS = [
 
 // 原表活動來源文字 → 盤點項目（M14 匯入時用；比對用「包含」）
 export const WORKBOOK_MAP = [
-  ['公務車輛用油', ['OIL-VEH', 'GAS-REF']], ['堆高機', ['OIL-FORK']], ['天然氣或LPG', ['GAS-NG', 'GAS-LPG']],
+  ['公務車輛用油', ['OIL-VEH', 'GAS-REF']], ['公務車', ['OIL-VEH']], ['堆高機', ['OIL-FORK']], ['天然氣或LPG', ['GAS-NG', 'GAS-LPG']],
   ['空調設備', ['GAS-REF', 'ELE-EQUIP']], ['冰水主機', ['GAS-REF', 'ELE-EQUIP']], ['飲水機', ['GAS-REF']], ['冷藏設備', ['GAS-REF']],
   ['滅火器', ['GAS-FIRE']], ['緊急發電機', ['OIL-GEN']], ['化糞池', ['WAT-SEPTIC', 'ACT-STAFF', 'ACT-PATIENT']],
   ['噴霧式黃油', ['OIL-LUBE']], ['噴霧潤滑油', ['OIL-LUBE']], ['乾燥機', ['GAS-REF']], ['絕緣開關', ['GAS-GCB']], ['CO2 瓶', ['GAS-MED']],

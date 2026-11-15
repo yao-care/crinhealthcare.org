@@ -58,7 +58,9 @@ export function getCase(ctx, id) {
   const decisions = q.all('SELECT d.*, u.display_name AS proposed_by_name FROM decisions d LEFT JOIN users u ON u.id = d.proposed_by WHERE case_id = ? ORDER BY proposed_at DESC', id);
   // 衝擊：哪些報告已引用此標的此期間的採用值
   const impact = c.asset_id ? q.all(`SELECT DISTINCT rc.id, rc.name, rr.status FROM approved_facts af JOIN usage_links ul ON ul.fact_id = af.id
-    JOIN report_runs rr ON rr.id = ul.report_run_id JOIN report_cases rc ON rc.id = rr.case_id WHERE af.asset_id = ? AND af.is_current = 1`, c.asset_id) : [];
+    JOIN report_runs rr ON rr.id = ul.report_run_id JOIN report_cases rc ON rc.id = rr.case_id WHERE af.asset_id = ? AND af.is_current = 1
+    AND (? IS NULL OR af.metric_code = ?) AND (? IS NULL OR (af.period_end > ? AND af.period_start < COALESCE(?, '9999-12-31')))`,
+    c.asset_id, c.metric_code, c.metric_code, c.period_start, c.period_start, c.period_end) : [];
   return { ...parseJson(c, ['observation_ids', 'details']), observations, events, decisions, impact, statusLabel: CASE_STATUS_LABEL[c.status] };
 }
 

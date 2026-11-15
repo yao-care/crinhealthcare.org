@@ -108,4 +108,19 @@
   --space-md: 0.75rem;
   --space-lg: 1rem;
   --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+
+  /* 平台 /p/：油水電氣面向色（chip 底用 pale、字用深色，對比 AA） */
+  --color-oil: oklch(0.42 0.09 60);
+  --color-oil-pale: oklch(0.95 0.03 60);
+  --color-water: oklch(0.42 0.12 235);
+  --color-water-pale: oklch(0.95 0.025 235);
+  --color-elec: oklch(0.45 0.11 95);
+  --color-elec-pale: oklch(0.96 0.05 95);
+  --color-gas: oklch(0.42 0.12 300);
+  --color-gas-pale: oklch(0.955 0.025 300);
+  --color-activity: oklch(0.42 0.06 160);
+  --color-activity-pale: oklch(0.955 0.02 160);
+  --color-bar: oklch(0.62 0.12 195);           /* 長條圖 */
+  --color-bar-2: oklch(0.70 0.10 60);
 }
