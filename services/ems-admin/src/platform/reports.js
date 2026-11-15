@@ -108,7 +108,7 @@ export function readiness(ctx, caseId) {
   const required = fields.filter((f) => f.required);
   const ds = q.get('SELECT status, version FROM datasets WHERE id = ?', c.dataset_id);
   return { ready: required.filter(ok).length, total: required.length, fields, dataset: ds,
-    blockers: [...(ds.status !== 'locked' ? ['資料集尚未定版：可預覽，但不能送審'] : []), ...required.filter((f) => !ok(f)).map((f) => `${f.label}：${STATE_LABEL[f.state] || f.state}`)] };
+    blockers: [...(!['locked', 'superseded'].includes(ds.status) ? ['資料集尚未定版：可預覽，但不能送審'] : []), ...required.filter((f) => !ok(f)).map((f) => `${f.label}：${STATE_LABEL[f.state] || f.state}`)] };
 }
 
 // 產製：計算並把結果、版本凍結進 report_runs
@@ -180,7 +180,7 @@ export function submitRun(ctx, runId) {
   assertCan(ctx, 'report.write', r.org_id);
   if (!['draft', 'returned'].includes(r.status)) throw conflict('此版本不是草稿');
   const ds = q.get('SELECT status FROM datasets WHERE id = ?', r.dataset_id);
-  if (ds.status !== 'locked') throw conflict('資料集尚未定版，不能送審（未核准觀測值不得進入正式報告）');
+  if (!['locked', 'superseded'].includes(ds.status)) throw conflict('資料集尚未定版，不能送審（未核准觀測值不得進入正式報告）');
   const results = j(r.results, {});
   const maps = mappingsFor(q.get('SELECT template_id FROM report_cases WHERE id = ?', r.case_id).template_id);
   const missing = maps.filter((m) => m.required && results.fields?.[m.field_id] && ['missing', 'blocked', 'partial'].includes(results.fields[m.field_id].state));
