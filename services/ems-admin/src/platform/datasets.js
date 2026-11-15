@@ -250,10 +250,18 @@ export function lockDataset(ctx, id) {
   const hash = datasetHash(id); const t = nowIso();
   tx(() => {
     update('datasets', id, { status: 'locked', hash, locked_by: ctx.userId, locked_at: t, updated_at: t });
+    snapshotAssets(id, d.org_id);
     for (const f of q.all('SELECT DISTINCT asset_id FROM approved_facts WHERE dataset_id = ? AND is_current = 1', id)) setWorkStatus(ctx, f.asset_id, 'locked', `資料集定版 ${d.name}`, { system: true });
     audit({ actor: ctx.userId, actorName: ctx.name, orgId: d.org_id, action: 'dataset.lock', targetType: 'dataset', targetId: id, after: { hash } });
   });
   return { hash };
+}
+
+export function snapshotAssets(datasetId, orgId) {
+  q.run('DELETE FROM dataset_asset_snapshots WHERE dataset_id = ?', datasetId);
+  for (const a of q.all('SELECT a.*, i.code AS item_code FROM assets a LEFT JOIN inventory_items i ON i.id = a.item_id WHERE a.org_id = ?', orgId)) {
+    insert('dataset_asset_snapshots', { dataset_id: datasetId, asset_id: a.id, attrs: a.attrs || '{}', applicability: a.applicability, asset_type: a.asset_type, item_code: a.item_code || null, name: a.name });
+  }
 }
 
 export function verifyDataset(id) {

@@ -423,3 +423,74 @@ test('[22.3] 證據雜湊驗證與機敏分級', async () => {
   assert.throws(() => E.checkFile('x.exe', Buffer.from('MZ')), /不接受/);
   assert.throws(() => E.checkFile('x.pdf', Buffer.from('not pdf')), /不符/);
 });
+
+// ── ISO 14064-1:2018 第 9.3.1 條 ──
+const G = await import('../src/platform/ghg.js');
+test('[ISO 14064-1] 盤查模板第 2 版涵蓋 9.3.1 必要內容', () => {
+  const t = R.templateFor('GHG-INV', '2026-12-31');
+  assert.equal(t.version, 2);
+  const fids = q.all('SELECT field_id FROM report_mappings WHERE template_id = ?', t.id).map((m) => m.field_id);
+  for (const f of ['org', 'responsible', 'period', 'org_boundary', 'report_boundary', 'gas_co2', 'gas_ch4', 'gas_n2o', 'gas_hfcs', 'gas_pfcs', 'gas_sf6', 'gas_nf3', 'biogenic', 'removals',
+    'exclusions', 's2_heat', 'cat3', 'cat4', 'cat5', 'cat6', 'base_year', 'methods', 'method_changes', 'factors', 'gwp', 'uncertainty', 'uncertainty_table', 'conformance', 'verified', 'assurance',
+    'source_inventory', 'data_quality']) assert.ok(fids.includes(f), f);
+});
+
+test('[ISO 14064-1] 依氣體分列加總等於類別一、生質 CO₂ 另計、不確定性合成', () => {
+  // 新資料集：發電機柴油含 2% 生質成分
+  q.run("UPDATE assets SET attrs = ? WHERE id = ?", JSON.stringify({ fuel: 'diesel', biogenicShare: 0.02 }), genAsset);
+  const ds2 = D.createDataset(reporter, { orgId: org803, year: 2025 }).id;
+  const o = O.addObservation(collector, { assetId: genAsset, metricCode: 'oil_consumption_l', periodStart: '2025-01-01', periodEnd: '2026-01-01', rawValue: 1000, ocrConfirmed: false }, { evidenceIds: [q.get("SELECT id FROM evidence_files WHERE filename='bill-202610.pdf'").id] });
+  V.runValidation(reporter, { orgId: org803, year: 2025 });
+  const d = D.proposeDecision(reporter, { datasetId: ds2, assetId: genAsset, metricCode: 'oil_consumption_l', periodStart: '2025-01-01', periodEnd: '2026-01-01', decisionType: 'select_source', selectedObservationId: o.id, reason: '油單' });
+  D.reviewDecision(reviewer1, d.id, { approve: true }); if (q.get('SELECT status FROM decisions WHERE id = ?', d.id).status === 'first_approved') D.reviewDecision(reviewer2, d.id, { approve: true });
+  const r = calc.computeAll(ds2, ['ghg.s1.total', 'ghg.biogenic_co2', 'ghg.uncertainty_pct', ...['co2', 'ch4', 'n2o', 'hfcs', 'pfcs', 'sf6', 'nf3'].map((g) => `ghg.s1.gas.${g}`)]).results;
+  const gasSum = ['co2', 'ch4', 'n2o', 'hfcs', 'pfcs', 'sf6', 'nf3'].reduce((s, g) => s + (r[`ghg.s1.gas.${g}`].value || 0), 0);
+  assert.ok(Math.abs(gasSum - r['ghg.s1.total'].value) < 0.001, `${gasSum} vs ${r['ghg.s1.total'].value}`);
+  assert.ok(r['ghg.biogenic_co2'].value > 0);
+  assert.ok(Math.abs(r['ghg.biogenic_co2'].value - 1000 * 2.67708 * 0.02 / 1000) < 0.001);
+  assert.ok(!r['ghg.s1.gas.sf6'].value, '沒有 SF₆ 排放源');
+  assert.ok(r['ghg.uncertainty_pct'].value > 0 && r['ghg.uncertainty_pct'].trace.inputs.length >= 1);
+  globalThis.__ds2 = ds2;
+});
+
+test('[ISO 14064-1] 顯著性評估、類別 3–6、基準年、報告自動段落與送審條件', async () => {
+  const sig = G.listSignificance(reporter, org803, 2025);
+  assert.ok(sig.rows.length >= 18);
+  const commute = sig.rows.find((x) => x.item_code === 'REF-COMMUTE');
+  assert.throws(() => G.saveSignificance(reporter, commute.id, { significant: true }), /理由/);
+  assert.throws(() => G.saveSignificance(reporter, commute.id, { significant: true, reason: '員工 1,450 人', quantified: true, valueTco2e: 120 }), /方法/);
+  G.saveSignificance(reporter, commute.id, { significant: true, reason: '員工 1,450 人，預估占 5%', quantified: true, valueTco2e: 120, method: '問卷 × 交通部運具係數' });
+  for (const x of sig.rows.filter((x) => x.id !== commute.id)) G.saveSignificance(reporter, x.id, { significant: false, reason: '預估占比低於 1%' });
+  const ds2 = globalThis.__ds2;
+  let r = calc.computeAll(ds2, ['ghg.cat3', 'ghg.cat4', 'ghg.total_all', 'ghg.total']).results;
+  assert.equal(r['ghg.cat3'].value, 120);
+  assert.equal(r['ghg.cat4'].value_state, 'not_applicable');
+  assert.ok(Math.abs(r['ghg.total_all'].value - (r['ghg.total'].value + 120)) < 1e-6);
+  // 基準年須用已定版資料集
+  assert.throws(() => G.setBaseYear(reporter, { orgId: org803, baseYear: 2025, datasetId: ds2, reason: '首次盤查' }), /定版/);
+  D.submitDataset(reporter, ds2); D.approveDataset(reviewer1, ds2); D.lockDataset(reviewer1, ds2);
+  G.setBaseYear(reporter, { orgId: org803, baseYear: 2025, datasetId: ds2, reason: '首次完整盤查年度', policy: '組織結構或方法變更累積達 5% 時重新計算', recalcThresholdPct: 5 });
+  // 定版後改標的屬性不影響重算
+  q.run("UPDATE assets SET attrs = ? WHERE id = ?", JSON.stringify({ fuel: 'diesel', biogenicShare: 0.5 }), genAsset);
+  r = calc.computeAll(ds2, ['ghg.biogenic_co2']).results;
+  assert.ok(Math.abs(r['ghg.biogenic_co2'].value - 1000 * 2.67708 * 0.02 / 1000) < 0.001, '使用定版快照');
+  // 盤查邊界
+  const site = q.get('SELECT id FROM sites WHERE org_id = ?', org803).id;
+  const bnd = A.saveBoundary(sa1.grants.length ? authz.contextFor({ uid: users.ensureLegacyUser({ username: 'hosp-803', hid: '803', name: 'x' }).uid }) : sa1, { orgId: org803, name: '本院營運控制邊界', kind: 'ghg_operational', siteIds: [site] }).id;
+  const c = R.createCase(reporter, { orgId: org803, templateCode: 'GHG-INV', year: 2025, datasetId: ds2, boundaryId: bnd });
+  let rd = R.readiness(reporter, c.id);
+  assert.ok(rd.blockers.some((b) => /報告負責人/.test(b)), '負責人未填要擋');
+  R.updateCase(reporter, c.id, { manualValues: { responsible: '總務室 王主任', removals: '未量化：院區無植林等碳匯', verified: '預計 2026 年第三方查證' } });
+  rd = R.readiness(reporter, c.id);
+  const f = (id) => rd.fields.find((x) => x.field_id === id);
+  assert.equal(f('org_boundary').state, 'measured');
+  assert.match(f('org_boundary').block.text, /營運控制法/);
+  assert.equal(f('indirect_table').state, 'measured');
+  assert.ok(f('exclusions').block.table.rows.some((r2) => r2[2] === '不顯著'));
+  assert.ok(f('source_inventory').block.table.rows.length > 0);
+  assert.match(f('base_year').block.text, /2025/);
+  const run = R.generateRun(reporter, c.id).id;
+  const html = (await X.exportRun(reporter, run, 'html')).data.toString('utf8');
+  for (const kw of ['營運控制法', '排放源鑑別表', '不確定性', 'ISO 14064-1:2018', 'GWP', '基準年']) assert.ok(html.includes(kw), kw);
+  assert.ok((await X.exportRun(reporter, run, 'docx')).data.length > 1000);
+});

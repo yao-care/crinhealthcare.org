@@ -5,6 +5,7 @@ import { q, insert, update, newId, nowIso, audit, tx, parseJson, sha256 } from '
 import { assertCan, can, orgsFor } from './authz.js';
 import { bad, notFound, conflict, j } from './util.js';
 import { computeAll, STATE_LABEL } from './calc.js';
+import { buildBlocks } from './ghg.js';
 import { notify, notifyRole } from './collab.js';
 
 // 依發布日期選模板版本（GRI 2027-01-01 換版）
@@ -97,11 +98,13 @@ export function readiness(ctx, caseId) {
   const maps = mappingsFor(c.template_id);
   if (!c.dataset_id) return { ready: 0, total: maps.filter((m) => m.required).length, fields: maps.map((m) => ({ ...m, state: 'missing', note: '尚未指定資料集' })), datasetMissing: true, blockers: ['尚未指定資料集'] };
   const codes = maps.filter((m) => m.source_kind === 'indicator').map((m) => m.source_ref);
-  const { results } = computeAll(c.dataset_id, codes);
+  const { results, factorVersions, ruleVersions } = computeAll(c.dataset_id, codes);
   const manual = j(c.manual_values, {});
+  const blocks = buildBlocks(maps.filter((m) => m.source_kind === 'text').map((m) => m.source_ref), { caseRow: c, datasetId: c.dataset_id, results, factorVersions, ruleVersions });
   const fields = maps.map((m) => {
+    if (m.source_kind === 'text') { const b = blocks[m.source_ref] || { state: 'blocked', text: '未知的自動段落' }; return { ...m, block: b, state: b.state, notes: b.state !== 'measured' && b.text ? [b.text] : [] }; }
     if (m.source_kind === 'indicator') { const r = results[m.source_ref]; return { ...m, value: r?.value ?? null, unit: r?.unit, state: r?.value_state || 'blocked', stateLabel: STATE_LABEL[r?.value_state], notes: r?.trace?.notes || [] }; }
-    if (m.source_kind === 'manual') return { ...m, value: manual[m.field_id] ?? null, state: manual[m.field_id] ? 'measured' : (m.required ? 'missing' : 'not_applicable') };
+    if (m.source_kind === 'manual') return { ...m, value: manual[m.field_id] ?? null, state: manual[m.field_id] ? 'measured' : 'missing' };
     return { ...m, state: 'measured', note: '產製時自動彙整' };
   });
   const ok = (f) => ['measured', 'estimated', 'zero', 'not_applicable'].includes(f.state);
@@ -124,7 +127,9 @@ export function generateRun(ctx, caseId) {
   const calc = computeAll(c.dataset_id, codes);
   const manual = j(c.manual_values, {});
   const fields = {};
+  const blocks = buildBlocks(maps.filter((m) => m.source_kind === 'text').map((m) => m.source_ref), { caseRow: c, datasetId: c.dataset_id, results: calc.results, factorVersions: calc.factorVersions, ruleVersions: calc.ruleVersions });
   for (const m of maps) {
+    if (m.source_kind === 'text') { const b = blocks[m.source_ref] || { state: 'blocked', text: '未知的自動段落' }; fields[m.field_id] = { block: b, state: b.state }; continue; }
     if (m.source_kind === 'indicator') { const r = calc.results[m.source_ref]; fields[m.field_id] = { value: r.value, unit: r.unit, state: r.value_state, indicator: m.source_ref }; }
     else if (m.source_kind === 'manual') fields[m.field_id] = { value: manual[m.field_id] ?? null, state: manual[m.field_id] ? 'measured' : 'missing' };
     else if (m.source_kind === 'evidence_list') fields[m.field_id] = { list: evidenceList(c.dataset_id) };

@@ -436,6 +436,30 @@ const MIGRATIONS = [
       OR NEW.source_id <> OLD.source_id
     BEGIN SELECT RAISE(ABORT, '原始觀測值不可覆寫，請建立新版本'); END;
   `,
+  // 2：ISO 14064-1 第 9.3.1 條必要內容（顯著性評估、類別 3–6、基準年、係數不確定性）
+  `
+  CREATE TABLE ghg_significance (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL REFERENCES organizations(id), year INTEGER NOT NULL,
+    item_code TEXT NOT NULL, category INTEGER NOT NULL CHECK (category BETWEEN 1 AND 6), name TEXT NOT NULL,
+    significant INTEGER, criteria TEXT, reason TEXT,
+    quantified INTEGER NOT NULL DEFAULT 0, value_tco2e REAL, method TEXT, data_source TEXT, uncertainty_pct REAL,
+    evidence_ids TEXT NOT NULL DEFAULT '[]', updated_by TEXT, updated_at TEXT NOT NULL,
+    UNIQUE (org_id, year, item_code)
+  );
+  CREATE TABLE ghg_base_years (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL REFERENCES organizations(id), base_year INTEGER NOT NULL,
+    dataset_id TEXT REFERENCES datasets(id), emissions TEXT NOT NULL DEFAULT '{}',
+    policy TEXT, recalc_threshold_pct REAL, kind TEXT NOT NULL CHECK (kind IN ('set','recalculated')), reason TEXT NOT NULL,
+    created_by TEXT, created_at TEXT NOT NULL
+  );
+  ALTER TABLE factors ADD COLUMN uncertainty_pct REAL;
+  -- 定版時快照標的屬性（燃料、冷媒、生質比例、適用性），重算封存報告時不受日後修改影響
+  CREATE TABLE dataset_asset_snapshots (
+    dataset_id TEXT NOT NULL REFERENCES datasets(id), asset_id TEXT NOT NULL REFERENCES assets(id),
+    attrs TEXT NOT NULL, applicability TEXT NOT NULL, asset_type TEXT NOT NULL, item_code TEXT, name TEXT NOT NULL,
+    PRIMARY KEY (dataset_id, asset_id)
+  );
+  `,
 ];
 
 let db = null;

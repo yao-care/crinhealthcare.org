@@ -22,6 +22,7 @@ import * as K from './collab.js';
 import * as N from './integrations.js';
 import * as CFG from './config-store.js';
 import * as BK from './backup.js';
+import * as G from './ghg.js';
 import { computeAll, ALL_RULE_CODES, STATE_LABEL } from './calc.js';
 import { DOMAINS, ASSET_TYPES, WORK_STATUS, APPLICABILITY, USAGE_STATUS } from './seed/dictionary.js';
 import { CASE_STATUS_LABEL } from './cases.js';
@@ -303,6 +304,18 @@ route('GET', '/api/v1/report-runs/:id/export', '匯出 xlsx／csv／docx／pdf�
   const out = await X.exportRun(ctx, params.id, query.format || 'xlsx');
   res.writeHead(200, { 'Content-Type': out.mime, 'Content-Length': out.data.length, 'Content-Disposition': `${query.format === 'html' ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(out.filename)}`, 'Cache-Control': 'private, no-store' });
   res.end(out.data); return RAW;
+});
+
+// ── ISO 14064-1：顯著性評估、基準年 ──
+route('GET', '/api/v1/ghg/significance', '間接排放顯著性評估（orgId、year）', (ctx, { query }) => G.listSignificance(ctx, query.orgId, Number(query.year)));
+route('PATCH', '/api/v1/ghg/significance/:id', '更新顯著性評估與量化結果', (ctx, { params, body }) => { G.saveSignificance(ctx, params.id, body); return { ok: true }; });
+route('GET', '/api/v1/ghg/base-years', '基準年與重新計算紀錄', (ctx, { query }) => G.listBaseYears(ctx, query.orgId));
+route('POST', '/api/v1/ghg/base-years', '設定基準年或重新計算（kind=set|recalculated）', (ctx, { body }) => G.setBaseYear(ctx, body));
+route('GET', '/api/v1/ghg/preview', '盤查報告自動段落預覽（orgId、year、datasetId）', (ctx, { query }) => {
+  assertCan(ctx, 'view.internal', query.orgId);
+  const keys = ['org_boundary', 'report_boundary', 'indirect_table', 'exclusions', 'base_year', 'source_inventory', 'data_quality', 'uncertainty_table'];
+  const calc = query.datasetId ? computeAll(query.datasetId, ['ghg.total_all', 'ghg.uncertainty_pct']) : { results: {}, factorVersions: {}, ruleVersions: {} };
+  return G.buildBlocks(keys, { caseRow: { org_id: query.orgId, year: Number(query.year), boundary_id: query.boundaryId || null }, datasetId: query.datasetId || null, ...calc });
 });
 
 // ── 成果回饋、看板 ──

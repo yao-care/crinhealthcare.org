@@ -21,6 +21,13 @@ export function makeContext(datasetId, { pinnedRules = {}, pinnedFactors = {} } 
     .map((f) => ({ ...f, attrs: j(f.attrs, {}) }));
   const assets = q.all(`SELECT a.*, i.code AS item_code FROM assets a LEFT JOIN inventory_items i ON i.id = a.item_id WHERE a.org_id = ? AND a.status <> 'archived'`, ds.org_id)
     .map((a) => ({ ...a, attrs: j(a.attrs, {}) }));
+  // 已定版的資料集用定版當下的標的屬性快照
+  const snap = new Map(q.all('SELECT * FROM dataset_asset_snapshots WHERE dataset_id = ?', datasetId).map((r) => [r.asset_id, r]));
+  if (snap.size) {
+    const fix = (a) => { const s = snap.get(a.asset_id || a.id); return s ? { ...a, attrs: j(s.attrs, {}), applicability: s.applicability, asset_type: s.asset_type, item_code: s.item_code ?? a.item_code } : a; };
+    for (let i = 0; i < facts.length; i++) facts[i] = fix(facts[i]);
+    for (let i = 0; i < assets.length; i++) assets[i] = fix(assets[i]);
+  }
   const settings = getConfig('calc.settings') || { gwpSet: 'AR5', precision: {} };
   return { ds, facts, assets, settings, septic: getConfig('calc.septic') || {}, pinnedRules, pinnedFactors, usedFactors: {}, usedRules: {}, cache: new Map(), date: `${ds.year}-07-01` };
 }
@@ -94,18 +101,23 @@ const KINDS = {
       if (['missing', 'unknown', 'pending_period_end'].includes(f.value_state)) { state = worse(state, 'partial'); inputs.push(inp(f, { excluded: true })); continue; }
       if (f.value_state === 'not_applicable') continue;
       const c = convert(f.value, f.unit, FUEL_UNIT[fuel]); const activity = c.ok ? c.value : f.value;
-      let kg = 0; const gases = {};
+      let kg = 0; const gases = {}; let biogenicKg = 0;
+      const biogenicShare = Math.min(1, Math.max(0, Number(f.attrs.biogenicShare) || 0));
       for (const gas of ['CO2', 'CH4', 'N2O']) {
         const ef = factor(cx, `ef.${fuel}.${def.mode}.${gas}`, f.period_start) || (def.mode === 'mobile' ? factor(cx, `ef.${fuel}.stationary.${gas}`, f.period_start) : null);
         const gwp = factor(cx, `gwp.${gwpSet}.${gas}`);
         if (!ef || !gwp) { state = 'blocked'; notes.push(`缺已發布係數：${!ef ? `ef.${fuel}.${def.mode}.${gas}` : `gwp.${gwpSet}.${gas}`}`); continue; }
         if (!factors.some((x) => x.code === ef.code)) factors.push(fRef(ef));
         if (!factors.some((x) => x.code === gwp.code)) factors.push(fRef(gwp));
-        gases[gas] = activity * ef.value * gwp.value; kg += gases[gas];
+        gases[gas] = activity * ef.value * gwp.value;
+        // 生質成分：CO₂ 的生質部分另計（ISO 14064-1 9.3.1 g），不納入總量；CH₄、N₂O 照算
+        if (gas === 'CO2' && biogenicShare > 0) { biogenicKg += gases.CO2 * biogenicShare; gases.CO2 *= 1 - biogenicShare; }
+        kg += gases[gas];
       }
       totalKg += kg; any = true;
       if (f.value_state === 'estimated') state = worse(state, 'estimated');
-      inputs.push(inp(f, { fuel, kgCO2e: round(kg, 3), byGas: Object.fromEntries(Object.entries(gases).map(([g, v]) => [g, round(v, 3)])) }));
+      inputs.push(inp(f, { fuel, kgCO2e: round(kg, 3), byGas: Object.fromEntries(Object.entries(gases).map(([g, v]) => [g, round(v, 3)])),
+        ...(biogenicShare > 0 ? { biogenicShare, biogenicKgCO2: round(biogenicKg, 3) } : {}), factorCodes: ['CO2', 'CH4', 'N2O'].map((g) => `ef.${fuel}.${def.mode}.${g}`) }));
     }
     const as = assetsFor(cx, def.items).filter((a) => a.applicability !== 'not_applicable');
     const covered = new Set(inputs.map((i) => i.assetId));
@@ -138,7 +150,7 @@ const KINDS = {
       const c = convert(f.value, f.unit, 'kWh');
       const v = (c.ok ? c.value : f.value) * ef.value; kg += v; any = true;
       if (f.value_state === 'estimated') state = worse(state, 'estimated');
-      inputs.push(inp(f, { factor: ef.code, kgCO2e: round(v, 3) }));
+      inputs.push(inp(f, { factor: ef.code, factorCodes: [ef.code], kgCO2e: round(v, 3) }));
     }
     if (!any) return result(cx, def.unit, null, state === 'blocked' ? 'blocked' : 'missing', { formula: '外購電力 × 電力排放係數', inputs, factors, notes });
     return result(cx, def.unit, kg / 1000, state, { formula: 'Σ 外購電力(kWh) × 當年度電力排放係數(kgCO₂e/kWh) ÷ 1000', inputs, factors, notes,
@@ -166,7 +178,7 @@ const KINDS = {
           if (['missing', 'unknown'].includes(f.value_state)) { state = worse(state, 'partial'); inputs.push(inp(f, { excluded: true })); continue; }
           const v = (f.value || 0) * gwp.value; kg += v; any = true;
           if (f.value_state === 'estimated') state = worse(state, 'estimated');
-          inputs.push(inp(f, { gas, kgCO2e: round(v, 3) }));
+          inputs.push(inp(f, { gas, kgCO2e: round(v, 3), factorCodes: [gwp.code] }));
         }
       } else if (method === 'screening' && a.attrs.leakRatePct) {
         const plate = cx.facts.find((f) => f.asset_id === a.id && ['ref_charge_kg', 'fire_ext_charge_kg'].includes(f.metric_code));
@@ -274,6 +286,97 @@ const KINDS = {
     return result(cx, def.unit, value, state, { formula: def.unit === 'toe' ? 'Σ 能源量 × 熱值(kcal) ÷ 10⁷' : 'Σ 能源量 × 熱值(kcal) × 4.1868×10⁻⁶ GJ/kcal；電力 860 kcal/kWh', inputs, factors, notes });
   },
 
+  // 單一係數：活動量 × 係數（係數代碼 prefix.年 或 prefix）
+  simple_emission(cx, def) {
+    const facts = factsFor(cx, { items: def.items, metrics: [def.metric] });
+    if (!facts.length) return result(cx, def.unit, null, emptyState(cx, def.items), { formula: '查無採用值', inputs: [] });
+    const inputs = []; const factors = []; const notes = []; let kg = 0; let state = 'measured'; let any = false;
+    for (const f of facts) {
+      if (['missing', 'unknown'].includes(f.value_state)) { state = worse(state, 'partial'); inputs.push(inp(f, { excluded: true })); continue; }
+      if (f.value_state === 'not_applicable') continue;
+      const y = f.period_start.slice(0, 4);
+      const ef = factor(cx, `${def.factorPrefix}.${y}`, f.period_start) || factor(cx, def.factorPrefix, f.period_start);
+      if (!ef) { state = 'blocked'; notes.push(`缺已發布係數 ${def.factorPrefix}.${y}（請向供應商取得並在後台新增）`); continue; }
+      if (!factors.some((x) => x.code === ef.code)) factors.push(fRef(ef));
+      const v = f.value * ef.value; kg += v; any = true; if (f.value_state === 'estimated') state = worse(state, 'estimated');
+      inputs.push(inp(f, { factor: ef.code, factorCodes: [ef.code], kgCO2e: round(v, 3) }));
+    }
+    if (!any) return result(cx, def.unit, null, state === 'blocked' ? 'blocked' : 'missing', { formula: '活動量 × 係數', inputs, factors, notes });
+    return result(cx, def.unit, kg / 1000, state, { formula: 'Σ 活動量 × 供應商排放係數 ÷ 1000', inputs, factors, notes });
+  },
+
+  // 依氣體分列（ISO 14064-1 9.3.1 f）
+  gas_split(cx, def) {
+    let kg = 0; let any = false; let state = 'measured'; const inputs = [];
+    for (const code of def.of) {
+      const r = compute(cx, code);
+      if (r.value === null) { if (!['not_applicable'].includes(r.value_state)) state = worse(state, r.value_state === 'blocked' ? 'blocked' : 'partial'); continue; }
+      state = worse(state, r.value_state);
+      const part = gasBreakdown(code, r);
+      if (part[def.gas]) { kg += part[def.gas]; any = true; inputs.push({ indicator: code, kgCO2e: round(part[def.gas], 3) }); }
+    }
+    if (!any) return result(cx, def.unit, state === 'measured' ? 0 : null, state === 'measured' ? 'zero' : state === 'partial' ? 'partial' : state, { formula: `類別一各排放源中 ${def.gas} 的 CO₂e 加總`, inputs, notes: state === 'measured' ? [`本期沒有 ${def.gas} 排放`] : [] });
+    return result(cx, def.unit, kg / 1000, state, { formula: `類別一各排放源中 ${def.gas} 的 CO₂e 加總`, inputs });
+  },
+
+  biogenic(cx, def) {
+    let kg = 0; const inputs = [];
+    for (const code of ['ghg.s1.stationary', 'ghg.s1.mobile']) {
+      for (const i of compute(cx, code).trace?.inputs || []) if (i.biogenicKgCO2) { kg += i.biogenicKgCO2; inputs.push({ ...i, indicator: code }); }
+    }
+    if (!inputs.length) return result(cx, def.unit, 0, 'zero', { formula: 'Σ 燃料 CO₂ × 生質比例', inputs: [], notes: ['本期燃料未設定生質成分（標的專屬欄位 biogenicShare），生質 CO₂ 為 0'] });
+    return result(cx, def.unit, kg / 1000, 'measured', { formula: 'Σ 燃料 CO₂ × 生質比例（另計，不納入總量）', inputs });
+  },
+
+  // 類別 3–6：顯著性評估表中「顯著且已量化」的項目
+  significance(cx, def) {
+    const rows = q.all('SELECT * FROM ghg_significance WHERE org_id = ? AND year = ? AND category = ?', cx.ds.org_id, cx.ds.year, def.category);
+    const inputs = rows.map((r) => ({ item: r.item_code, name: r.name, significant: r.significant, quantified: !!r.quantified, value: r.value_tco2e, method: r.method, uncertaintyPct: r.uncertainty_pct }));
+    if (!rows.length || rows.some((r) => r.significant === null)) return result(cx, def.unit, null, 'missing', { formula: '顯著且已量化項目加總', inputs, notes: [`類別${def.category}尚未完成顯著性評估`] });
+    const sig = rows.filter((r) => r.significant);
+    if (!sig.length) return result(cx, def.unit, null, 'not_applicable', { formula: '顯著且已量化項目加總', inputs, notes: ['經評估本類別無顯著項目'] });
+    const q2 = sig.filter((r) => r.quantified && r.value_tco2e !== null);
+    const notes = sig.filter((r) => !r.quantified || r.value_tco2e === null).map((r) => `${r.name} 判定顯著但尚未量化`);
+    if (!q2.length) return result(cx, def.unit, null, 'missing', { formula: '顯著且已量化項目加總', inputs, notes });
+    return result(cx, def.unit, q2.reduce((s, r) => s + r.value_tco2e, 0), notes.length ? 'partial' : 'estimated', { formula: '顯著且已量化項目加總', inputs, notes });
+  },
+
+  // 不確定性：每個排放源 U = √(Ua² + Uf²)，總量 U = √Σ(U·E)² ÷ ΣE（IPCC 方法 1）
+  uncertainty(cx, def) {
+    const cfg = getConfig('ghg.uncertainty') || {};
+    const KIND = { 'ghg.s1.stationary': 'combustion', 'ghg.s1.mobile': 'combustion', 'ghg.s1.refrigerant': 'refrigerant', 'ghg.s1.insulating': 'insulating',
+      'ghg.s1.process': 'process', 'ghg.s1.septic': 'septic', 'ghg.s2.electricity': 'electricity', 'ghg.s2.imported_heat': 'imported_heat' };
+    const rows = []; let sumE = 0; let sumUE2 = 0; let state = 'estimated';
+    for (const code of def.of) {
+      const r = compute(cx, code);
+      if (r.value === null || !r.value) { if (!['not_applicable', 'zero'].includes(r.value_state) && r.value === null) state = 'partial'; continue; }
+      const kind = KIND[code];
+      const factIns = (r.trace?.inputs || []).filter((i) => i.factId && !i.excluded && i.kgCO2e);
+      const sources = factIns.length ? factIns : [{ asset: r.rule?.name || code, kgCO2e: r.value * 1000, whole: true }];
+      // 同一排放源（標的）各期活動數據彼此獨立；同一係數在各期完全相關 → 先合成活動數據，再與係數合成
+      const groups = new Map();
+      for (const i of sources) {
+        const k = i.assetId || i.asset || code;
+        if (!groups.has(k)) groups.set(k, { asset: i.asset, e: 0, ua2: 0, uf: 0, n: 0 });
+        const g = groups.get(k);
+        const ua = i.whole ? (cfg.activityEstimated ?? 20) : activityUncertainty(i.factId, cfg);
+        const fus = (i.factorCodes || []).map((c) => q.get("SELECT uncertainty_pct FROM factors WHERE code = ? AND status = 'published' ORDER BY version DESC LIMIT 1", c)?.uncertainty_pct).filter((x) => x !== null && x !== undefined);
+        const uf = fus.length ? Math.max(...fus) : (cfg.factorByKind?.[kind] ?? 10);
+        const e = i.kgCO2e / 1000;
+        g.e += e; g.ua2 += (ua * e) ** 2; g.uf = Math.max(g.uf, uf); g.n++;
+      }
+      for (const g of groups.values()) {
+        if (!g.e) continue;
+        const ua = Math.sqrt(g.ua2) / g.e; const u = Math.sqrt(ua ** 2 + g.uf ** 2);
+        sumE += g.e; sumUE2 += (u * g.e) ** 2;
+        rows.push({ indicator: code, asset: g.asset, periods: g.n, tCO2e: round(g.e, 4), activityPct: round(ua, 2), factorPct: round(g.uf, 2), combinedPct: round(u, 2) });
+      }
+    }
+    if (!sumE) return result(cx, def.unit, null, 'missing', { formula: '', inputs: rows, notes: ['沒有可評估的排放量'] });
+    return result(cx, def.unit, Math.sqrt(sumUE2) / sumE, state, { formula: '各排放源：活動數據各期獨立合成，再與係數（同源各期完全相關）合成 U＝√(Ua² ＋ Uf²)；總量 U＝√Σ(U×E)² ÷ ΣE', inputs: rows,
+      notes: [cfg.note || '', `信賴區間 ${cfg.confidence || '95%'}`].filter(Boolean) });
+  },
+
   water_consumption(cx, def) {
     const direct = factsFor(cx, { metrics: ['water_consumption_m3'] });
     if (direct.length) return KINDS.sum(cx, { metrics: ['water_consumption_m3'], unit: def.unit });
@@ -284,6 +387,47 @@ const KINDS = {
       inputs: [{ indicator: 'water.withdrawal_m3', value: w.value }, { indicator: 'water.discharge_m3', value: d.value }] });
   },
 };
+
+// 某排放源結果拆成各氣體 kgCO2e
+const MONTREAL_LIKE = /^(HCFC|CFC)/;
+export function gasClass(g) {
+  const s = String(g || '').toUpperCase();
+  if (s === 'CO2' || s === 'R-744') return 'CO2';
+  if (s === 'CH4') return 'CH4';
+  if (s === 'N2O') return 'N2O';
+  if (s === 'SF6') return 'SF6';
+  if (s === 'NF3') return 'NF3';
+  if (/^(PFC|CF4|C2F6|C3F8|R-14|R-116|R-218)/.test(s)) return 'PFCs';
+  if (MONTREAL_LIKE.test(s)) return null;
+  return 'HFCs'; // HFC 單一成分與 R-4xx／R-5xx 混合冷媒
+}
+function gasBreakdown(code, r) {
+  const out = {};
+  const add = (g, v) => { if (!g || !v) return; out[g] = (out[g] || 0) + v; };
+  if (code === 'ghg.s1.septic') { add('CH4', r.value * 1000); return out; }
+  for (const i of r.trace?.inputs || []) {
+    if (i.excluded) continue;
+    if (i.byGas) for (const [g, v] of Object.entries(i.byGas)) add(g, v);
+    else if (i.gas) add(gasClass(i.gas), i.kgCO2e);
+  }
+  return out;
+}
+function activityUncertainty(factId, cfg) {
+  const f = q.get('SELECT * FROM approved_facts WHERE id = ?', factId);
+  if (!f) return cfg.activityEstimated ?? 20;
+  if (f.value_state === 'estimated') return cfg.activityEstimated ?? 20;
+  const d = f.decision_id ? q.get('SELECT decision_type FROM decisions WHERE id = ?', f.decision_id) : null;
+  if (d?.decision_type === 'derived') return cfg.activityDerived ?? 10;
+  const ids = j(f.observation_ids, []);
+  let best = null;
+  for (const id of ids) {
+    const o = q.get('SELECT method, uncertainty FROM observations WHERE id = ?', id); if (!o) continue;
+    const n = Number(String(o.uncertainty || '').replace(/[^\d.]/g, ''));
+    const v = Number.isFinite(n) && n > 0 ? n : (cfg.activityByMethod?.[o.method] ?? 5);
+    best = best === null ? v : Math.max(best, v);
+  }
+  return best ?? 5;
+}
 
 export function compute(cx, code) {
   if (cx.cache.has(code)) return cx.cache.get(code);

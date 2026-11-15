@@ -61,7 +61,7 @@ function assetFields(a = {}, { sites = [], parents = [], users = [] } = {}) {
     { key: 'shared', label: '共用（例：多台發電機共用油槽）', type: 'checkbox' }, { key: 'leased', label: '租賃設備', type: 'checkbox' },
     { key: 'ownerUserId', label: '實際保管者（可空）', type: 'select', options: users, hint: '不知道就留空，之後用來源追查找' },
     { key: 'dueDate', label: '截止日', type: 'date' }, { key: 'nextStep', label: '下一步說明' },
-    { key: 'attrs', label: '專屬欄位（JSON；例：{"fuel":"diesel"}、{"refrigerant":"R-410A"}、{"rolloverAt":99999}）', type: 'json', wide: true },
+    { key: 'attrs', label: '專屬欄位（JSON）', type: 'json', wide: true, hint: '燃料 {"fuel":"diesel"}（diesel／gasoline／fuel_oil／ng／lpg）；含生質成分 {"biogenicShare":0.02}；冷媒 {"refrigerant":"R-410A"}；表頭回轉 {"rolloverAt":99999}；數據品質等級 {"dq":{"activityType":2,"activityTrust":1,"factorType":3}}；表計已校正 {"calibrated":true}' },
   ];
 }
 

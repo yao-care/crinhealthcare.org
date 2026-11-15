@@ -44,6 +44,7 @@ export const METRICS = [
   ['elec_self_used_kwh', 'electricity', '自發自用電量', 'self_use', 'interval', 'kWh', ''],
   ['elec_exported_kwh', 'electricity', '售電／輸出電量', 'export', 'interval', 'kWh', '躉售或轉供，不可再計入自用'],
   ['elec_rec_kwh', 'electricity', '再生能源憑證電量', 'certificate', 'interval', 'kWh', '憑證認列另依條件，不因名稱為綠電自動扣減'],
+  ['imported_energy_gj', 'electricity', '外購蒸汽／熱能／冷能', 'usage', 'interval', 'GJ', '供應商帳單；類別二輸入能源'],
   ['ess_charge_kwh', 'electricity', '儲能充電量', 'ess_charge', 'interval', 'kWh', '充電與放電不可互抵成組織用電'],
   ['ess_discharge_kwh', 'electricity', '儲能放電量', 'ess_discharge', 'interval', 'kWh', ''],
   ['ess_soc_pct', 'electricity', '儲能電量（SOC）', 'state', 'stock', 'pct', ''],
@@ -165,6 +166,10 @@ export const ITEMS = [
   I('ELE-SUB', 'electricity', 'submeter', '院內分表', {
     asset_types: ['power_meter', 'substation', 'building'], metrics: ['elec_metered_kwh', 'elec_meter_reading_kwh', 'elec_peak_demand_kw'],
     special_rules: ['母表與子表層級，損失與未計量部分', '累積讀值差分處理換表、歸零、缺點與倍率'] }),
+  I('ELE-HEAT', 'electricity', 'imported_heat', '外購蒸汽、熱能、冷能', {
+    asset_types: ['supply_contract', 'equipment'], metrics: ['imported_energy_gj'], required_data: ['供應量（GJ 或噸蒸汽換算）', '供應商排放係數', '帳單'],
+    source_hints: ['蒸汽供應契約', '區域供冷／供熱帳單'], special_rules: ['排放係數向供應商取得，沒有係數時不可估算為 0'],
+    applicability_rules: '院區沒有外購蒸汽、熱能、冷能即判定不適用', ghg_ref: { scope: 2, iso: '類別二', type: 'imported_heat' } }),
   I('ELE-PV', 'electricity', 'onsite_generation', '自發自用與售電（太陽能等）', {
     asset_types: ['pv_system', 'generation_meter'], metrics: ['elec_generated_kwh', 'elec_self_used_kwh', 'elec_exported_kwh', 'elec_rec_kwh'],
     special_rules: ['避免同筆電量重複認列', '憑證另依條件，不自行扣減排放量'] }),
@@ -221,6 +226,19 @@ export const REFERENCE_ITEMS = [
   ['REF-PRODUSE', '使用產品階段'], ['REF-DOWNLEASE', '下游承租的資產'], ['REF-EOL', '產品生命終止階段'],
 ].map(([code, name]) => I(code, 'reference', 'ghg_reference', name, { applicability_rules: '非油水電氣主入口；是否量化依報告邊界決定' }));
 
+// ISO 14064-1:2018 類別（間接排放顯著性評估用）。類別一的土地利用變更也在這裡評估
+export const ISO_CATEGORIES = {
+  1: '類別一 直接排放與移除', 2: '類別二 輸入能源間接排放', 3: '類別三 運輸間接排放', 4: '類別四 組織使用產品之間接排放',
+  5: '類別五 使用組織產品之間接排放', 6: '類別六 其他來源之間接排放',
+};
+export const SIGNIFICANCE_ITEMS = [
+  ['REF-LAND', 1, '土地使用變更'], ['REF-UPTRANS', 3, '上游（材料）運輸'], ['REF-DOWNTRANS', 3, '下游（產品）運輸'], ['REF-COMMUTE', 3, '員工通勤'],
+  ['REF-VISITOR', 3, '客戶與訪客運輸'], ['REF-TRAVEL', 3, '員工商務旅行'], ['REF-PURCHASE', 4, '上游物料採購'], ['REF-CAPEX', 4, '資本財'],
+  ['REF-WASTE', 4, '廢棄物處理'], ['UPSTREAM-ENERGY', 4, '電力與燃料上游排放'], ['UPSTREAM-WATER', 4, '自來水上游排放'], ['WASTEWATER', 4, '（廢）污水處理（委外）'],
+  ['REF-LEASED', 4, '使用租賃的設備'], ['REF-SERVICE', 4, '使用服務（諮商、清潔、維護、郵遞、銀行）'], ['REF-PRODUSE', 5, '產品使用階段'],
+  ['REF-DOWNLEASE', 5, '下游承租的資產'], ['REF-EOL', 5, '產品生命終止階段'], ['OTHER-6', 6, '其他間接排放'],
+];
+
 // 原表活動來源文字 → 盤點項目（M14 匯入時用；比對用「包含」）
 export const WORKBOOK_MAP = [
   ['公務車輛用油', ['OIL-VEH', 'GAS-REF']], ['公務車', ['OIL-VEH']], ['堆高機', ['OIL-FORK']], ['天然氣或LPG', ['GAS-NG', 'GAS-LPG']],
@@ -243,7 +261,7 @@ export const ASSET_TYPES = {
   generation_meter: '發電計量表', ess: '儲能櫃', chiller: '冰水主機', ahu: '空調箱', data_room: '資訊機房', equipment: '設備',
   gas_account: '瓦斯帳號', gas_meter: '氣表', lpg_cylinder: 'LPG 鋼瓶', lpg_tank: 'LPG 儲槽', split_ac: '分離式冷氣',
   window_ac: '窗型冷氣', water_dispenser: '飲水機', refrigerator: '冷藏設備', dryer: '乾燥機', vehicle_ac: '公務車冷氣',
-  gcb: '氣體斷路器（GCB）', gas_cylinder: '氣體鋼瓶', gas_supply: '氣體供應', fire_extinguisher: '滅火器', org_activity: '院所營運活動',
+  gcb: '氣體斷路器（GCB）',  gas_cylinder: '氣體鋼瓶', gas_supply: '氣體供應', fire_extinguisher: '滅火器', org_activity: '院所營運活動',
 };
 
 // 資料工作進度（PRD §5.2）

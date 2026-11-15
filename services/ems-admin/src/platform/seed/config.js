@@ -41,6 +41,22 @@ export const DEFAULT_CONFIG = {
     public: ['domain_progress', 'kpi_rates', 'usage_count', 'site_progress'],
     hideBelowCount: 0,
   },
+  // ISO 14064-1：不確定性預設值（院方依採用指引調整；觀測值有填不確定性時以觀測值為準）
+  'ghg.uncertainty': {
+    activityByMethod: { api: 2, import: 2, legacy: 2, ocr: 3, manual: 5 }, activityEstimated: 20, activityDerived: 10,
+    factorByKind: { combustion: 5, electricity: 5, refrigerant: 10, insulating: 10, process: 10, septic: 50, imported_heat: 10 },
+    confidence: '95%', note: '活動數據與係數的相對不確定性（±%）；以誤差傳遞法合成（IPCC 2006 Vol.1 Ch.3 方法 1）',
+  },
+  'ghg.significance': {
+    thresholdPct: 1, criteria: '預估排放量占類別一＋類別二總量 1% 以上，或法規、主管機關、利害關係人要求揭露者，判定為顯著並量化',
+  },
+  // 環境部「溫室氣體排放量盤查作業指引」數據品質評分：三項等級相乘得積分，再分級（院方依採用版本調整）
+  'ghg.data_quality': {
+    activityType: { 1: '自動連續量測', 2: '間歇量測（帳單、抄表）', 3: '自行推估' },
+    activityTrust: { 1: '有外部校正或第三方證明', 2: '有內部校正紀錄', 3: '未校正或無紀錄' },
+    factorType: { 1: '自廠發展／實測係數', 2: '同製程／設備經驗係數、製造廠提供', 3: '區域／國家／國際排放係數' },
+    grades: [{ max: 10, grade: '第一級' }, { max: 19, grade: '第二級' }, { max: 27, grade: '第三級' }],
+  },
   'notify.channels': { inApp: true, email: false },
   'export.retentionDays': 3650,
   'security.session': { idleMinutes: 480, rememberDays: 30 },

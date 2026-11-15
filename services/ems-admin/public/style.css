@@ -1652,6 +1652,7 @@ a.pf-tile:hover { border-color: var(--color-primary); }
 .pf-table tr:hover td { background: var(--color-hover); }
 .pf-table td.num, .pf-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pf-table tr.sel td { background: var(--color-primary-pale); }
+.pf-table td.num > .pf-small { white-space: normal; text-align: left; min-width: 24rem; }
 .pf-table a { color: var(--color-primary-dark); }
 .pf-empty { padding: var(--space-xl); text-align: center; color: var(--color-text-secondary); }
 .pf-chip { display: inline-flex; align-items: center; gap: var(--space-2xs); padding: 0 var(--space-sm); border-radius: var(--radius-pill); font-size: var(--text-xs); line-height: 1.6;

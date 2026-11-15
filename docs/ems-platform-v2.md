@@ -64,3 +64,8 @@
 - [x] 23. 測試（業務流程、權限、資安）全過；設計守門全過　✅ test/platform.test.js 30/30、platform-http 7/7；8 種角色 × 29 頁瀏覽器零 pageerror；check-design 通過
 - [x] 24. 文件：操作手冊（四種角色）、資料字典、API（OpenAPI）、維運手冊、測試報告　✅ docs/ems-platform-manual.md、-ops.md、-dictionary.md、OpenAPI `/api/v1/openapi.json`
 - [x] 25. 合回 main、重啟 pm2、線上驗證　✅ 2bf6605；pm2 ems-admin online、`/p/` 200、OpenAPI 136 路徑、正式資料庫建表與種子完成（稽核鏈 ok）、GitHub Pages deploy success
+
+### 追加：ISO 14064-1:2018 第 9.3.1 條必要內容（2026-11-15 業主：「全部都要處理」）
+- [x] 26. 盤查報告模板第 2 版逐條對應 9.3.1：組織描述、負責人、期間、組織邊界與合併方法、報告邊界與顯著性準則、依氣體分列（CO₂、CH₄、N₂O、HFCs、PFCs、SF₆、NF₃）、生質 CO₂ 另計、移除量、排除說明、類別二外購蒸汽／熱能／冷能、類別三～六、基準年與重新計算、量化方法與變更、係數與 GWP、不確定性、依循聲明、查證；另加環境部常用的排放源鑑別表與數據品質評分　✅ `src/platform/ghg.js`、`seed/rules.js`；test「[ISO 14064-1] …」3 項
+- [x] 27. 定版資料集快照標的屬性（燃料、冷媒、生質比例、適用性），封存報告重算不受日後修改影響　✅ test「定版後改標的屬性不影響重算」
+

@@ -94,8 +94,9 @@ export function seedRulesAndTemplates() {
   const t = nowIso();
   tx(() => {
     for (const r of RULES) {
-      if (q.get('SELECT 1 FROM calculation_rules WHERE code = ?', r.code)) continue;
-      insert('calculation_rules', { id: newId('rule'), code: r.code, version: 1, name: r.name, description: r.description || null,
+      const version = r.version || 1;
+      if (q.get('SELECT 1 FROM calculation_rules WHERE code = ? AND version = ?', r.code, version)) continue;
+      insert('calculation_rules', { id: newId('rule'), code: r.code, version, name: r.name, description: r.description || null,
         definition: r.definition, status: 'published', created_by: 'seed', created_at: t, approved_by: 'seed', approved_at: t });
     }
     for (const tp of TEMPLATES) {

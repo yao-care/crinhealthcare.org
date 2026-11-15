@@ -30,6 +30,7 @@
 | WAT-SEPTIC | 水 | 化糞池（逸散甲烷） | 化糞池 |  | 年度員工人力工時、就診病患人次、住院病患人數／天數、是否接管 | 人事室工時統計、醫務管理統計 | 已接管公共污水下水道者不適用；依方法以人數與工時計算，不以水量×任意係數 | 範疇1／類別一／septic_ch4 |
 | ELE-GRID | 電 | 外購電力 | 台電電號、計費點 | elec_purchased_kwh、elec_cost_twd、elec_peak_demand_kw、elec_contract_kw | kWh、費用、契約容量、計費期間、帳單 | 台電電費帳單、EMS、電費繳費紀錄 | 計費區間不一定是自然月，保存原期間並另存分攤值；帳單與 EMS 先校準邊界再比較；計費期間跨年前後都要收集 | 範疇2／類別二／purchased_electricity |
 | ELE-SUB | 電 | 院內分表 | 電表、變電站、建物 | elec_metered_kwh、elec_meter_reading_kwh、elec_peak_demand_kw |  |  | 母表與子表層級，損失與未計量部分；累積讀值差分處理換表、歸零、缺點與倍率 |  |
+| ELE-HEAT | 電 | 外購蒸汽、熱能、冷能 | 供應契約、設備 | imported_energy_gj | 供應量（GJ 或噸蒸汽換算）、供應商排放係數、帳單 | 蒸汽供應契約、區域供冷／供熱帳單 | 排放係數向供應商取得，沒有係數時不可估算為 0 | 範疇2／類別二／imported_heat |
 | ELE-PV | 電 | 自發自用與售電（太陽能等） | 太陽能系統、發電計量表 | elec_generated_kwh、elec_self_used_kwh、elec_exported_kwh、elec_rec_kwh |  |  | 避免同筆電量重複認列；憑證另依條件，不自行扣減排放量 |  |
 | ELE-ESS | 電 | 儲能系統 | 儲能櫃 | ess_charge_kwh、ess_discharge_kwh、ess_soc_pct |  | 儲能櫃 Modbus、充放電表 | 充電與放電不可逕行互抵成組織用電 |  |
 | ELE-EQUIP | 電 | 高耗能設備（空調、冰機、資訊機房） | 冰水主機、空調箱、資訊機房、設備 | equip_runtime_h、equip_rated_kw、equip_estimated_kwh、elec_metered_kwh |  |  |  |  |
@@ -72,6 +73,7 @@
 | elec_self_used_kwh | electricity | 自發自用電量 | self_use | interval | kWh |  |
 | elec_exported_kwh | electricity | 售電／輸出電量 | export | interval | kWh | 躉售或轉供，不可再計入自用 |
 | elec_rec_kwh | electricity | 再生能源憑證電量 | certificate | interval | kWh | 憑證認列另依條件，不因名稱為綠電自動扣減 |
+| imported_energy_gj | electricity | 外購蒸汽／熱能／冷能 | usage | interval | GJ | 供應商帳單；類別二輸入能源 |
 | ess_charge_kwh | electricity | 儲能充電量 | ess_charge | interval | kWh | 充電與放電不可互抵成組織用電 |
 | ess_discharge_kwh | electricity | 儲能放電量 | ess_discharge | interval | kWh |  |
 | ess_soc_pct | electricity | 儲能電量（SOC） | state | stock | pct |  |
@@ -238,6 +240,24 @@
 | ghg.s1.total | 範疇一 合計 | {"kind":"add","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic"],"unit":"tCO2e"} |  |
 | ghg.s2.electricity | 範疇二 外購電力 | {"kind":"electricity_emission","items":["ELE-GRID"],"metric":"elec_purchased_kwh","unit":"tCO2e"} | 外購電力 × 當年度電力排放係數 |
 | ghg.total | 溫室氣體排放總量（範疇一＋二） | {"kind":"add","of":["ghg.s1.total","ghg.s2.electricity"],"unit":"tCO2e"} |  |
+| ghg.s2.imported_heat | 類別二 外購蒸汽／熱能／冷能 | {"kind":"simple_emission","items":["ELE-HEAT"],"metric":"imported_energy_gj","factorPrefix":"ef.imported_heat","unit":"tCO2e","uKind":"imported_heat"} | 供應量 × 供應商排放係數（係數須由後台新增並發布） |
+| ghg.s2.total | 類別二 合計 | {"kind":"add","of":["ghg.s2.electricity","ghg.s2.imported_heat"],"unit":"tCO2e"} |  |
+| ghg.total | 溫室氣體排放總量（類別一＋類別二） | {"kind":"add","of":["ghg.s1.total","ghg.s2.total"],"unit":"tCO2e"} |  |
+| ghg.s1.gas.co2 | 類別一 CO₂ | {"kind":"gas_split","gas":"CO2","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic"],"unit":"tCO2e"} |  |
+| ghg.s1.gas.ch4 | 類別一 CH₄ | {"kind":"gas_split","gas":"CH4","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic"],"unit":"tCO2e"} |  |
+| ghg.s1.gas.n2o | 類別一 N₂O | {"kind":"gas_split","gas":"N2O","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic"],"unit":"tCO2e"} |  |
+| ghg.s1.gas.hfcs | 類別一 HFCs | {"kind":"gas_split","gas":"HFCs","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic"],"unit":"tCO2e"} |  |
+| ghg.s1.gas.pfcs | 類別一 PFCs | {"kind":"gas_split","gas":"PFCs","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic"],"unit":"tCO2e"} |  |
+| ghg.s1.gas.sf6 | 類別一 SF₆ | {"kind":"gas_split","gas":"SF6","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic"],"unit":"tCO2e"} |  |
+| ghg.s1.gas.nf3 | 類別一 NF₃ | {"kind":"gas_split","gas":"NF3","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic"],"unit":"tCO2e"} |  |
+| ghg.biogenic_co2 | 生質 CO₂（另計，不納入總量） | {"kind":"biogenic","items":["OIL-GEN","OIL-BOILER","OIL-VEH","OIL-FORK","GAS-NG","GAS-LPG"],"unit":"tCO2e"} | 燃料含生質成分（標的專屬欄位 biogenicShare）時，生質部分的 CO₂ 另列 |
+| ghg.cat3 | 類別三 間接排放（已量化之顯著項目） | {"kind":"significance","category":3,"unit":"tCO2e"} |  |
+| ghg.cat4 | 類別四 間接排放（已量化之顯著項目） | {"kind":"significance","category":4,"unit":"tCO2e"} |  |
+| ghg.cat5 | 類別五 間接排放（已量化之顯著項目） | {"kind":"significance","category":5,"unit":"tCO2e"} |  |
+| ghg.cat6 | 類別六 間接排放（已量化之顯著項目） | {"kind":"significance","category":6,"unit":"tCO2e"} |  |
+| ghg.indirect_3_6 | 類別三～六 合計 | {"kind":"add","of":["ghg.cat3","ghg.cat4","ghg.cat5","ghg.cat6"],"unit":"tCO2e"} |  |
+| ghg.total_all | 溫室氣體排放總量（類別一～六已量化項目） | {"kind":"add","of":["ghg.total","ghg.indirect_3_6"],"unit":"tCO2e"} |  |
+| ghg.uncertainty_pct | 盤查總不確定性（95% 信賴區間） | {"kind":"uncertainty","of":["ghg.s1.stationary","ghg.s1.mobile","ghg.s1.refrigerant","ghg.s1.insulating","ghg.s1.process","ghg.s1.septic","ghg.s2.electricity","ghg.s2.imported_heat"],"unit":"pct"} | 各排放源活動數據與係數不確定性以誤差傳遞法合成 |
 | ghg.intensity_bed | 每床排放強度 | {"kind":"ratio","num":"ghg.total","den":"act.beds","unit":"tCO2e/bed","scale":1} |  |
 | ghg.intensity_m2 | 單位面積排放強度 | {"kind":"ratio","num":"ghg.total","den":"act.floor_area_m2","unit":"kgCO2e/m2","scale":1000} |  |
 | energy.elec_kwh | 外購電力 | {"kind":"sum","items":["ELE-GRID"],"metrics":["elec_purchased_kwh"],"unit":"kWh"} |  |
@@ -281,6 +301,7 @@
 | 代碼 | 版本 | 名稱 | 準則 | 版次 | 適用期間 | 欄位數 |
 | --- | --- | --- | --- | --- | --- | --- |
 | GHG-INV | 1 | 組織溫室氣體盤查 | ISO 14064-1／環境部盤查登錄及查驗管理辦法 | ISO 14064-1:2018 | ～ | 14 |
+| GHG-INV | 2 | 組織溫室氣體盤查報告書 | ISO 14064-1／環境部盤查登錄及查驗管理辦法 | ISO 14064-1:2018 | ～ | 58 |
 | ESG-ENV | 1 | ESG 永續報告書環境面 | GRI Standards | GRI 302:2016／303:2018／305:2016 | 1900-01-01～2026-12-31 | 11 |
 | ESG-ENV | 2 | ESG 永續報告書環境面 | GRI Standards | GRI 103:2025／303:2018／102:2025 | 2027-01-01～ | 11 |
 | ISO50001 | 1 | ISO 50001 能源管理績效 | ISO 50001 | ISO 50001:2018 | ～ | 8 |
@@ -545,6 +566,78 @@
     "site_progress"
   ],
   "hideBelowCount": 0
+}
+```
+
+### ghg.uncertainty
+
+```json
+{
+  "activityByMethod": {
+    "api": 2,
+    "import": 2,
+    "legacy": 2,
+    "ocr": 3,
+    "manual": 5
+  },
+  "activityEstimated": 20,
+  "activityDerived": 10,
+  "factorByKind": {
+    "combustion": 5,
+    "electricity": 5,
+    "refrigerant": 10,
+    "insulating": 10,
+    "process": 10,
+    "septic": 50,
+    "imported_heat": 10
+  },
+  "confidence": "95%",
+  "note": "活動數據與係數的相對不確定性（±%）；以誤差傳遞法合成（IPCC 2006 Vol.1 Ch.3 方法 1）"
+}
+```
+
+### ghg.significance
+
+```json
+{
+  "thresholdPct": 1,
+  "criteria": "預估排放量占類別一＋類別二總量 1% 以上，或法規、主管機關、利害關係人要求揭露者，判定為顯著並量化"
+}
+```
+
+### ghg.data_quality
+
+```json
+{
+  "activityType": {
+    "1": "自動連續量測",
+    "2": "間歇量測（帳單、抄表）",
+    "3": "自行推估"
+  },
+  "activityTrust": {
+    "1": "有外部校正或第三方證明",
+    "2": "有內部校正紀錄",
+    "3": "未校正或無紀錄"
+  },
+  "factorType": {
+    "1": "自廠發展／實測係數",
+    "2": "同製程／設備經驗係數、製造廠提供",
+    "3": "區域／國家／國際排放係數"
+  },
+  "grades": [
+    {
+      "max": 10,
+      "grade": "第一級"
+    },
+    {
+      "max": 19,
+      "grade": "第二級"
+    },
+    {
+      "max": 27,
+      "grade": "第三級"
+    }
+  ]
 }
 ```
 

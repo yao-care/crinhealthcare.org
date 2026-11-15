@@ -9,6 +9,7 @@ import * as datasets from './pages/datasets.js';
 import * as reports from './pages/reports.js';
 import * as dash from './pages/dash.js';
 import * as admin from './pages/admin.js';
+import * as ghg from './pages/ghg.js';
 
 // PRD §15 選單；need＝需要的動作（任一院所有即顯示）
 const NAV = [
@@ -17,7 +18,7 @@ const NAV = [
     ['#/imports', '📥 匯入／辨識／介接', 'import.write'], ['#/observations', '📈 數據檢視與版本', 'view.internal'], ['#/evidence', '🗂 佐證文件庫', 'view.internal']]],
   ['數據品質中心', [['#/quality/runs', '✅ 檢核規則與結果', 'view.internal'], ['#/quality/cases', '⚖️ 差異案件', 'view.internal'],
     ['#/quality/review', '🖊 待審核採用值', 'decision.review'], ['#/datasets', '🔒 資料集與定版', 'view.internal']]],
-  ['報告與成果', [['#/reports', '📑 報告案件', 'view.internal'], ['#/indicators', '🧮 排放量與營運指標', 'view.internal']]],
+  ['報告與成果', [['#/reports', '📑 報告案件', 'view.internal'], ['#/indicators', '🧮 排放量與營運指標', 'view.internal'], ['#/ghg', '🌍 溫室氣體盤查設定', 'view.internal']]],
   ['統整資訊看板', [['#/dash/public', '📊 全院公開進度'], ['#/dash/management', '🏢 院區與單位進度', 'view.management'], ['#/dash/report', '🗒 報告準備', 'view.internal'], ['#/dash/energy', '⚡ 油水電氣趨勢', 'view.internal']]],
   ['系統管理', [['#/admin/orgs', '🏥 組織院區與邊界', 'org.write'], ['#/admin/users', '👥 帳號與權限', 'user.manage'], ['#/admin/dictionary', '📚 資料字典', 'view.internal'],
     ['#/admin/factors', '🧪 係數與計算規則', 'view.internal'], ['#/admin/templates', '🧾 報告模板', 'view.internal'], ['#/admin/config', '⚙️ 門檻與設定', 'view.internal'],
@@ -123,7 +124,7 @@ async function boot() {
   render();
 }
 
-for (const m of [workbench, assets, sources, collect, quality, datasets, reports, dash, admin]) m.register?.();
+for (const m of [workbench, assets, sources, collect, quality, datasets, reports, dash, admin, ghg]) m.register?.();
 
 // 自己的帳號
 route('/me', async () => {

@@ -2,6 +2,12 @@
 import { state, get, post, patch, h, route, page, card, table, link, chip, valueStateChip, fmtNum, fmtPeriod, fmtTime, fmtDate,
   action, btn, modal, formModal, form, userOptions, toast, can, needOrg, render, note, dl, go, metricName, download } from '../core.js';
 
+// 自動段落（ISO 14064-1 等）：文字＋表格
+export function blockView(b) {
+  if (!b) return '—';
+  return h('div', { class: 'pf-small' }, b.text ? h('p', b.text) : null, b.table ? table(b.table.columns.map((c, i) => ({ label: c, render: (r) => (r[i] === null || r[i] === undefined || r[i] === '' ? '—' : String(r[i])) })), b.table.rows) : null);
+}
+
 export function register() {
   route('/reports', listPage, { title: '報告案件' });
   route('/reports/run/:id', runPage, { title: '報告版本' });
@@ -119,6 +125,10 @@ async function casePage({ id }, qy) {
         await patch(`report-cases/${id}`, { manualValues: { [f.field_id]: ta.value.trim() } }); toast('已儲存'); render();
       }));
     }
+    if (f.source_kind === 'text') {
+      const bl = f.block || {}; const t = bl.text || '';
+      return h('span', { class: 'pf-small' }, t.length > 60 ? `${t.slice(0, 60)}…` : t, bl.table ? ` 〔表格 ${bl.table.rows.length} 列，點欄位名稱看全文〕` : '');
+    }
     if (f.source_kind !== 'indicator') return '—';
     return f.value === null || f.value === undefined ? '—' : valueText(f.value, f.unit);
   }
@@ -126,10 +136,10 @@ async function casePage({ id }, qy) {
   async function drawRight() {
     if (!selected) { right.replaceChildren(card('欄位詳細', h('p', { class: 'muted' }, '點選左側或中間的欄位，查看計算過程與佐證。'))); return; }
     const f = selected;
-    const head = dl([['欄位代碼', h('span', { class: 'pf-mono' }, f.field_id)], ['來源類型', { indicator: '指標試算', manual: '人工文字', evidence_list: '佐證清單', quality: '資料品質摘要' }[f.source_kind] || f.source_kind],
+    const head = dl([['欄位代碼', h('span', { class: 'pf-mono' }, f.field_id)], ['來源類型', { indicator: '指標試算', manual: '人工文字', evidence_list: '佐證清單', quality: '資料品質摘要', text: '系統自動段落' }[f.source_kind] || f.source_kind],
       ['對應', f.source_ref ? h('span', { class: 'pf-mono' }, f.source_ref) : '—'], ['必要', f.required ? '是' : '否'], f.note ? ['備註', f.note] : null]);
     if (f.source_kind !== 'indicator' || !c.dataset_id) {
-      right.replaceChildren(card(`欄位：${f.label}`, head, f.source_kind === 'indicator' ? note('尚未指定資料集，無法試算', 'warn') : f.source_kind === 'manual' ? note('人工撰寫的文字段落，於中間欄編輯。') : note('產製報告時由資料集自動彙整。')));
+      right.replaceChildren(card(`欄位：${f.label}`, head, f.source_kind === 'indicator' ? note('尚未指定資料集，無法試算', 'warn') : f.source_kind === 'manual' ? note('人工撰寫的文字段落，於中間欄編輯。') : f.source_kind === 'text' ? h('div', blockView(f.block), h('p', link('#/ghg', '到「溫室氣體盤查設定」補齊顯著性評估、基準年、邊界'))) : note('產製報告時由資料集自動彙整。')));
       return;
     }
     right.replaceChildren(card(`欄位：${f.label}`, head, h('p', { class: 'muted' }, '載入計算過程…')));
@@ -234,6 +244,7 @@ async function runPage({ id }) {
   const fieldRows = (sec) => maps.filter((m) => m.section === sec).map((m) => ({ m, f: fields[m.field_id] || {} }));
   const fieldValue = ({ m, f }) => {
     if (f.masked) return chip('需敏感欄位權限');
+    if (f.block) return blockView(f.block);
     if (f.list) return `${f.list.length} 件佐證`;
     if (f.quality) return `${fmtNum(f.quality.facts)} 筆採用值・未結案件 ${fmtNum(f.quality.openCases)}`;
     if (f.value === null || f.value === undefined) return valueStateChip(f.state || 'missing');

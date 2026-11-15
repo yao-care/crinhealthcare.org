@@ -36,7 +36,7 @@ function model(run) {
       const f = run.results.fields?.[m.field_id] || {};
       const ind = f.indicator ? run.results.indicators?.[f.indicator] : null;
       return { id: m.field_id, label: m.label, required: !!m.required, kind: m.source_kind, value: f.value, unit: f.unit || ind?.unit || '', state: f.state, masked: f.masked,
-        indicator: f.indicator, formula: ind?.trace?.formula || '', notes: ind?.trace?.notes || [], factors: ind?.trace?.factors || [], list: f.list, quality: f.quality };
+        indicator: f.indicator, formula: ind?.trace?.formula || '', notes: ind?.trace?.notes || [], factors: ind?.trace?.factors || [], list: f.list, quality: f.quality, block: f.block };
     }),
   }));
   return {
@@ -51,6 +51,11 @@ function toRows(m) {
   rows.push(['章節', '欄位', '數值', '單位', '狀態', '指標', '計算式', '說明'].map((v) => ({ v, s: 'head' })));
   for (const s of m.sections) for (const f of s.fields) {
     if (f.kind === 'evidence_list') { for (const e of f.list || []) rows.push([s.title, f.label, e.filename, '', '', e.metric_code, `${e.asset_name} ${e.period_start}～${exclusiveEndToInclusive(e.period_end)}`, `sha256 ${e.sha256.slice(0, 12)}…`].map((v) => ({ v, s: 'cell' }))); continue; }
+    if (f.block) {
+      rows.push([s.title, f.label, f.block.text || '', '', STATE_LABEL[f.state] || '', '', '', ''].map((v) => ({ v, s: 'cell' })));
+      if (f.block.table) { rows.push(['', ...f.block.table.columns].map((v) => ({ v, s: 'head' }))); for (const r of f.block.table.rows) rows.push(['', ...r].map((v) => ({ v, s: 'cell' }))); }
+      continue;
+    }
     if (f.kind === 'quality') { rows.push([s.title, f.label, JSON.stringify(f.quality?.byState || {}), '', '', '', `採用值 ${f.quality?.facts ?? 0} 筆、高影響裁決 ${f.quality?.highImpact ?? 0} 筆、未結差異 ${f.quality?.openCases ?? 0} 件`, ''].map((v) => ({ v, s: 'cell' }))); continue; }
     rows.push([s.title, f.label, typeof f.value === 'number' && !f.masked ? f.value : fmtVal(f), f.unit, STATE_LABEL[f.state] || f.state || '', f.indicator || '', f.formula, f.notes.join('；')].map((v) => ({ v, s: 'cell' })));
   }
@@ -64,6 +69,7 @@ function csv(m) {
   const lines = [['章節', '欄位', '數值', '單位', '狀態', '指標', '計算式', '說明']];
   for (const s of m.sections) for (const f of s.fields) {
     if (f.kind === 'evidence_list') { for (const e of f.list || []) lines.push([s.title, f.label, e.filename, '', '', e.metric_code, e.asset_name, e.sha256]); continue; }
+    if (f.block) { lines.push([s.title, f.label, f.block.text || '', '', STATE_LABEL[f.state] || '', '', '', '']); if (f.block.table) { lines.push(['', '', ...f.block.table.columns]); for (const r of f.block.table.rows) lines.push(['', '', ...r]); } continue; }
     if (f.kind === 'quality') { lines.push([s.title, f.label, JSON.stringify(f.quality), '', '', '', '', '']); continue; }
     lines.push([s.title, f.label, f.masked ? '' : f.value ?? '', f.unit, STATE_LABEL[f.state] || f.state || '', f.indicator || '', f.formula, f.notes.join('；')]);
   }
@@ -75,6 +81,7 @@ export function html(m) {
   const sec = m.sections.map((s) => `<section><h2>${esc(s.title)}</h2><table><thead><tr><th>欄位</th><th>數值</th><th>單位</th><th>狀態</th><th>計算與說明</th></tr></thead><tbody>${
     s.fields.map((f) => {
       if (f.kind === 'evidence_list') return `<tr><td>${esc(f.label)}</td><td colspan="4"><ol>${(f.list || []).map((e) => `<li>${esc(e.filename)}（${esc(e.asset_name)}，${esc(e.metric_code)}，sha256 ${esc(e.sha256.slice(0, 16))}…）</li>`).join('') || '<li>無</li>'}</ol></td></tr>`;
+      if (f.block) return `<tr><td>${esc(f.label)}</td><td colspan="4">${f.block.text ? `<p>${esc(f.block.text)}</p>` : ''}${f.block.table ? `<table><thead><tr>${f.block.table.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${f.block.table.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : ''}${f.state && f.state !== 'measured' ? `<small>狀態：${esc(STATE_LABEL[f.state] || f.state)}</small>` : ''}</td></tr>`;
       if (f.kind === 'quality') return `<tr><td>${esc(f.label)}</td><td colspan="4">採用值 ${f.quality?.facts ?? 0} 筆；狀態 ${esc(JSON.stringify(f.quality?.byState || {}))}；高影響裁決 ${f.quality?.highImpact ?? 0}；未結差異 ${f.quality?.openCases ?? 0}</td></tr>`;
       return `<tr><td>${esc(f.label)}</td><td class="num">${esc(fmtVal(f))}</td><td>${esc(f.unit)}</td><td>${esc(STATE_LABEL[f.state] || f.state || '')}</td><td>${esc(f.formula)}${f.notes.length ? `<br><small>${esc(f.notes.join('；'))}</small>` : ''}</td></tr>`;
     }).join('')}</tbody></table></section>`).join('');
@@ -101,6 +108,7 @@ function docx(m) {
     const rows = [row(['欄位', '數值', '單位', '狀態', '計算與說明'], true)];
     for (const f of s.fields) {
       if (f.kind === 'evidence_list') { for (const e of f.list || []) rows.push(row([f.label, e.filename, '', '', `${e.asset_name}｜sha256 ${e.sha256.slice(0, 16)}…`])); continue; }
+      if (f.block) { rows.push(row([f.label, f.block.text || '', '', STATE_LABEL[f.state] || '', ''])); if (f.block.table) { body += tbl(rows.splice(0)); body += tbl([row(f.block.table.columns, true), ...f.block.table.rows.map((r) => row(r.map(String)))]); rows.push(row(['欄位', '數值', '單位', '狀態', '計算與說明'], true)); } continue; }
       if (f.kind === 'quality') { rows.push(row([f.label, String(f.quality?.facts ?? 0), '筆', '', JSON.stringify(f.quality?.byState || {})])); continue; }
       rows.push(row([f.label, fmtVal(f), f.unit, STATE_LABEL[f.state] || f.state || '', [f.formula, ...f.notes].filter(Boolean).join('；')]));
     }
