@@ -72,6 +72,20 @@ node scripts/platform-dictionary.mjs > ../../docs/ems-platform-dictionary.md   #
 - 公開看板只輸出彙總比率與件數，不含費用、識別碼、聯絡人。
 - 推送介接權杖只存 SHA-256；外部 AI 辨識只在設定 `ANTHROPIC_API_KEY` 時啟用，限閱、機密佐證請院方確認後再用辨識功能。
 
+## 病毒掃描（ClamAV）
+
+上傳佐證、匯入檔、電費單都會先送 clamd 掃描；主機沒有 clamd 時標記「未掃描」、不擋上傳。啟用方式：
+
+```bash
+apt install clamav-daemon && systemctl enable --now clamav-daemon   # clamd 常駐約需 1–1.5 GB 記憶體
+```
+
+程式自動偵測 `/var/run/clamav/clamd.ctl`（或以 `CLAMD_SOCKET` 指定），不需重啟 ems-admin。感染檔拒絕上傳並記稽核事件 `evidence.virus_blocked`。
+
+## 測試報告
+
+`docs/ems-platform-test-report.md`（功能、瀏覽器、負載、大量匯入、安全）。
+
 ## 開發與測試
 
 ```bash

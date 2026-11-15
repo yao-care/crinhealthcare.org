@@ -1,6 +1,7 @@
 // HTTP 伺服器：登入 / 讀取 / 儲存 API + 靜態前端。Node 內建 http，無框架。
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, normalize, extname } from 'node:path';
 import { config, originAllowed } from './config.js';
@@ -37,14 +38,20 @@ function readBody(req, limit = 1024 * 1024) {
   });
 }
 
+const staticCache = new Map();
 async function serveStatic(req, res) {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (p === '/') p = '/index.html';
   const full = normalize(join(PUB, p));
   if (!full.startsWith(PUB)) { res.writeHead(403); return res.end('forbidden'); }
   try {
-    const buf = await readFile(full);
-    // 內部工具、檔案小且常更新：一律不快取，確保使用者永遠拿到最新表單程式
+    // 記憶體快取，檔案一改（mtime 變）就重讀：public/ 存檔即上線的行為不變，但高並行時不用每次讀檔
+    const st = statSync(full);
+    if (!st.isFile()) throw new Error('not file');
+    let hit = staticCache.get(full);
+    if (!hit || hit.mtimeMs !== st.mtimeMs || hit.size !== st.size) { hit = { mtimeMs: st.mtimeMs, size: st.size, buf: await readFile(full) }; staticCache.set(full, hit); }
+    const buf = hit.buf;
+    // 瀏覽器端一律不快取，確保使用者永遠拿到最新表單程式
     res.writeHead(200, { 'Content-Type': MIME[extname(full)] || 'application/octet-stream', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
     res.end(buf);
   } catch { res.writeHead(404); res.end('not found'); }

@@ -1,7 +1,7 @@
 // 檔案匯入（PRD §10.1、§19）：上傳 → 欄位映射 → 預覽與錯誤清單 → 提交 → 可整批撤銷 → 移轉簽收。
 // 原始檔一律進證據庫（雜湊）；每列保留來源座標（工作表、列號）。
 import { q, insert, update, newId, nowIso, audit, tx, parseJson } from './db.js';
-import { assertCan, orgsFor } from './authz.js';
+import { assertCan, orgsFor, orgById } from './authz.js';
 import { bad, notFound, conflict, isDate, inclusiveEndToExclusive, toNumber, j } from './util.js';
 import { readWorkbook, parseRef, buildWorkbook } from '../xlsx.js';
 import { storeEvidence } from './evidence.js';
@@ -260,6 +260,8 @@ function mapGhgWorkbook(table, filename) {
 export function listReferenceActivities(ctx) {
   const global = ctx.grants.some((g) => g.scope_type === 'global');
   const orgs = new Set(orgsFor(ctx, 'view.internal'));
+  // 在上層群組匯入的工作簿，所屬院所也看得到
+  for (const id of [...orgs]) { let o = orgById(id); while (o?.parent_id) { orgs.add(o.parent_id); o = orgById(o.parent_id); } }
   return q.all('SELECT r.*, j.org_id FROM reference_activities r LEFT JOIN import_jobs j ON j.id = r.import_job_id ORDER BY workbook, sheet, row_no')
     .filter((r) => global || !r.org_id || orgs.has(r.org_id)).map((r) => parseJson(r, ['cells', 'item_codes']));
 }

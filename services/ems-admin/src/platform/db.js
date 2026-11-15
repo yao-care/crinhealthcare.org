@@ -460,6 +460,11 @@ const MIGRATIONS = [
     PRIMARY KEY (dataset_id, asset_id)
   );
   `,
+  // 3：佐證檔病毒掃描結果
+  `
+  ALTER TABLE evidence_files ADD COLUMN scan_status TEXT NOT NULL DEFAULT 'not_scanned';
+  ALTER TABLE evidence_files ADD COLUMN scan_detail TEXT;
+  `,
 ];
 
 let db = null;

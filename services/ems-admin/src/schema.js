@@ -138,6 +138,29 @@ const emsScenario = z.object({
       })).default([]),
     })).default([]),
   }).optional(),
+  // v2 救災電力異常看板（選用，目前只有 804）：1 台儲電櫃依需求推往不同據點（與 content.config.ts 同步）
+  relief: z.object({
+    title: z.string().default(''),
+    sub: z.string().default(''),
+    cabinet: z.object({
+      name: z.string(),
+      kwh: z.number(), kw: z.number(),
+      socPct: z.number().default(100),
+      floorPct: z.number().default(0),
+      eff: z.number().default(1),
+      standbyKw: z.number().default(0),
+      switchMs: z.number().default(0),
+    }),
+    steps: z.array(z.object({ label: z.string(), sub: z.string().default(''), dest: z.boolean().default(false) })).default([]),
+    sites: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      icon: z.string().default(''),
+      role: z.string().default(''),
+      loads: z.array(z.object({ n: z.string(), qty: z.number(), w: z.number() })).default([]),
+    })).default([]),
+    defaultSite: z.string().default(''),
+  }).optional(),
 });
 
 const envFloor = z.object({

@@ -1,5 +1,7 @@
 // M05 來源與證據庫（PRD §17 第 3 點）：內容雜湊命名、寫入後不可覆寫、機敏分級、下載留稽核。
 import { mkdir, writeFile, readFile, access } from 'node:fs/promises';
+import { createConnection } from 'node:net';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { q, insert, update, newId, nowIso, audit, sha256 } from './db.js';
 import { config } from '../config.js';
@@ -36,6 +38,36 @@ export function checkFile(filename, data) {
 
 const dirFor = (orgId) => join(config.uploadsDir, 'platform', orgId.replace(/[^a-zA-Z0-9_-]/g, ''), 'evidence');
 
+// ── 病毒掃描：主機有 clamd（ClamAV 常駐服務）就用 INSTREAM 掃描；沒有就標「未掃描」，不擋上傳 ──
+export function clamdSocket() {
+  return [process.env.CLAMD_SOCKET, '/var/run/clamav/clamd.ctl', '/run/clamav/clamd.ctl', '/var/run/clamd.scan/clamd.sock'].filter(Boolean).find((p) => existsSync(p)) || null;
+}
+export function scanBuffer(data, socketPath = clamdSocket()) {
+  if (!socketPath) return Promise.resolve({ status: 'not_scanned', detail: '主機未安裝 ClamAV（clamd）' });
+  return new Promise((resolve) => {
+    const sock = createConnection(socketPath);
+    let reply = '';
+    const done = (r) => { sock.destroy(); resolve(r); };
+    sock.setTimeout(30000, () => done({ status: 'error', detail: '掃描逾時' }));
+    sock.on('error', (e) => done({ status: 'error', detail: e.message }));
+    sock.on('data', (d) => { reply += d.toString('utf8'); });
+    sock.on('end', () => {
+      const r = reply.replace(/\0/g, '').trim();
+      if (/:\s*OK$/.test(r)) done({ status: 'clean', detail: r });
+      else if (/FOUND$/.test(r)) done({ status: 'infected', detail: r.replace(/^stream:\s*/, '') });
+      else done({ status: 'error', detail: r || '沒有回應' });
+    });
+    sock.on('connect', () => {
+      sock.write('zINSTREAM\0');
+      for (let i = 0; i < data.length; i += 65536) {
+        const chunk = data.subarray(i, i + 65536);
+        const len = Buffer.alloc(4); len.writeUInt32BE(chunk.length); sock.write(len); sock.write(chunk);
+      }
+      sock.end(Buffer.alloc(4));
+    });
+  });
+}
+
 export async function storeEvidence(ctx, { orgId, filename, data, confidentiality = 'internal', kind, sourceId, assetId, note }, { skipCheck = false } = {}) {
   if (!skipCheck) assertCan(ctx, 'obs.write', orgId);
   const mime = checkFile(filename, data);
@@ -43,15 +75,21 @@ export async function storeEvidence(ctx, { orgId, filename, data, confidentialit
   const hash = sha256(data);
   const dup = q.get('SELECT * FROM evidence_files WHERE org_id = ? AND sha256 = ?', orgId, hash);
   if (dup) return { id: dup.id, duplicate: true, sha256: hash };
+  const scan = await scanBuffer(data);
+  if (scan.status === 'infected') {
+    audit({ actor: ctx?.userId || 'system', actorName: ctx?.name, orgId, action: 'evidence.virus_blocked', targetType: 'evidence', after: { filename, sha256: hash, detail: scan.detail } });
+    throw new HttpError(422, `檔案未通過病毒掃描（${scan.detail}），已拒絕上傳`);
+  }
   const dir = dirFor(orgId);
   await mkdir(dir, { recursive: true, mode: 0o700 });
   const key = join(dir, hash);
   try { await access(key); } catch { await writeFile(key, data, { flag: 'wx', mode: 0o400 }); }
   const id = newId('ev');
   insert('evidence_files', { id, org_id: orgId, sha256: hash, mime, size: data.length, filename: String(filename).slice(0, 200), storage_key: key,
-    confidentiality, kind: kind || null, source_id: sourceId || null, asset_id: assetId || null, note: note || null, uploaded_by: ctx?.userId || 'system', uploaded_at: nowIso() });
+    confidentiality, kind: kind || null, source_id: sourceId || null, asset_id: assetId || null, note: note || null, uploaded_by: ctx?.userId || 'system', uploaded_at: nowIso(),
+    scan_status: scan.status, scan_detail: scan.detail || null });
   audit({ actor: ctx?.userId || 'system', actorName: ctx?.name, orgId, action: 'evidence.upload', targetType: 'evidence', targetId: id, after: { filename, sha256: hash, confidentiality } });
-  return { id, sha256: hash };
+  return { id, sha256: hash, scan: scan.status };
 }
 
 // 機敏等級對權限：public/internal → view.evidence；restricted → 再加 view.sensitive；secret → 只有稽核與核准者
@@ -78,7 +116,7 @@ export function listEvidence(ctx, f = {}) {
   if (f.assetId) { where.push('(e.asset_id = ? OR e.id IN (SELECT oe.evidence_id FROM observation_evidence oe JOIN observations o ON o.id = oe.observation_id WHERE o.asset_id = ?))'); p.push(f.assetId, f.assetId); }
   if (f.sourceId) { where.push('e.source_id = ?'); p.push(f.sourceId); }
   if (f.q) { where.push('(e.filename LIKE ? OR e.note LIKE ? OR e.kind LIKE ?)'); const s = `%${f.q}%`; p.push(s, s, s); }
-  return q.all(`SELECT e.id, e.org_id, e.sha256, e.mime, e.size, e.filename, e.confidentiality, e.kind, e.source_id, e.asset_id, e.note, e.uploaded_at,
+  return q.all(`SELECT e.id, e.org_id, e.sha256, e.mime, e.size, e.filename, e.confidentiality, e.kind, e.source_id, e.asset_id, e.note, e.uploaded_at, e.scan_status, e.scan_detail,
       u.display_name AS uploaded_by_name, a.name AS asset_name,
       (SELECT COUNT(*) FROM observation_evidence oe WHERE oe.evidence_id = e.id) AS obs_count
     FROM evidence_files e LEFT JOIN users u ON u.id = e.uploaded_by LEFT JOIN assets a ON a.id = e.asset_id

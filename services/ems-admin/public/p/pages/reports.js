@@ -94,7 +94,9 @@ async function casePage({ id }, qy) {
   const editable = !sealed && can('report.write', org);
   let selected = rd.fields.find((f) => f.field_id === qy.field) || null;
 
-  const fieldState = (f) => (f.source_kind === 'evidence_list' || f.source_kind === 'quality' ? chip('產製時彙整', 'info') : valueStateChip(f.state));
+  const fieldState = (f) => (f.source_kind === 'evidence_list' || f.source_kind === 'quality' ? chip('產製時彙整', 'info')
+    : f.source_kind === 'text' ? (f.state === 'measured' ? chip('完整', 'ok') : chip('待補', 'warn'))
+      : f.source_kind === 'manual' ? (f.state === 'measured' ? chip('已填', 'ok') : chip('未填', f.required ? 'alert' : 'todo')) : valueStateChip(f.state));
   const right = h('div');
   const leftItems = new Map();
   const select = (f) => {
@@ -266,7 +268,7 @@ async function runPage({ id }) {
     sections.map((s) => card(sectionTitle.get(s) || s, table([
       { label: '欄位', render: ({ m }) => h('span', m.label, m.required ? h('span', { class: 'err', title: '必要欄位' }, ' ＊') : null) },
       { label: '數值', num: true, render: fieldValue },
-      { label: '狀態', render: ({ f }) => (f.state ? valueStateChip(f.state) : f.list || f.quality ? chip('彙整', 'info') : '—') },
+      { label: '狀態', render: ({ m, f }) => (m.source_kind === 'text' ? (f.state === 'measured' ? chip('完整', 'ok') : chip('待補', 'warn')) : m.source_kind === 'manual' ? (f.state === 'measured' ? chip('已填', 'ok') : chip('未填', 'todo')) : f.state ? valueStateChip(f.state) : f.list || f.quality ? chip('彙整', 'info') : '—') },
       { label: '指標', render: ({ f }) => (f.indicator ? h('span', { class: 'pf-mono' }, f.indicator) : '—') },
     ], fieldRows(s)))),
     quality ? card('資料品質摘要', dl([['採用值筆數', fmtNum(quality.facts)], ['依值狀態', Object.entries(quality.byState || {}).map(([k, n]) => `${state.meta?.valueStates?.[k] || k} ${n}`).join('、') || '—'],

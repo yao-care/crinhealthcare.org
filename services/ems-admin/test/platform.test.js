@@ -494,3 +494,18 @@ test('[ISO 14064-1] 顯著性評估、類別 3–6、基準年、報告自動段
   for (const kw of ['營運控制法', '排放源鑑別表', '不確定性', 'ISO 14064-1:2018', 'GWP', '基準年']) assert.ok(html.includes(kw), kw);
   assert.ok((await X.exportRun(reporter, run, 'docx')).data.length > 1000);
 });
+
+test('[22.3] 病毒掃描：clamd 回報感染時拒絕上傳，沒有 clamd 時標記未掃描', async () => {
+  const { createServer } = await import('node:net');
+  const sockPath = join(tmp, 'clamd.sock');
+  const srv = createServer((c) => { let buf = Buffer.alloc(0); c.on('data', (d) => { buf = Buffer.concat([buf, d]); if (buf.subarray(-4).equals(Buffer.alloc(4))) c.end(buf.includes(Buffer.from('EICAR')) ? 'stream: Eicar-Test-Signature FOUND\0' : 'stream: OK\0'); }); });
+  await new Promise((r) => srv.listen(sockPath, r));
+  try {
+  assert.equal((await E.scanBuffer(Buffer.from('%PDF-1.4 EICAR'), sockPath)).status, 'infected');
+  assert.equal((await E.scanBuffer(Buffer.from('%PDF-1.4 clean'), sockPath)).status, 'clean');
+  process.env.CLAMD_SOCKET = sockPath;
+  await assert.rejects(() => E.storeEvidence(collector, { orgId: org803, filename: 'virus.pdf', data: Buffer.from('%PDF-1.4 EICAR test') }), /病毒/);
+  const ok = await E.storeEvidence(collector, { orgId: org803, filename: 'clean2.pdf', data: Buffer.from('%PDF-1.4 clean 2') });
+  assert.equal(ok.scan, 'clean');
+  } finally { delete process.env.CLAMD_SOCKET; srv.close(); }
+});
