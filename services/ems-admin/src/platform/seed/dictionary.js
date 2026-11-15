@@ -245,7 +245,7 @@ export const WORKBOOK_MAP = [
   ['空調設備', ['GAS-REF', 'ELE-EQUIP']], ['冰水主機', ['GAS-REF', 'ELE-EQUIP']], ['飲水機', ['GAS-REF']], ['冷藏設備', ['GAS-REF']],
   ['滅火器', ['GAS-FIRE']], ['緊急發電機', ['OIL-GEN']], ['化糞池', ['WAT-SEPTIC', 'ACT-STAFF', 'ACT-PATIENT']],
   ['噴霧式黃油', ['OIL-LUBE']], ['噴霧潤滑油', ['OIL-LUBE']], ['乾燥機', ['GAS-REF']], ['絕緣開關', ['GAS-GCB']], ['CO2 瓶', ['GAS-MED']],
-  ['土地使用變更', ['REF-LAND']], ['外購電力', ['ELE-GRID']], ['上游(材料)運輸', ['REF-UPTRANS']], ['下游(產品)運輸', ['REF-DOWNTRANS']],
+  ['土地使用變更', ['REF-LAND']], ['外購電力', ['ELE-GRID', 'ELE-HEAT']], ['上游(材料)運輸', ['REF-UPTRANS']], ['下游(產品)運輸', ['REF-DOWNTRANS']],
   ['員工通勤', ['REF-COMMUTE']], ['客戶與訪客', ['REF-VISITOR']], ['商務旅行', ['REF-TRAVEL']], ['上游物料採購', ['REF-PURCHASE']],
   ['電力、水上游', ['ELE-GRID', 'WAT-TAP']], ['資本財', ['REF-CAPEX']], ['廢棄物', ['REF-WASTE']], ['汙水處理', ['WAT-DIS', 'GAS-WWT']],
   ['租賃的設備', ['REF-LEASED']], ['使用服務產生', ['REF-SERVICE']], ['使用產品階段', ['REF-PRODUSE']], ['下游承租', ['REF-DOWNLEASE']],
