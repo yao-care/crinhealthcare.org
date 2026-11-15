@@ -63,4 +63,4 @@
 - [x] 22. 備份與還原驗證　✅ `backup.js`、`scripts/platform-admin.mjs`；test「備份與還原演練」
 - [x] 23. 測試（業務流程、權限、資安）全過；設計守門全過　✅ test/platform.test.js 30/30、platform-http 7/7；8 種角色 × 29 頁瀏覽器零 pageerror；check-design 通過
 - [x] 24. 文件：操作手冊（四種角色）、資料字典、API（OpenAPI）、維運手冊、測試報告　✅ docs/ems-platform-manual.md、-ops.md、-dictionary.md、OpenAPI `/api/v1/openapi.json`
-- [ ] 25. 合回 main、重啟 pm2、線上驗證
+- [x] 25. 合回 main、重啟 pm2、線上驗證　✅ 2bf6605；pm2 ems-admin online、`/p/` 200、OpenAPI 136 路徑、正式資料庫建表與種子完成（稽核鏈 ok）、GitHub Pages deploy success
