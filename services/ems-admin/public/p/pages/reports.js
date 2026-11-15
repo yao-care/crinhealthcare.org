@@ -123,7 +123,8 @@ async function casePage({ id }, qy) {
     if (f.source_kind === 'manual') {
       if (!editable) return f.value ? h('span', f.value) : valueStateChip(f.state);
       const ta = h('textarea', { 'aria-label': f.label, rows: '3' }); ta.value = f.value || '';
-      return h('div', { class: 'pf-field' }, ta, action('儲存文字', async () => {
+      const from = { profile: '取自院所基本資料', default: '系統預設文字，可直接改' }[f.valueFrom];
+      return h('div', { class: 'pf-field' }, ta, from ? h('span', { class: 'pf-hint' }, from) : null, action('儲存文字', async () => {
         await patch(`report-cases/${id}`, { manualValues: { [f.field_id]: ta.value.trim() } }); toast('已儲存'); render();
       }));
     }

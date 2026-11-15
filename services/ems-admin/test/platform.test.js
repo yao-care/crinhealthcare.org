@@ -509,3 +509,33 @@ test('[22.3] 病毒掃描：clamd 回報感染時拒絕上傳，沒有 clamd 時
   assert.equal(ok.scan, 'clean');
   } finally { delete process.env.CLAMD_SOCKET; srv.close(); }
 });
+
+test('[精簡] 院所基本資料自動帶入、預設邊界與資料集、顯著性一鍵判定與估算', () => {
+  const P2 = globalThis.__P2;
+  void P2;
+  // 預設盤查邊界
+  assert.ok(q.get("SELECT 1 FROM boundaries WHERE org_id = ? AND kind = 'ghg_operational'", org816), '分院也有預設邊界');
+  return import('../src/platform/profile.js').then((P) => {
+    P.saveProfile(reporter, org803, { responsible: '總務室 陳組長', description: '區域醫院' });
+    const c = R.createCase(reporter, { orgId: org803, templateCode: 'GHG-INV', year: 2025 });
+    const row = q.get('SELECT * FROM report_cases WHERE id = ?', c.id);
+    assert.ok(row.boundary_id, '自動帶預設邊界');
+    assert.ok(row.dataset_id, '自動帶本年度定版資料集');
+    const rd = R.readiness(reporter, c.id);
+    const f = (id) => rd.fields.find((x) => x.field_id === id);
+    assert.equal(f('responsible').value, '總務室 陳組長'); assert.equal(f('responsible').valueFrom, 'profile');
+    assert.match(f('removals').value, /未量化/); assert.equal(f('removals').valueFrom, 'default');
+    // 顯著性：2026 年新年度一鍵判定
+    G.listSignificance(reporter, org803, 2026);
+    const r1 = G.markRestInsignificant(reporter, org803, 2026);
+    assert.ok(r1.updated >= 18);
+    assert.equal(q.get('SELECT COUNT(*) n FROM ghg_significance WHERE org_id = ? AND year = 2026 AND significant IS NULL', org803).n, 0);
+    // 估算：沒有係數時說明缺什麼；發布係數後算出建議值
+    let e = G.estimateSignificance(reporter, org803, 2025);
+    assert.match(e.estimates['UPSTREAM-ENERGY'].note || '', /ef\.upstream\.electricity|活動量/);
+    const d = CFG.createDraft(sa1, 'factor', 'ef.upstream.electricity', { name: '電力上游排放係數（測試）', category: 'emission', value: 0.05, unit: 'kgCO2e/kWh', valid_from: '1900-01-01', source: '測試用' }, '測試');
+    CFG.submit(sa1, 'factor', d.id); CFG.publish(sa2, 'factor', d.id, { impactAck: true });
+    e = G.estimateSignificance(reporter, org803, 2026);
+    assert.ok(e.estimates['UPSTREAM-ENERGY'].tCO2e > 0, JSON.stringify(e.estimates['UPSTREAM-ENERGY']));
+  });
+});

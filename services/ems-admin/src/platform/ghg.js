@@ -42,11 +42,49 @@ export function saveSignificance(ctx, id, body) {
   audit({ actor: ctx.userId, actorName: ctx.name, orgId: r.org_id, action: 'ghg.significance', targetType: 'significance', targetId: id, before: r, after: patch });
 }
 
+// 自動估算：能算的先算（活動量 × 已發布係數），並依門檻建議顯著與否；只是建議，按「採用」才寫入
+export function estimateSignificance(ctx, orgId, year) {
+  assertCan(ctx, 'view.internal', orgId);
+  const ds = q.get("SELECT id FROM datasets WHERE org_id = ? AND year = ? AND status IN ('locked','approved','draft','in_review') ORDER BY CASE status WHEN 'locked' THEN 0 ELSE 1 END, version DESC LIMIT 1", orgId, year);
+  const est = getConfig('ghg.significance_estimators') || {};
+  const th = (getConfig('ghg.significance') || {}).thresholdPct ?? 1;
+  const codes = [...new Set(['ghg.total', ...Object.values(est).map((e) => e.indicator)])];
+  const res = ds ? computeAll(ds.id, codes).results : {};
+  const total = res['ghg.total']?.value ?? null;
+  const out = {};
+  for (const [item, e] of Object.entries(est)) {
+    const act = res[e.indicator];
+    const f = q.get("SELECT * FROM factors WHERE code = ? AND status = 'published' ORDER BY version DESC LIMIT 1", e.factor);
+    if (!ds) { out[item] = { note: '本年度還沒有資料集，無法估算' }; continue; }
+    if (!act || act.value === null) { out[item] = { note: `缺活動量（${e.indicator}）` }; continue; }
+    if (!f) { out[item] = { note: `係數庫沒有已發布的「${e.factor}」，新增後即可自動估算`, missingFactor: e.factor }; continue; }
+    const t = act.value * f.value / 1000;
+    const share = total ? t / total * 100 : null;
+    out[item] = { tCO2e: round(t, 4), sharePct: share === null ? null : round(share, 2), suggestSignificant: share !== null && share >= th,
+      method: `${e.label}：${round(act.value, 2)} × ${f.value}（${f.code} v${f.version}，${f.source}）`, factor: `${f.code} v${f.version}` };
+  }
+  return { datasetId: ds?.id || null, totalScope12: total, thresholdPct: th, estimates: out };
+}
+
+// 一鍵：尚未評估的全部判定不顯著（理由統一），之後只處理例外
+export function markRestInsignificant(ctx, orgId, year, reason) {
+  assertCan(ctx, 'report.write', orgId);
+  const why = reason?.trim() || `預估占類別一＋二總量低於 ${(getConfig('ghg.significance') || {}).thresholdPct ?? 1}%，且無法規或利害關係人揭露要求`;
+  let n = 0;
+  for (const r of q.all('SELECT id FROM ghg_significance WHERE org_id = ? AND year = ? AND significant IS NULL', orgId, year)) { saveSignificance(ctx, r.id, { significant: false, reason: why }); n++; }
+  return { updated: n };
+}
+
 // ── 基準年 ──
 function snapshot(datasetId) {
   const codes = ['ghg.s1.total', 'ghg.s2.total', 'ghg.total', 'ghg.cat3', 'ghg.cat4', 'ghg.cat5', 'ghg.cat6', 'ghg.total_all', ...['co2', 'ch4', 'n2o', 'hfcs', 'pfcs', 'sf6', 'nf3'].map((g) => `ghg.s1.gas.${g}`)];
   const { results, factorVersions, ruleVersions } = computeAll(datasetId, codes);
   return { values: Object.fromEntries(codes.map((c) => [c, { value: results[c]?.value ?? null, state: results[c]?.value_state }])), factorVersions, ruleVersions };
+}
+
+// 建議基準年：最早一個已定版的年度
+export function suggestBaseYear(orgId) {
+  return q.get("SELECT id, year, name, version FROM datasets WHERE org_id = ? AND status IN ('locked','superseded') ORDER BY year, version DESC LIMIT 1", orgId);
 }
 
 export function listBaseYears(ctx, orgId) {

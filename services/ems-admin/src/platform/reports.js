@@ -6,6 +6,7 @@ import { assertCan, can, orgsFor } from './authz.js';
 import { bad, notFound, conflict, j } from './util.js';
 import { computeAll, STATE_LABEL } from './calc.js';
 import { buildBlocks } from './ghg.js';
+import { getProfile, manualValue } from './profile.js';
 import { notify, notifyRole } from './collab.js';
 
 // 依發布日期選模板版本（GRI 2027-01-01 換版）
@@ -49,7 +50,10 @@ export function createCase(ctx, body) {
   if (!tpl || tpl.status !== 'published') throw bad('找不到適用的已發布模板（請確認報告發布日期與模板版次）');
   if (!body.year) throw bad('請填報告年度');
   const t = nowIso(); const id = newId('rc');
-  insert('report_cases', { id, org_id: body.orgId, template_id: tpl.id, name: body.name || `${body.year} ${tpl.name}`, year: body.year, boundary_id: body.boundaryId || null,
+  const boundaryId = body.boundaryId || q.get("SELECT id FROM boundaries WHERE org_id = ? AND kind IN ('ghg_operational','ghg_equity') ORDER BY created_at LIMIT 1", body.orgId)?.id || null;
+  const datasetId = body.datasetId || q.get("SELECT id FROM datasets WHERE org_id = ? AND year = ? AND status = 'locked' ORDER BY version DESC LIMIT 1", body.orgId, body.year)?.id || null;
+  body = { ...body, datasetId };
+  insert('report_cases', { id, org_id: body.orgId, template_id: tpl.id, name: body.name || `${body.year} ${tpl.name}`, year: body.year, boundary_id: boundaryId,
     dataset_id: body.datasetId || null, due_date: body.dueDate || null, reviewer: body.reviewer || null, approver: body.approver || null,
     confidentiality: body.confidentiality || 'internal', publish_date: body.publishDate || null, status: 'preparing', created_by: ctx.userId, created_at: t, updated_at: t });
   audit({ actor: ctx.userId, actorName: ctx.name, orgId: body.orgId, action: 'report.case_create', targetType: 'report_case', targetId: id, after: { template: `${tpl.code} v${tpl.version}`, year: body.year } });
@@ -99,12 +103,12 @@ export function readiness(ctx, caseId) {
   if (!c.dataset_id) return { ready: 0, total: maps.filter((m) => m.required).length, fields: maps.map((m) => ({ ...m, state: 'missing', note: '尚未指定資料集' })), datasetMissing: true, blockers: ['尚未指定資料集'] };
   const codes = maps.filter((m) => m.source_kind === 'indicator').map((m) => m.source_ref);
   const { results, factorVersions, ruleVersions } = computeAll(c.dataset_id, codes);
-  const manual = j(c.manual_values, {});
+  const manual = j(c.manual_values, {}); const profile = getProfile(c.org_id);
   const blocks = buildBlocks(maps.filter((m) => m.source_kind === 'text').map((m) => m.source_ref), { caseRow: c, datasetId: c.dataset_id, results, factorVersions, ruleVersions });
   const fields = maps.map((m) => {
     if (m.source_kind === 'text') { const b = blocks[m.source_ref] || { state: 'blocked', text: '未知的自動段落' }; return { ...m, block: b, state: b.state, notes: b.state !== 'measured' && b.text ? [b.text] : [] }; }
     if (m.source_kind === 'indicator') { const r = results[m.source_ref]; return { ...m, value: r?.value ?? null, unit: r?.unit, state: r?.value_state || 'blocked', stateLabel: STATE_LABEL[r?.value_state], notes: r?.trace?.notes || [] }; }
-    if (m.source_kind === 'manual') return { ...m, value: manual[m.field_id] ?? null, state: manual[m.field_id] ? 'measured' : 'missing' };
+    if (m.source_kind === 'manual') { const mv = manualValue(m.field_id, manual, profile); return { ...m, value: mv.value, valueFrom: mv.from, state: mv.value ? 'measured' : 'missing' }; }
     return { ...m, state: 'measured', note: '產製時自動彙整' };
   });
   const ok = (f) => ['measured', 'estimated', 'zero', 'not_applicable'].includes(f.state);
@@ -125,13 +129,13 @@ export function generateRun(ctx, caseId) {
   const maps = mappingsFor(c.template_id);
   const codes = maps.filter((m) => m.source_kind === 'indicator').map((m) => m.source_ref);
   const calc = computeAll(c.dataset_id, codes);
-  const manual = j(c.manual_values, {});
+  const manual = j(c.manual_values, {}); const profile = getProfile(c.org_id);
   const fields = {};
   const blocks = buildBlocks(maps.filter((m) => m.source_kind === 'text').map((m) => m.source_ref), { caseRow: c, datasetId: c.dataset_id, results: calc.results, factorVersions: calc.factorVersions, ruleVersions: calc.ruleVersions });
   for (const m of maps) {
     if (m.source_kind === 'text') { const b = blocks[m.source_ref] || { state: 'blocked', text: '未知的自動段落' }; fields[m.field_id] = { block: b, state: b.state }; continue; }
     if (m.source_kind === 'indicator') { const r = calc.results[m.source_ref]; fields[m.field_id] = { value: r.value, unit: r.unit, state: r.value_state, indicator: m.source_ref }; }
-    else if (m.source_kind === 'manual') fields[m.field_id] = { value: manual[m.field_id] ?? null, state: manual[m.field_id] ? 'measured' : 'missing' };
+    else if (m.source_kind === 'manual') { const mv = manualValue(m.field_id, manual, profile); fields[m.field_id] = { value: mv.value, valueFrom: mv.from, state: mv.value ? 'measured' : 'missing' }; }
     else if (m.source_kind === 'evidence_list') fields[m.field_id] = { list: evidenceList(c.dataset_id) };
     else if (m.source_kind === 'quality') fields[m.field_id] = { quality: qualitySummary(c.dataset_id) };
   }

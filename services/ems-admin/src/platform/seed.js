@@ -140,11 +140,25 @@ export function seedActivityAssets() {
   });
 }
 
+// 每院預設一個「營運控制法」盤查邊界，涵蓋全部院區（院方可再改）
+export function seedDefaultBoundaries() {
+  const t = nowIso();
+  tx(() => {
+    for (const o of q.all("SELECT id FROM organizations WHERE kind IN ('hospital','branch')")) {
+      if (q.get("SELECT 1 FROM boundaries WHERE org_id = ? AND kind IN ('ghg_operational','ghg_equity')", o.id)) continue;
+      const sites = q.all('SELECT id FROM sites WHERE org_id = ?', o.id).map((s) => s.id);
+      insert('boundaries', { id: newId('bnd'), org_id: o.id, name: '全院（營運控制法）', kind: 'ghg_operational', site_ids: sites,
+        definition: '系統預設：本院營運控制之全部院區與建物。如有委外或租賃設施請修改', created_by: 'seed', created_at: t, updated_at: t });
+    }
+  });
+}
+
 export function runSeeds(opts = {}) {
   seedOrgs(opts.extraHospitals);
   seedDictionary();
   seedFactors();
   seedRulesAndTemplates();
   seedActivityAssets();
+  seedDefaultBoundaries();
   if (!q.get("SELECT 1 FROM audit_events WHERE action = 'system.seed'")) audit({ actor: 'system', action: 'system.seed' });
 }

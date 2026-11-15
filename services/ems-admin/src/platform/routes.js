@@ -23,6 +23,7 @@ import * as N from './integrations.js';
 import * as CFG from './config-store.js';
 import * as BK from './backup.js';
 import * as G from './ghg.js';
+import * as P from './profile.js';
 import { computeAll, ALL_RULE_CODES, STATE_LABEL } from './calc.js';
 import { DOMAINS, ASSET_TYPES, WORK_STATUS, APPLICABILITY, USAGE_STATUS } from './seed/dictionary.js';
 import { CASE_STATUS_LABEL } from './cases.js';
@@ -309,6 +310,11 @@ route('GET', '/api/v1/report-runs/:id/export', '匯出 xlsx／csv／docx／pdf�
 // ── ISO 14064-1：顯著性評估、基準年 ──
 route('GET', '/api/v1/ghg/significance', '間接排放顯著性評估（orgId、year）', (ctx, { query }) => G.listSignificance(ctx, query.orgId, Number(query.year)));
 route('PATCH', '/api/v1/ghg/significance/:id', '更新顯著性評估與量化結果', (ctx, { params, body }) => { G.saveSignificance(ctx, params.id, body); return { ok: true }; });
+route('GET', '/api/v1/ghg/significance/estimate', '顯著性自動估算（建議值）', (ctx, { query }) => G.estimateSignificance(ctx, query.orgId, Number(query.year)));
+route('POST', '/api/v1/ghg/significance/rest-insignificant', '尚未評估的項目一鍵判定不顯著', (ctx, { body }) => G.markRestInsignificant(ctx, body.orgId, Number(body.year), body.reason));
+route('GET', '/api/v1/ghg/base-years/suggest', '建議基準年', (ctx, { query }) => { assertCan(ctx, 'view.internal', query.orgId); return G.suggestBaseYear(query.orgId); });
+route('GET', '/api/v1/org-profile', '院所基本資料', (ctx, { query }) => P.readProfile(ctx, query.orgId));
+route('PUT', '/api/v1/org-profile', '儲存院所基本資料', (ctx, { body }) => { P.saveProfile(ctx, body.orgId, body.data); return { ok: true }; });
 route('GET', '/api/v1/ghg/base-years', '基準年與重新計算紀錄', (ctx, { query }) => G.listBaseYears(ctx, query.orgId));
 route('POST', '/api/v1/ghg/base-years', '設定基準年或重新計算（kind=set|recalculated）', (ctx, { body }) => G.setBaseYear(ctx, body));
 route('GET', '/api/v1/ghg/preview', '盤查報告自動段落預覽（orgId、year、datasetId）', (ctx, { query }) => {

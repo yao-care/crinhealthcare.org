@@ -71,43 +71,62 @@ async function entry({ id }) {
   const today = new Date().toISOString().slice(0, 10);
   const draftKey = `pf.draft.${id}`;
   let draft = {}; try { draft = JSON.parse(localStorage.getItem(draftKey) || '{}'); } catch { /* 無 */ }
-  const f = form([
-    { key: 'metricCode', label: '指標', type: 'select', required: true, options: allMetrics.map((c) => [c, `${metricName(c)}（${metricOf(c)?.std_unit || ''}）`]), wide: true },
-    { key: 'periodStart', label: '期間起日（讀表、量測請填讀表日）', type: 'date', required: true },
-    { key: 'periodEndIncl', label: '期間迄日（含當日）', type: 'date', required: true },
-    { key: 'rawValue', label: '讀值／數量', inputmode: 'decimal', hint: '不知道請選下方值狀態，不要填 0' },
-    { key: 'rawUnit', label: '單位（預設標準單位）' },
-    { key: 'valueState', label: '值狀態', type: 'select', required: true, options: [['measured', '實測'], ['zero', '實際為零'], ['estimated', '估計'], ['missing', '缺漏'], ['unknown', '未知'], ['not_applicable', '不適用']] },
-    { key: 'meterEvent', label: '表計事件', type: 'select', required: true, options: [['none', '無'], ['replace', '換表（新表起點）'], ['reset', '歸零'], ['rollover', '回轉（滿刻度重來）']] },
-    { key: 'meterMultiplier', label: '表計倍率', type: 'number' },
-    { key: 'photo', label: '照片或單據（銘牌、表頭、帳單）', type: 'file', accept: 'image/*,.pdf', wide: true },
+  // 精簡版：預設只問「哪個月（或哪天）、數字、照片」；單位、期間型態自動判斷，其餘收進「其他情況」
+  const prevMonth = (() => { const t = new Date(); t.setUTCDate(1); t.setUTCMonth(t.getUTCMonth() - 1); return t.toISOString().slice(0, 7); })();
+  const mOpts = allMetrics.map((c) => [c, metricName(c)]);
+  const main = form([
+    mOpts.length > 1 ? { key: 'metricCode', label: '要登錄什麼？', type: 'select', required: true, options: mOpts, wide: true } : null,
+    { key: 'month', label: '哪個月份', type: 'month' },
+    { key: 'day', label: '讀表／量測日', type: 'date' },
+    { key: 'rawValue', label: '數字', inputmode: 'decimal' },
+    { key: 'photo', label: '拍照（表頭、銘牌、帳單）', type: 'file', accept: 'image/*,.pdf', wide: true },
+  ].filter(Boolean), { metricCode: draft.metricCode || allMetrics[0], month: draft.month || prevMonth, day: draft.day || today, rawValue: draft.rawValue });
+  main.inputs.photo.setAttribute('capture', 'environment');
+  const adv = form([
+    { key: 'customPeriod', label: '帳單期間不是整月（例：9/28～10/27）', type: 'checkbox', wide: true },
+    { key: 'periodStart', label: '計費起日', type: 'date' }, { key: 'periodEndIncl', label: '計費迄日（含當日）', type: 'date' },
+    { key: 'valueState', label: '沒有數字時', type: 'select', options: [['measured', '有數字（實測）'], ['estimated', '有數字，但是估計值'], ['zero', '實際為零（沒有使用）'], ['missing', '缺漏（應該有但找不到）'], ['unknown', '未知'], ['not_applicable', '不適用']], required: true },
+    { key: 'meterEvent', label: '表計狀況', type: 'select', required: true, options: [['none', '正常'], ['replace', '換新表（這次是新表的起始讀數）'], ['reset', '歸零'], ['rollover', '轉一圈回到 0']] },
+    { key: 'rawUnit', label: '單位（不填＝標準單位）' }, { key: 'meterMultiplier', label: '表計倍率', type: 'number' },
     { key: 'note', label: '備註（設備狀態、異常說明）', type: 'textarea', wide: true },
-  ], { metricCode: allMetrics[0], periodStart: today, periodEndIncl: today, valueState: 'measured', meterEvent: 'none', meterMultiplier: a.meter_multiplier, ...draft });
-  f.inputs.photo.setAttribute('capture', 'environment');
-  // 草稿：每次輸入存一次（照片不存）
-  f.el.addEventListener('input', () => { const v = {}; for (const [k, i] of Object.entries(f.inputs)) if (k !== 'photo') v[k] = i.type === 'checkbox' ? i.checked : i.value; try { localStorage.setItem(draftKey, JSON.stringify(v)); } catch { /* 無痕 */ } });
+  ], { valueState: draft.valueState || 'measured', meterEvent: 'none', meterMultiplier: a.meter_multiplier, customPeriod: false });
+  const unitTag = h('span', { class: 'pf-chip' });
+  main.inputs.rawValue.closest('label').querySelector('span').append(' ', unitTag);
+  const curMetric = () => metricOf(main.inputs.metricCode?.value || allMetrics[0]);
   const updateHint = () => {
-    const m = metricOf(f.inputs.metricCode.value);
-    f.inputs.rawUnit.placeholder = m?.std_unit || '';
-    const stockLike = ['stock', 'cumulative'].includes(m?.value_kind);
-    f.inputs.periodEndIncl.closest('label').querySelector('span').textContent = stockLike ? '量測日（與起日相同）' : '期間迄日（含當日）';
-    if (stockLike) f.inputs.periodEndIncl.value = f.inputs.periodStart.value;
+    const m = curMetric(); const pointLike = ['stock', 'cumulative'].includes(m?.value_kind);
+    unitTag.textContent = adv.inputs.rawUnit.value || m?.std_unit || '';
+    main.inputs.month.closest('label').classList.toggle('hidden', pointLike || adv.inputs.customPeriod.checked);
+    main.inputs.day.closest('label').classList.toggle('hidden', !pointLike);
+    for (const k of ['periodStart', 'periodEndIncl']) adv.inputs[k].closest('label').classList.toggle('hidden', pointLike || !adv.inputs.customPeriod.checked);
+    adv.inputs.customPeriod.closest('label').classList.toggle('hidden', pointLike);
+    adv.inputs.meterEvent.closest('label').classList.toggle('hidden', m?.value_kind !== 'cumulative');
+    main.inputs.rawValue.closest('label').querySelector('span').firstChild.textContent = m?.value_kind === 'cumulative' ? '表頭讀數' : m?.value_kind === 'stock' ? '存量／數量' : '數字';
   };
-  f.inputs.metricCode.addEventListener('change', updateHint); f.inputs.periodStart.addEventListener('change', updateHint); updateHint();
+  for (const i of [main.inputs.metricCode, adv.inputs.customPeriod, adv.inputs.rawUnit].filter(Boolean)) i.addEventListener('change', updateHint);
+  updateHint();
+  const saveDraft = () => { const v = {}; for (const [k, i] of Object.entries(main.inputs)) if (k !== 'photo') v[k] = i.value; v.valueState = adv.inputs.valueState.value; try { localStorage.setItem(draftKey, JSON.stringify(v)); } catch { /* 無痕 */ } };
+  main.el.addEventListener('input', saveDraft);
+  const nextMonth = (ym) => { const [y, mm] = ym.split('-').map(Number); return mm === 12 ? `${y + 1}-01-01` : `${y}-${String(mm + 1).padStart(2, '0')}-01`; };
+  const f = { el: h('div', main.el, h('details', h('summary', { class: 'pf-small' }, '其他情況：帳單不是整月、沒有數字、換表、單位不同、備註'), adv.el)) };
   const dupWarn = h('div');
   const submit = async () => {
-    const v = f.read(); if (!v) return;
-    const m = metricOf(v.metricCode);
-    const stockLike = ['stock', 'cumulative'].includes(m?.value_kind);
-    const periodEnd = stockLike ? v.periodEndIncl : inclEndToExcl(v.periodEndIncl);
-    const body = { assetId: id, metricCode: v.metricCode, periodStart: v.periodStart, periodEnd, rawValue: v.rawValue, rawUnit: v.rawUnit, valueState: v.valueState,
-      meterEvent: v.meterEvent, meterMultiplier: v.meterMultiplier, note: v.note, readingKind: m?.value_kind === 'cumulative' ? 'cumulative' : undefined,
-      sourceRecordKey: `field:${state.me.user.id}:${v.metricCode}:${v.periodStart}:${periodEnd}:${Date.now().toString(36)}` };
-    // 重複檢查：同標的、同指標、同期間已有紀錄 → 先提示
-    const same = recent.filter((o) => o.metric_code === v.metricCode && o.period_start === v.periodStart && o.period_end === periodEnd);
-    if (same.length && !(await confirmBox('同期間已有紀錄', `這個標的 ${fmtPeriod(v.periodStart, periodEnd)} 已有 ${same.length} 筆 ${metricName(v.metricCode)}（${same.map((o) => o.raw_value ?? o.value_state).join('、')}）。仍要再登錄一筆（不會覆蓋原紀錄）？`, '仍要登錄'))) return;
+    const v1 = main.read(); if (!v1) return; const v2 = adv.read(); if (!v2) return;
+    const m = curMetric(); const metricCode = m.code; const pointLike = ['stock', 'cumulative'].includes(m.value_kind);
+    let periodStart; let periodEnd;
+    if (pointLike) { if (!v1.day) throw new Error('請填讀表日'); periodStart = v1.day; periodEnd = v1.day; }
+    else if (v2.customPeriod) { if (!v2.periodStart || !v2.periodEndIncl) throw new Error('請填計費起迄'); periodStart = v2.periodStart; periodEnd = inclEndToExcl(v2.periodEndIncl); }
+    else { if (!v1.month) throw new Error('請選月份'); periodStart = `${v1.month}-01`; periodEnd = nextMonth(v1.month); }
+    const hasNumber = ['measured', 'estimated'].includes(v2.valueState);
+    if (hasNumber && (v1.rawValue === undefined || v1.rawValue === '')) throw new Error('請填數字；真的沒有數字，打開「其他情況」選缺漏或未知（不要填 0）');
+    const v = { ...v2, metricCode, periodStart, rawValue: hasNumber ? v1.rawValue : undefined, photo: v1.photo };
+    const body = { assetId: id, metricCode, periodStart, periodEnd, rawValue: v.rawValue, rawUnit: v.rawUnit, valueState: v.valueState,
+      meterEvent: v.meterEvent, meterMultiplier: v.meterMultiplier, note: v.note, readingKind: m.value_kind === 'cumulative' ? 'cumulative' : undefined,
+      sourceRecordKey: `field:${state.me.user.id}:${metricCode}:${periodStart}:${periodEnd}:${Date.now().toString(36)}` };
+    const same = recent.filter((o) => o.metric_code === metricCode && o.period_start === periodStart && o.period_end === periodEnd);
+    if (same.length && !(await confirmBox('同期間已有紀錄', `這個標的 ${fmtPeriod(periodStart, periodEnd)} 已有 ${same.length} 筆 ${metricName(metricCode)}（${same.map((o) => o.raw_value ?? o.value_state).join('、')}）。仍要再登錄一筆（不會覆蓋原紀錄）？`, '仍要登錄'))) return;
     if (!navigator.onLine) {
-      const qq = readQ(); qq.push({ body, savedAt: new Date().toISOString(), label: `${a.name} ${metricName(v.metricCode)} ${v.periodStart}` });
+      const qq = readQ(); qq.push({ body, savedAt: new Date().toISOString(), label: `${a.name} ${metricName(metricCode)} ${periodStart}` });
       if (!writeQ(qq)) throw new Error('裝置無法暫存，請恢復網路後再送出');
       toast('目前離線，已暫存在這支裝置；恢復連線後會請你確認上傳', 'warn'); return;
     }
@@ -124,7 +143,8 @@ async function entry({ id }) {
       d.item?.special_rules?.length ? note(d.item.special_rules.join('；'), 'warn') : null, f.el, dupWarn,
       h('div', { class: 'pf-actions' }, action('送出', submit, 'primary'), btn('清除草稿', () => { try { localStorage.removeItem(draftKey); } catch { /* 無 */ } render(); }, 'ghost')),
       h('p', { class: 'muted pf-small' }, '網路不穩時會自動暫存在這支裝置，恢復連線後由你確認再上傳。')),
-    card('最近紀錄', obsTable(recent)));
+    card('最近紀錄', table([{ label: '項目', render: (o) => metricName(o.metric_code) }, { label: '期間', render: (o) => fmtPeriod(o.period_start, o.period_end) },
+      { label: '數字', render: (o) => (o.raw_value === null ? valueStateChip(o.value_state) : `${o.raw_value} ${o.raw_unit}`) }], recent.slice(0, 6), { empty: '還沒有紀錄' })));
 }
 
 // ── 匯入／辨識／介接 ──

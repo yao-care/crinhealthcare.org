@@ -465,6 +465,12 @@ const MIGRATIONS = [
   ALTER TABLE evidence_files ADD COLUMN scan_status TEXT NOT NULL DEFAULT 'not_scanned';
   ALTER TABLE evidence_files ADD COLUMN scan_detail TEXT;
   `,
+  // 4：院所基本資料（盤查報告每年重複的說明填一次）
+  `
+  CREATE TABLE org_profiles (
+    org_id TEXT PRIMARY KEY REFERENCES organizations(id), data TEXT NOT NULL DEFAULT '{}', updated_by TEXT, updated_at TEXT NOT NULL
+  );
+  `,
 ];
 
 let db = null;

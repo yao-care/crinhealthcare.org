@@ -50,6 +50,13 @@ export const DEFAULT_CONFIG = {
   'ghg.significance': {
     thresholdPct: 1, criteria: '預估排放量占類別一＋類別二總量 1% 以上，或法規、主管機關、利害關係人要求揭露者，判定為顯著並量化',
   },
+  // 顯著性評估自動估算：活動量（指標）× 係數。係數要在係數庫新增並發布後才會估算（系統不內建數值）
+  'ghg.significance_estimators': {
+    'UPSTREAM-ENERGY': { indicator: 'energy.elec_kwh', factor: 'ef.upstream.electricity', label: '外購電力（度）× 電力上游排放係數（kgCO₂e/度）' },
+    'UPSTREAM-WATER': { indicator: 'water.withdrawal_m3', factor: 'ef.upstream.water', label: '取水量（m³）× 自來水排放係數（kgCO₂e/m³）' },
+    'WASTEWATER': { indicator: 'water.discharge_m3', factor: 'ef.wastewater.treatment', label: '排水量（m³）× 污水處理排放係數（kgCO₂e/m³）' },
+    'REF-COMMUTE': { indicator: 'act.staff_count', factor: 'ef.commute.per_staff', label: '員工人數 × 每人年通勤排放（kgCO₂e/人）' },
+  },
   // 環境部「溫室氣體排放量盤查作業指引」數據品質評分：三項等級相乘得積分，再分級（院方依採用版本調整）
   'ghg.data_quality': {
     activityType: { 1: '自動連續量測', 2: '間歇量測（帳單、抄表）', 3: '自行推估' },

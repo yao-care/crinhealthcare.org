@@ -43,47 +43,100 @@ async function list(_, qy) {
   ], rows, { empty: '沒有符合條件的標的', onRow: (a) => go(`#/assets/${a.id}`) }));
 }
 
-function assetFields(a = {}, { sites = [], parents = [], users = [] } = {}) {
-  const item = itemOf(a.item_id || a.itemId);
-  const types = item?.asset_types?.length ? item.asset_types : Object.keys(state.meta.assetTypes);
+// ── 標的表單（精簡版）：常用欄位在上面，依盤點項目只出現需要的專屬欄位；其餘收進「進階」 ──
+const FUELS = [['diesel', '柴油'], ['gasoline', '汽油'], ['fuel_oil', '燃料油']];
+const DEFAULT_FUEL = { 'OIL-GEN': 'diesel', 'OIL-FORK': 'diesel', 'OIL-VEH': 'gasoline', 'OIL-BOILER': 'fuel_oil' };
+const REFRIGERANTS = ['R-410A', 'R-32', 'R-134a', 'R-404A', 'R-407C', 'R-507A', 'R-22', 'R-123'].map((r) => [r, r]);
+// 依盤點項目決定要問的專屬欄位：[attrs 鍵, 標籤, 型態, 選項, 預設, 是否進階]
+function itemSpecific(code) {
+  if (DEFAULT_FUEL[code]) return [['fuel', '油種', 'select', FUELS, DEFAULT_FUEL[code]], ['biogenicPct', '生質成分（%）', 'number', null, '', true]];
+  if (code === 'GAS-REF') return [['refrigerant', '冷媒種類（看銘牌）', 'select', [...REFRIGERANTS, ['__other', '其他（自填）']], ''], ['refrigerantOther', '其他冷媒名稱', 'text', null, '', true]];
+  if (code === 'GAS-FIRE') return [['agent', '滅火藥劑', 'select', [['CO2', 'CO₂'], ['乾粉', '乾粉（ABC／BC／KBC）'], ['HFC-227ea', '潔淨型 HFC-227ea（FM-200）'], ['其他', '其他']], 'CO2']];
+  if (code === 'GAS-GCB') return [['switchType', '開關型式', 'select', [['GCB', 'GCB 氣體斷路器（含 SF₆）'], ['VCB', 'VCB 真空斷路器（不含 SF₆）'], ['ACB', 'ACB 空氣斷路器（不含 SF₆）']], 'GCB']];
+  if (['ELE-SUB', 'WAT-SUB', 'WAT-TAP', 'WAT-GROUND', 'GAS-NG'].includes(code)) return [['rolloverAt', '表頭最大讀數（回轉用）', 'number', null, '', true], ['calibrated', '表計有校正紀錄', 'checkbox', null, false, true]];
+  return [];
+}
+function attrsToValues(attrs = {}) {
+  const v = { ...attrs };
+  if (attrs.biogenicShare !== undefined) v.biogenicPct = attrs.biogenicShare * 100;
+  if (attrs.refrigerant && !REFRIGERANTS.some(([r]) => r === attrs.refrigerant)) { v.refrigerant = '__other'; v.refrigerantOther = attrs.refrigerant; }
+  if (attrs.type === '乾粉') v.agent = '乾粉';
+  return v;
+}
+function valuesToAttrs(code, v, old = {}) {
+  const a = { ...old };
+  for (const k of ['fuel', 'agent', 'switchType', 'rolloverAt', 'calibrated']) if (v[k] !== undefined && v[k] !== '') a[k] = v[k]; else if (k in v) delete a[k];
+  if (v.biogenicPct !== undefined && v.biogenicPct !== '') a.biogenicShare = Number(v.biogenicPct) / 100; else delete a.biogenicShare;
+  if (v.refrigerant) a.refrigerant = v.refrigerant === '__other' ? (v.refrigerantOther || '') : v.refrigerant;
+  if (code === 'GAS-FIRE' && v.agent === '乾粉') a.type = '乾粉';
+  if (code === 'GAS-GCB') a.gas = v.switchType === 'GCB' ? 'SF6' : undefined;
+  return Object.fromEntries(Object.entries(a).filter(([, x]) => x !== undefined && x !== ''));
+}
+
+// 回 { el, read() }；a＝既有標的（編輯）或 {}（新增）
+function assetForm({ a = {}, sites, assets, users, itemId }) {
+  const editing = !!a.id;
+  const wrap = h('div');
   const buildings = sites.flatMap((s) => s.buildings.map((b) => [b.id, `${s.name}／${b.name}`]));
-  return [
-    { key: 'itemId', label: '盤點項目', type: 'select', options: itemOptions(['oil', 'water', 'electricity', 'gas', 'activity']), required: true, wide: true, readonly: !!a.id },
-    { key: 'assetType', label: '標的類型', type: 'select', options: types.map((t) => [t, assetTypeName(t)]), required: true },
-    { key: 'name', label: '標的名稱', required: true },
-    { key: 'externalKey', label: '識別碼（電號、水號、車牌、資產編號）', hint: '同院區同類型不可重複' },
-    { key: 'externalKeySensitive', label: '識別碼屬敏感資訊（電號、帳號）', type: 'checkbox' },
-    { key: 'siteId', label: '院區', type: 'select', options: sites.map((s) => [s.id, s.name]) },
-    { key: 'buildingId', label: '建物', type: 'select', options: buildings },
-    { key: 'location', label: '位置說明' }, { key: 'floor', label: '樓層' },
-    { key: 'meterMultiplier', label: '表計倍率', type: 'number', default: 1 },
-    { key: 'parentAssetId', label: '上層標的（總表、共用油槽）', type: 'select', options: parents },
-    { key: 'shared', label: '共用（例：多台發電機共用油槽）', type: 'checkbox' }, { key: 'leased', label: '租賃設備', type: 'checkbox' },
-    { key: 'ownerUserId', label: '實際保管者（可空）', type: 'select', options: users, hint: '不知道就留空，之後用來源追查找' },
-    { key: 'dueDate', label: '截止日', type: 'date' }, { key: 'nextStep', label: '下一步說明' },
-    { key: 'attrs', label: '專屬欄位（JSON）', type: 'json', wide: true, hint: '燃料 {"fuel":"diesel"}（diesel／gasoline／fuel_oil／ng／lpg）；含生質成分 {"biogenicShare":0.02}；冷媒 {"refrigerant":"R-410A"}；表頭回轉 {"rolloverAt":99999}；數據品質等級 {"dq":{"activityType":2,"activityTrust":1,"factorType":3}}；表計已校正 {"calibrated":true}' },
-  ];
+  const itemSel = form([{ key: 'itemId', label: '盤點什麼？', type: 'select', options: itemOptions(['oil', 'water', 'electricity', 'gas', 'activity']), required: true, wide: true, readonly: editing }],
+    { itemId: a.item_id || itemId || '' });
+  const body = h('div');
+  let parts = null;
+  const draw = () => {
+    const it = itemOf(itemSel.inputs.itemId.value);
+    if (!it) { body.replaceChildren(note('先選盤點項目，下面只會出現需要填的欄位。')); parts = null; return; }
+    const types = it.asset_types?.length ? it.asset_types : Object.keys(state.meta.assetTypes);
+    const same = assets.filter((x) => x.asset_type === types[0] && x.id !== a.id).length;
+    const shortName = assetTypeName(types[0]);
+    const spec = itemSpecific(it.code);
+    const attrVals = attrsToValues(a.attrs || {});
+    const basic = form([
+      types.length > 1 ? { key: 'assetType', label: '類型', type: 'select', options: types.map((t) => [t, assetTypeName(t)]), required: true } : null,
+      { key: 'name', label: '名稱', required: true, hint: editing ? '' : '已依項目帶入，可直接改' },
+      { key: 'externalKey', label: ({ power_account: '電號', water_account: '水號', gas_account: '瓦斯用戶號碼', vehicle: '車牌' }[a.asset_type || types[0]]) || '資產編號（可空）', hint: '同院區同類型不可重複' },
+      { key: 'location', label: '位置（大樓、樓層、機房）' },
+      ...spec.filter((x) => !x[5]).map(([key, label, type, options, def]) => ({ key, label, type, options, required: type === 'select' && key !== 'refrigerant' ? true : false, default: def })),
+    ].filter(Boolean), { assetType: a.asset_type || types[0], name: a.name || `${shortName}${same ? ` ${same + 1}` : ''}`, externalKey: a.masked ? '' : a.external_key, location: a.location, ...attrVals });
+    const adv = form([
+      ...spec.filter((x) => x[5]).map(([key, label, type, options, def]) => ({ key, label, type, options, default: def })),
+      { key: 'siteId', label: '院區', type: 'select', options: sites.map((x) => [x.id, x.name]) },
+      { key: 'buildingId', label: '建物', type: 'select', options: buildings }, { key: 'floor', label: '樓層' },
+      { key: 'meterMultiplier', label: '表計倍率', type: 'number', default: 1 },
+      { key: 'parentAssetId', label: '上層標的（總表、共用油槽）', type: 'select', options: assets.filter((x) => x.id !== a.id).map((x) => [x.id, `${x.name}（${assetTypeName(x.asset_type)}）`]) },
+      { key: 'shared', label: '共用（例：多台發電機共用油槽）', type: 'checkbox' }, { key: 'leased', label: '租賃設備', type: 'checkbox' },
+      { key: 'externalKeySensitive', label: '識別碼屬敏感資訊', type: 'checkbox' },
+      { key: 'ownerUserId', label: '實際保管者（可空）', type: 'select', options: users },
+      { key: 'dueDate', label: '截止日', type: 'date' }, { key: 'nextStep', label: '下一步說明' },
+    ], { siteId: a.site_id || sites[0]?.id, buildingId: a.building_id, floor: a.floor, meterMultiplier: a.meter_multiplier ?? 1, parentAssetId: a.parent_asset_id,
+      shared: !!a.shared, leased: !!a.leased, externalKeySensitive: a.external_key_sensitive ?? /power_account|water_account|gas_account/.test(types[0]), ownerUserId: a.owner_user_id,
+      dueDate: a.due_date, nextStep: a.next_step, ...attrVals });
+    parts = { it, basic, adv, types };
+    body.replaceChildren(basic.el, h('details', h('summary', { class: 'pf-small' }, '進階（院區、樓層、倍率、上下層、保管者…，不確定可不填）'), adv.el), itemCard(it));
+  };
+  itemSel.inputs.itemId.addEventListener('change', draw); draw();
+  wrap.append(itemSel.el, body);
+  const read = () => {
+    if (!parts) { toast('請先選盤點項目', 'err'); return null; }
+    const v1 = parts.basic.read(); if (!v1) return null; const v2 = parts.adv.read(); if (!v2) return null;
+    const all = { ...v2, ...v1 };
+    const attrs = valuesToAttrs(parts.it.code, all, a.attrs || {});
+    const out = { itemId: parts.it.id, domain: parts.it.domain, assetType: all.assetType || parts.types[0], name: all.name, externalKey: all.externalKey || null, location: all.location,
+      siteId: all.siteId, buildingId: all.buildingId, floor: all.floor, meterMultiplier: all.meterMultiplier || 1, parentAssetId: all.parentAssetId, shared: !!all.shared, leased: !!all.leased,
+      externalKeySensitive: !!all.externalKeySensitive, ownerUserId: all.ownerUserId, dueDate: all.dueDate, nextStep: all.nextStep, attrs };
+    if (editing && a.masked && !all.externalKey) delete out.externalKey;
+    return out;
+  };
+  return { el: wrap, read };
 }
 
 async function create(_, qy) {
   const orgId = needOrg();
-  const [sites, parents, users] = await Promise.all([get(`orgs/${orgId}/sites`), get('assets', { orgId }), userOptions(orgId)]);
-  const f = form(assetFields({}, { sites, parents: parents.map((p) => [p.id, `${p.name}（${assetTypeName(p.asset_type)}）`]), users }), { itemId: qy.itemId, siteId: sites[0]?.id, meterMultiplier: 1, attrs: {} });
-  // 選了項目就更新類型選單與提示
-  const hint = h('div');
-  const refresh = () => {
-    const it = itemOf(f.inputs.itemId.value);
-    const sel = f.inputs.assetType; const cur = sel.value;
-    sel.replaceChildren(...(it?.asset_types?.length ? it.asset_types : Object.keys(state.meta.assetTypes)).map((t) => h('option', { value: t }, assetTypeName(t))));
-    if ([...sel.options].some((o) => o.value === cur)) sel.value = cur;
-    hint.replaceChildren(it ? itemCard(it) : '');
-  };
-  f.inputs.itemId.addEventListener('change', refresh); refresh();
-  return page('新增標的', { crumbs: [['#/assets', '標的台帳'], '新增'] },
-    card('基本資訊', f.el, hint, h('div', { class: 'pf-actions' }, action('儲存', async () => {
+  const [sites, assets, users] = await Promise.all([get(`orgs/${orgId}/sites`), get('assets', { orgId }), userOptions(orgId)]);
+  const f = assetForm({ sites, assets, users, itemId: qy.itemId });
+  return page('新增標的', { crumbs: [['#/assets', '標的台帳'], '新增'], intro: '選盤點項目後只要填名稱（已自動帶入）和必要的專屬欄位；保管者不知道可以留空。' },
+    card(null, f.el, h('div', { class: 'pf-actions' }, action('儲存', async () => {
       const v = f.read(); if (!v) return;
-      const it = itemOf(v.itemId);
-      const r = await post('assets', { ...v, orgId, domain: it?.domain });
+      const r = await post('assets', { ...v, orgId });
       toast('已建立'); go(`#/assets/${r.id}`);
     }, 'primary'), btn('取消', () => history.back(), 'ghost'))));
 }
@@ -250,16 +303,15 @@ function historyTab(d) {
 }
 
 async function editAsset(a) {
-  const [sites, parents, users] = await Promise.all([get(`orgs/${a.org_id}/sites`), get('assets', { orgId: a.org_id }), userOptions(a.org_id)]);
-  const fields = [...assetFields(a, { sites, parents: parents.filter((p) => p.id !== a.id).map((p) => [p.id, p.name]), users }),
-    { key: 'reason', label: '修改原因（已建檔的標的必填）', wide: true, required: a.status !== 'draft' },
-    { key: 'status', label: '狀態', type: 'select', options: [['draft', '草稿'], ['active', '使用中'], ['disabled', '停用']] }];
-  await formModal('編輯標的', fields, { itemId: a.item_id, assetType: a.asset_type, name: a.name, externalKey: a.masked ? '' : a.external_key, externalKeySensitive: !!a.external_key_sensitive,
-    siteId: a.site_id, buildingId: a.building_id, location: a.location, floor: a.floor, meterMultiplier: a.meter_multiplier, parentAssetId: a.parent_asset_id, shared: !!a.shared, leased: !!a.leased,
-    ownerUserId: a.owner_user_id, dueDate: a.due_date, nextStep: a.next_step, attrs: a.attrs, status: a.status }, async (v) => {
-    const body = { ...v }; delete body.itemId; if (a.masked && !body.externalKey) delete body.externalKey;
+  const [sites, assets, users] = await Promise.all([get(`orgs/${a.org_id}/sites`), get('assets', { orgId: a.org_id }), userOptions(a.org_id)]);
+  const f = assetForm({ a, sites, assets, users });
+  const extra = form([{ key: 'reason', label: '修改原因', wide: true, required: a.status !== 'draft', hint: '已建檔的標的修改要寫原因，會留在異動歷程' },
+    { key: 'status', label: '狀態', type: 'select', options: [['draft', '草稿'], ['active', '使用中'], ['disabled', '停用']] }], { status: a.status });
+  await modal('編輯標的', h('div', f.el, extra.el), { okText: '儲存', onOk: async () => {
+    const v = f.read(); if (!v) return false; const x = extra.read(); if (!x) return false;
+    const body = { ...v, ...x }; delete body.itemId; delete body.domain;
     await patch(`assets/${a.id}`, body); toast('已儲存'); render();
-  });
+  } });
 }
 
 async function judge(a) {
