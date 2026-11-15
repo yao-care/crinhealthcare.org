@@ -12,6 +12,7 @@ import { deployStatus } from './deploy.js';
 import { hospitalSpec } from './spec.js';
 import { handleAudit } from './audit-routes.js';
 import { handleInventory } from './inventory-routes.js';
+import { handlePlatform } from './platform/routes.js';
 
 const PUB = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const MIME = {
@@ -75,18 +76,27 @@ const server = createServer(async (req, res) => {
     // ── 登入 ──
     if (req.method === 'POST' && pathname === '/api/login') {
       if (!originOk(req)) return json(res, 403, { ok: false, error: 'bad_origin' });
-      const { username, password, remember } = await readBody(req);
+      const { username, password, remember, totp } = await readBody(req);
       if (!username || !password) return json(res, 400, { ok: false, error: 'missing' });
-      const r = login(String(username), String(password), { remember: remember === true });
-      if (!r.ok) return json(res, 401, { ok: false, error: r.code, retryMs: r.retryMs });
+      const r = login(String(username), String(password), { remember: remember === true, totp });
+      if (!r.ok) return json(res, r.code === 'totp_required' ? 200 : 401, { ok: false, error: r.code, retryMs: r.retryMs });
       setSessionCookie(res, signToken(r.session, { ttlMs: r.ttlMs }), { ttlMs: r.ttlMs });
-      return json(res, 200, { ok: true, hid: r.session.hid, name: r.session.name, expiresAt: Date.now() + r.ttlMs });
+      return json(res, 200, { ok: true, hid: r.session.hid, name: r.session.name, expiresAt: Date.now() + r.ttlMs, mustChange: !!r.mustChange, platform: !!r.session.uid });
     }
 
     if (req.method === 'POST' && pathname === '/api/logout') {
       clearSessionCookie(res);
       return json(res, 200, { ok: true });
     }
+
+    // ── 平台 /api/v1/*：自己判斷登入與權限（含少數公開路由，例如外部推送、OpenAPI）──
+    if (pathname.startsWith('/api/v1/')) {
+      const handled = await handlePlatform({ req, res, sess: readSession(req), pathname, json, readBody, originOk });
+      if (handled) return handled;
+    }
+
+    // ── 平台前端 /p/ ──
+    if (req.method === 'GET' && (pathname === '/p' || pathname === '/p/')) return serveFile(res, join(PUB, 'p', 'index.html'));
 
     // ── 貼紙落地頁：不需登入即可載入頁面（頁面自己再打 API，未登入時顯示登入框）──
     if (req.method === 'GET' && /^\/s\/[^/]+\/?$/.test(pathname)) return serveFile(res, join(PUB, 's.html'));
@@ -97,8 +107,10 @@ const server = createServer(async (req, res) => {
       if (!sess) return json(res, 401, { ok: false, error: 'unauthorized' });
 
       if (req.method === 'GET' && pathname === '/api/me') {
-        return json(res, 200, { ok: true, username: sess.sub, hid: sess.hid, name: sess.name });
+        return json(res, 200, { ok: true, username: sess.sub, hid: sess.hid, name: sess.name, platform: !!sess.uid });
       }
+      // 舊入口（健檢、盤點、看板維護）以院所為單位：個人帳號沒有對應單一院所時不開放
+      if (!sess.hid) return json(res, 403, { ok: false, error: 'no_hospital_scope', message: '此帳號沒有舊版填報的院所範圍，請改用平台 /p/' });
 
       // ── 電力健檢填報（公文附件一／三）──
       // 這一整組走的是主機本地儲存（audit-store），與下面看板那組的 REPO_DIR 完全分開。

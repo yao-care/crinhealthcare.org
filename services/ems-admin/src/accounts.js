@@ -3,6 +3,7 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { config } from './config.js';
 import { verifyPassword, ttlFor } from './auth.js';
+import { platformLogin, ensureLegacyUser } from './platform/users.js';
 
 let cache = null;
 let cacheMtime = 0;
@@ -29,7 +30,10 @@ const MAX_FAILS = 8;
 const LOCK_MS = 5 * 60 * 1000;
 
 // remember：使用者勾了「這支手機記住 30 天」→ 回 ttlMs 給 server.js 簽長效 token
-export function login(username, password, { remember = false } = {}) {
+export function login(username, password, { remember = false, totp } = {}) {
+  // 平台個人帳號優先；不是平台帳號才走舊 accounts.json
+  const p = platformLogin(username, password, { totp });
+  if (p) return p.ok ? { ...p, ttlMs: ttlFor(remember) } : p;
   const now = Date.now();
   const f = fails.get(username);
   if (f && f.until > now) return { ok: false, code: 'locked', retryMs: f.until - now };
@@ -42,5 +46,8 @@ export function login(username, password, { remember = false } = {}) {
     return { ok: false, code: 'bad_credentials' };
   }
   fails.delete(username);
-  return { ok: true, ttlMs: ttlFor(remember), session: { sub: acc.username, hid: acc.hospitalId, name: acc.displayName || acc.hospitalId } };
+  // 舊院所帳號對應成平台使用者（院所管理者＋業務角色，限該院），session 帶 uid 才能用平台
+  let bridged = null;
+  try { bridged = ensureLegacyUser({ username: acc.username, hid: acc.hospitalId, name: acc.displayName }); } catch (e) { console.error('[ems-admin] legacy bridge', e.message); }
+  return { ok: true, ttlMs: ttlFor(remember), session: { sub: acc.username, hid: acc.hospitalId, name: acc.displayName || acc.hospitalId, ...(bridged ? { uid: bridged.uid } : {}) } };
 }
