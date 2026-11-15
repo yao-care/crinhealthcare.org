@@ -68,19 +68,13 @@ node scripts/platform-dictionary.mjs > ../../docs/ems-platform-dictionary.md   #
 
 - 權限判斷集中在 `src/platform/authz.js`；路由不自行比對角色。
 - 稽核事件以雜湊串鏈，資料庫 trigger 禁止修改與刪除；定版資料集、封存報告、原始觀測值也由 trigger 擋修改。
-- 佐證檔：副檔名白名單＋檔頭檢查＋擋可執行檔；下載回 `Content-Security-Policy: sandbox`，每次下載記稽核。主機若有 ClamAV，可在上傳流程前加掃描（目前未接）。
+- 佐證檔：副檔名白名單＋檔頭檢查＋擋可執行檔；下載回 `Content-Security-Policy: sandbox`，每次下載記稽核。
 - 公開看板只輸出彙總比率與件數，不含費用、識別碼、聯絡人。
 - 推送介接權杖只存 SHA-256；外部 AI 辨識只在設定 `ANTHROPIC_API_KEY` 時啟用，限閱、機密佐證請院方確認後再用辨識功能。
 
-## 病毒掃描（ClamAV）
+## 上傳檔檢查
 
-上傳佐證、匯入檔、電費單都會先送 clamd 掃描；主機沒有 clamd 時標記「未掃描」、不擋上傳。啟用方式：
-
-```bash
-apt install clamav-daemon && systemctl enable --now clamav-daemon   # clamd 常駐約需 1–1.5 GB 記憶體
-```
-
-程式自動偵測 `/var/run/clamav/clamd.ctl`（或以 `CLAMD_SOCKET` 指定），不需重啟 ems-admin。感染檔拒絕上傳並記稽核事件 `evidence.virus_blocked`。
+副檔名白名單、檔頭（magic bytes）比對、擋可執行檔，檔案以雜湊保存。業主決定不安裝掃毒服務（2026-11-15）。
 
 ## 測試報告
 

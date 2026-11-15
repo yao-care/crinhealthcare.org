@@ -148,7 +148,6 @@ async function evidence(_, qy) {
     card(null, h('div', { class: 'pf-bar' }, searchBox(qy.q || '', (v) => setQuery({ q: v }), '搜尋檔名、種類、說明')),
       table([{ label: '檔案', render: (e) => (e.canOpen ? h('a', { href: `/api/v1/evidence/${e.id}/file`, target: '_blank', rel: 'noopener' }, e.filename) : h('span', e.filename, ' ', chip('無權開啟'))) },
         { label: '種類', key: 'kind' }, { label: '機敏', render: (e) => chip(...(CONF[e.confidentiality] || [e.confidentiality])) }, { label: '標的', render: (e) => (e.asset_id ? link(`#/assets/${e.asset_id}`, e.asset_name) : '—') },
-        { label: '病毒掃描', render: (e) => chip(...({ clean: ['通過', 'ok'], not_scanned: ['未掃描', 'todo'], error: ['掃描失敗', 'warn'] }[e.scan_status] || [e.scan_status || '未掃描', 'todo'])) },
         { label: '被引用', render: (e) => `${e.obs_count} 筆觀測` }, { label: '大小', render: (e) => `${Math.round(e.size / 1024)} KB` }, { label: '雜湊', render: (e) => h('span', { class: 'pf-mono', title: e.sha256 }, e.sha256.slice(0, 12)) },
         { label: '上傳', render: (e) => `${e.uploaded_by_name || ''} ${fmtDate(e.uploaded_at)}` },
         { label: '', render: (e) => (can('obs.write', e.org_id) ? action('等級', () => formModal('調整機敏等級', [{ key: 'confidentiality', label: '機敏等級', type: 'select', required: true, options: Object.entries(CONF).map(([k, [l]]) => [k, l]) },
