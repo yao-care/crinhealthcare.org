@@ -1189,6 +1189,8 @@ $('loginForm').addEventListener('submit', async (e) => {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ems-admin' },
     body: JSON.stringify({ username: f.username.value, password: f.password.value }),
   });
+  // 平台個人帳號（沒有單一院所範圍，例如系統管理員）不適用舊版填報，直接帶到平台
+  if (status === 200 && body?.ok && body.platform && !body.hid) { location.href = '/p/'; return; }
   if (status === 200 && body?.ok) { showEditor(body); await loadHospital(); }
   else if (status === 401 && body?.error === 'locked') $('loginErr').textContent = '嘗試次數過多，請稍後再試';
   else $('loginErr').textContent = '帳號或密碼錯誤';
@@ -1247,6 +1249,7 @@ $('formRoot').addEventListener('submit', (e) => e.preventDefault());
 
 async function boot() {
   const { status, body } = await api('/api/me');
+  if (status === 200 && body?.ok && body.platform && !body.hid) { location.href = '/p/'; return; }
   if (status === 200 && body?.ok) { showEditor(body); await loadHospital(); }
   else showLogin();
 }
