@@ -22,9 +22,10 @@ writeFileSync(join(hdir, '803.json'), JSON.stringify({
     { name: '大坑變電所 22.8KV', system: '受電', loc: '總院 → 急重症總站', reading: '急重症責任分界點' },
     { name: '太平變電所 11.4KV', system: '受電', loc: '總院 → 既有總站' },
     { name: '柴油發電機 G5 1500KW', system: '備援電力', loc: '急重症大樓', reading: '機房 1,800 L' },
+    { name: '柴油發電機 G1 600KW', system: '備援電力', loc: '醫療·綜合大樓（380V醫裝）' },
     { name: '冰水主機 CH-3', system: '空調' },
   ] }],
-  env: { peace: { buildings: [{ name: '急重症大樓', floors: [{ floor: '9F' }, { floor: '1F' }, { floor: 'B1' }] }, { name: '醫療大樓', floors: [{ floor: '5F' }, { floor: 'B1' }] }] } },
+  env: { peace: { buildings: [{ name: '急重症大樓', floors: [{ floor: '9F' }, { floor: '1F' }, { floor: 'B1' }] }, { name: '醫療大樓', floors: [{ floor: '5F' }, { floor: 'B1' }] }, { name: '綜合大樓', floors: [{ floor: '1F' }] }] } },
 }));
 
 const db = await import('../src/platform/db.js');
@@ -65,14 +66,17 @@ test('看板資料轉入：建物樓層、周邊、台電受電總盤、發電�
   const tpc = ele.children.find((c) => c.kind === 'tpc');
   const zones = ele.children.find((c) => c.kind === 'zones');
   assert.deepEqual(tpc.children.map((c) => c.name), ['急重症總站（大坑變電所 22.8kV）', '既有總站（太平變電所 11.4kV）']);
-  assert.deepEqual(zones.children.map((b) => b.name), ['急重症大樓', '醫療大樓', '周邊'], '周邊排最後');
+  assert.deepEqual(zones.children.map((b) => b.name), ['急重症大樓', '醫療大樓', '綜合大樓', '周邊'], '周邊排最後');
   assert.deepEqual(zones.children[0].children.map((f) => f.name), ['9F', '1F', 'B1']);
-  assert.deepEqual(zones.children[2].children.map((f) => f.name), ['停車場', '路燈']);
+  assert.deepEqual(zones.children[3].children.map((f) => f.name), ['停車場', '路燈']);
   const oil = tr.domains.find((d) => d.key === 'oil');
-  const g5 = oil.children[0].children[0];
+  const g5 = oil.children[0].children.find((c) => c.name === '柴油發電機 G5');
   assert.equal(g5.name, '柴油發電機 G5');
   const g5row = q.get('SELECT a.*, b.name AS bname FROM assets a LEFT JOIN buildings b ON b.id = a.building_id WHERE a.id = ?', g5.id);
   assert.equal(g5row.bname, '急重症大樓', '發電機掛到所在建物');
+  const g1 = q.get("SELECT building_id, location FROM assets WHERE name = '柴油發電機 G1'");
+  assert.equal(g1.building_id, null, '跨兩棟不猜');
+  assert.match(g1.location, /醫療·綜合大樓/);
 });
 
 let main, panel, bill, ems, manual, bld;
@@ -144,7 +148,7 @@ test('右欄報告欄位：帳單電量進盤查與申報；智慧電表表計�
   // 表七不列周邊
   const { buildOutputBlocks } = await import('../src/platform/outputs.js');
   const t7 = buildOutputBlocks(['eu_buildings'], { caseRow: { org_id: org, year: 2026 }, datasetId: null, results: {} }).eu_buildings;
-  assert.deepEqual(t7.tables[0].rows.map((r) => r[1]).sort(), ['急重症大樓', '醫療大樓']);
+  assert.deepEqual(t7.tables[0].rows.map((r) => r[1]).sort(), ['急重症大樓', '綜合大樓', '醫療大樓']);
 });
 
 test('權限：別院帳號看不到這棵樹', () => {

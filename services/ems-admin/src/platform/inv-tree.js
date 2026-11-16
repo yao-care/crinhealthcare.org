@@ -271,7 +271,7 @@ export function assetNode(ctx, id, { year, metric } = {}) {
   }
   return {
     kind: 'asset', asset: { id: a.id, name: a.name, domain: a.domain, assetType: a.asset_type, typeLabel: typeLabel(a), itemCode: a.item_code, itemName: a.item_name,
-      externalKey: a.external_key_sensitive ? null : a.external_key, multiplier: a.meter_multiplier, attrs: a.attrs, status: a.status, workStatus: a.work_status, parentId: a.parent_asset_id },
+      externalKey: a.external_key_sensitive ? null : a.external_key, multiplier: a.meter_multiplier, location: a.location || null, attrs: a.attrs, status: a.status, workStatus: a.work_status, parentId: a.parent_asset_id },
     path, children, links, located, serves, sources, metrics: metricRows(metricCodes), mainMetric, year: y, compare, balance,
     fields: fieldsFor({ asset: a0, metric: metric || null }),
   };

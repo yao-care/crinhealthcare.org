@@ -78,7 +78,11 @@ for (const d of (power?.devices || []).filter((x) => x.system === '受電')) {
 // 油：柴油發電機
 for (const d of (power?.devices || []).filter((x) => /柴油發電機\s*G\d+/.test(x.name))) {
   const g = d.name.match(/(G\d+)/)[1]; const kw = (d.name.match(/(\d+)\s*KW/i) || [])[1];
-  const bname = ['急重症大樓', '醫療大樓', '綜合大樓'].find((n) => String(d.loc || '').includes(n));
+  // 所在建物：loc 只對得到一棟才填（「醫療·綜合大樓」這種跨兩棟的不猜，原文留在 location）
+  const names = (board.env?.peace?.buildings || []).map((b) => b.name).filter(Boolean);
+  const loc = String(d.loc || '');
+  const hits = names.filter((n) => loc.includes(n) || loc.includes(n.replace(/大樓$/, '')));
+  const bname = hits.length === 1 ? hits[0] : null;
   mk(`gen:${g}`, { domain: 'oil', item_id: item('OIL-GEN'), asset_type: 'generator', name: `柴油發電機 ${g}`,
     building_name: bname || null, location: d.loc || null, attrs: { ratedKw: kw ? Number(kw) : undefined, fuel: 'diesel', note: d.reading || undefined } });
 }

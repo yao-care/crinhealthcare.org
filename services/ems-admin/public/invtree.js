@@ -335,7 +335,7 @@
       center.push(parentCard);
     }
     const lastBill = ref?.latest;
-    const me = card({ tag: a.typeLabel, title: a.name, sub: d.located ? `位置：${d.located.building}${d.located.floor ? ` ${d.located.floor}` : ''}` : '',
+    const me = card({ tag: a.typeLabel, title: a.name, sub: d.located ? `位置：${d.located.building}${d.located.floor ? ` ${d.located.floor}` : ''}` : a.location ? `位置：${a.location}` : '',
       value: lastBill ? `${ym(lastBill.periodStart)}　${fmt(lastBill.value)} ${lastBill.unit}` : '', cls: 'me',
       onClick: () => focus({ assetId: a.id, metric: null, label: `${a.name}（全部指標）`, el: me, fields: d.fields }, side) });
     center.push(me);
