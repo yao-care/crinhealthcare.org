@@ -1858,3 +1858,40 @@ button.tv-card:hover { background: var(--color-hover); }
   .tv-graph { flex-direction: column; gap: var(--space-xl); }
   .tv-col { width: 100%; min-width: 0; }
 }
+
+/* ═══════════════ 治理（平戰轉換看板）：平時／戰時切換＋右欄看板版面縮圖 ═══════════════ */
+.tv-nav.gov { margin-top: var(--space-sm); }
+.tv-dom .dot, .tv-name .dot { flex: none; width: .55rem; height: .55rem; border-radius: 50%; background: var(--color-energy); }
+.scen-sw { display: inline-flex; margin: var(--space-sm) 0 var(--space-md); border: 1px solid var(--color-border); border-radius: var(--radius-pill); overflow: hidden; background: var(--color-paper); }
+.scen-sw button { border: 0; border-radius: 0; min-height: var(--tap); padding: 0 var(--space-lg); font-weight: 700; color: var(--color-text-secondary); }
+.scen-sw button.on.peace { background: var(--color-primary); color: var(--color-on-primary); }
+.scen-sw button.on.war { background: var(--color-alert-strong); color: var(--color-on-primary); }
+
+.mb { display: flex; flex-direction: column; gap: var(--space-xs); padding: var(--space-sm); margin-bottom: var(--space-md); background: var(--color-surface-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: var(--text-xs); }
+.mb-title { display: flex; justify-content: space-between; gap: var(--space-sm); font-weight: 700; }
+.mb-scen { padding: 0 var(--space-xs); border-radius: var(--radius-pill); background: var(--color-primary-pale); color: var(--color-primary-dark); white-space: nowrap; }
+.mb-scen.war { background: var(--color-alert-pale); color: var(--color-alert-dark); }
+.mb-row { display: flex; gap: var(--space-xs); }
+.mb-res { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2xs); padding: var(--space-2xs); background: var(--color-paper); border: 2px solid var(--color-accent); border-radius: var(--radius-sm); }
+.mb-res.off { opacity: .45; border-style: dashed; border-color: var(--color-border); }
+.mb-env { flex: 0 0 32%; justify-content: center; align-items: center; text-align: center; min-height: 6rem; border-color: var(--color-primary-light); }
+.mb-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs) var(--space-xs); padding: var(--space-2xs) var(--space-xs); border-radius: var(--radius-sm); background: var(--color-surface-2); border: 1px solid var(--color-border-soft); text-align: left; min-height: 0; font-weight: 700; }
+.mb-detail { font-weight: 400; color: var(--color-primary-dark); }
+.mb-sub { margin-left: auto; font-weight: 400; color: var(--color-text-secondary); }
+.mb-body { display: flex; gap: var(--space-2xs); }
+.mb-col { flex: 1 1 0; display: flex; flex-direction: column; gap: var(--space-2xs); min-width: 0; }
+.mb-col.wide { flex: 1.8 1 0; }
+.mb-cell { display: flex; align-items: center; justify-content: center; min-height: 2.6rem; padding: var(--space-2xs); text-align: center; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-paper); font-size: var(--text-xs); }
+.mb-cell.tall { min-height: 5.4rem; }
+.mb-cell.ghost { border-style: dashed; color: var(--color-text-secondary); }
+.mb .on, .mb-cell.on, .mb-head.on, .mb-env.on { background: var(--color-flash); border-color: var(--color-energy); outline: 3px solid var(--color-energy); outline-offset: -1px; font-weight: 700; }
+.mb-detail.on { outline-offset: 1px; padding: 0 var(--space-2xs); border-radius: var(--radius-sm); }
+.mb-offtag { position: absolute; right: var(--space-2xs); bottom: var(--space-2xs); color: var(--color-text-secondary); }
+button.mb-cell:hover, button.mb-head:hover, button.mb-env:hover { background: var(--color-primary-pale); }
+.mb.big { font-size: var(--text-sm); padding: var(--space-md); }
+.mb.big .mb-cell { min-height: 4rem; font-size: var(--text-sm); }
+.mb.big .mb-cell.tall { min-height: 8.5rem; }
+.mb.big .mb-env { min-height: 12rem; }
+.mb-fold { color: var(--color-text-secondary); }
+/* 治理頁不顯示舊版健檢的九階段進度列 */
+.editor.task-gov #stagesBar { display: none; }

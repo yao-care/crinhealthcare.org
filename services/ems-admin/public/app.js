@@ -102,6 +102,233 @@ let TREE_ON = false;   // 盤點樹（平台資料）載入成功：左欄最上
 let legacyOpen = false;
 window.EMSInvTreeHost = { navChanged: () => renderNav() };
 
+// ─────────────────────────────── 治理（平戰轉換看板）───────────────────────────────
+// 看板一個資源區塊＝標題列、供給端、儲存端、使用端（戰時另有配置圖與供電規劃），設備與明細在「看詳情」頁。
+// 左欄照這些區塊列；平時／戰時是同一塊的兩個情境，在中欄上方切換（跟看板右上的「轉戰時／轉平時」一樣）。
+// 右欄畫出這個院所自己的看板版面（依 show 只畫有顯示的資源），標出正在改的位置。
+const GOV_PARTS = [
+  { part: 'head', label: '標題列（效能摘要／續航）', keys: ['perf', 'endur'] },
+  { part: 'supply', label: '供給端', keys: ['supply', 'supplySum'] },
+  { part: 'store', label: '儲存端', keys: ['store'] },
+  { part: 'use', label: '使用端', keys: ['use'] },
+  { part: 'plan', label: '配置圖與供電規劃', keys: ['plan', 'power', 'relief'] },
+  { part: 'detail', label: '看詳情明細', keys: ['detailLabel', 'detail'] },
+];
+const BOARD_KEYS = ['name', 'boardTitle', 'location', 'updated', 'version', 'layout', 'show', 'hideMeta', 'liveData', 'peakShave', 'peakShaveHide', 'scenarios'];
+let GOV_OPEN = (() => { try { return localStorage.getItem('ems-admin:gov-open') || 'r0'; } catch { return 'r0'; } })();
+const resTitle = (r, i) => `${r.icon || '📦'} ${r.name || r.id || `資源 ${i + 1}`}`;
+
+function govSections() {
+  const S = [];
+  S.push({ task: 'board', gov: true, overview: true, id: 'gov', label: '看板總覽', crumb: '治理 › 看板總覽', base: [], keys: [] });
+  S.push({ task: 'board', gov: true, id: 'basic', label: '看板設定', crumb: '治理 › 看板設定', govKey: 'board', base: [], keys: BOARD_KEYS });
+  (DATA.resources || []).forEach((r, i) => {
+    const g = resTitle(r, i);
+    S.push({ task: 'board', gov: true, id: `r${i}m`, govKey: `r${i}`, resIdx: i, label: '區塊設定', crumb: `治理 › ${g} › 區塊設定`, base: ['resources', i], keys: ['id', 'icon', 'name'], resourceIndex: i });
+    for (const P of GOV_PARTS) for (const sc of ['peace', 'war']) {
+      S.push({ task: 'board', gov: true, id: `g${i}-${P.part}-${sc[0]}`, pair: `g${i}-${P.part}`, scen: sc, govKey: `r${i}`, resIdx: i, part: P.part,
+        label: P.label, crumb: `治理 › ${g} › ${P.label}`, base: ['resources', i, sc], keys: P.keys });
+    }
+    S.push({ task: 'board', gov: true, id: `r${i}d`, govKey: `r${i}`, resIdx: i, part: 'devices', label: `設備清單（${(r.devices || []).length}）`, crumb: `治理 › ${g} › 設備清單`, base: ['resources', i], keys: ['devices'] });
+  });
+  S.push({ task: 'board', gov: true, id: 'envp', pair: 'env-floors', scen: 'peace', govKey: 'env', part: 'env', label: '各樓層溫濕度／CO₂', crumb: '治理 › 🌡 環境 › 各樓層溫濕度／CO₂', base: ['env'], keys: ['peace'] });
+  S.push({ task: 'board', gov: true, id: 'envw', pair: 'env-floors', scen: 'war', govKey: 'env', part: 'env', label: '各樓層溫濕度／CO₂', crumb: '治理 › 🌡 環境 › 各樓層溫濕度／CO₂', base: ['env'], keys: ['war'] });
+  S.push({ task: 'board', gov: true, id: 'envt', govKey: 'env', part: 'env', label: '門檻與關鍵樓層', crumb: '治理 › 🌡 環境 › 門檻與關鍵樓層', base: ['env'], keys: ['thresholds', 'criticalFloors'] });
+  S.push({ task: 'board', gov: true, id: 'envc', govKey: 'env', part: 'carbon', label: '碳盤查表', crumb: '治理 › 🌡 環境 › 碳盤查表', base: ['env'], keys: ['carbon'] });
+  S.push({ task: 'board', gov: true, id: 'rep', govKey: 'rep', part: 'report', label: '匯出報表', crumb: '治理 › 📊 報表與 ESG › 匯出報表', base: [], keys: ['report'] });
+  S.push({ task: 'board', gov: true, id: 'esg', govKey: 'rep', part: 'esg', label: 'ESG 面板', crumb: '治理 › 📊 報表與 ESG › ESG 面板', base: [], keys: ['esgPanels'] });
+  return S;
+}
+
+// 配置圖與供電規劃：平時、戰時都沒資料時，平常不列（全部欄位模式才列，才有地方啟用）
+function govPartShown(i, part) {
+  if (part !== 'plan' && part !== 'detail') return true;
+  if (MODE === 'all') return true;
+  const r = DATA.resources?.[i] || {};
+  const P = GOV_PARTS.find((x) => x.part === part);
+  return ['peace', 'war'].some((sc) => P.keys.some((k) => { const v = r[sc]?.[k]; return v != null && !(Array.isArray(v) && !v.length) && v !== ''; }));
+}
+
+function govNav(counts) {
+  const box = el('div', { class: 'tv-nav gov' });
+  const cur = sectionById(activeId);
+  const isActive = (s) => s.id === activeId || (s.pair && s.pair === cur?.pair);
+  const dots = (ids) => ids.reduce((n, id) => n + (counts.get(id) || 0), 0);
+  const mng = (id, title) => { const b = el('button', { type: 'button', class: 'tv-mng' + (activeId === id ? ' active' : ''), text: '管理', title }); b.addEventListener('click', (e) => { e.stopPropagation(); goSection(id); }); return b; };
+  const top = el('div', { class: 'tv-top' + (activeId === 'gov' ? ' active' : '') });
+  const tb = el('button', { type: 'button', class: 'tv-topname', text: '🏛 治理（平戰轉換看板）' });
+  tb.addEventListener('click', () => goSection('gov'));
+  top.append(tb, mng('basic', '看板設定：抬頭、顯示哪些資源、即時資料、削峰填谷'));
+  box.append(top);
+  const show = DATA.show || null;
+  const groups = [
+    ...(DATA.resources || []).map((r, i) => ({ key: `r${i}`, title: resTitle(r, i), hidden: !!show && !show.includes(r.id), manage: `r${i}m` })),
+    { key: 'env', title: '🌡 環境', hidden: !!show && !show.includes('env') },
+    { key: 'rep', title: '📊 報表與 ESG' },
+  ];
+  if (cur?.govKey && cur.govKey !== 'board' && GOV_OPEN !== cur.govKey) GOV_OPEN = cur.govKey;
+  for (const g of groups) {
+    const open = GOV_OPEN === g.key;
+    const secs = SECTIONS.filter((s) => s.gov && s.govKey === g.key && s.id !== g.manage && (!s.scen || s.scen === 'peace') && (s.resIdx === undefined || !s.part || govPartShown(s.resIdx, s.part)));
+    const all = SECTIONS.filter((s) => s.gov && s.govKey === g.key);
+    const head = el('div', { class: 'tv-dom' + (open ? ' open' : '') });
+    const hb = el('button', { type: 'button', class: 'tv-domname', 'aria-expanded': String(open) }, [
+      el('span', { class: 'tv-dcaret', text: open ? '▾' : '▸' }), el('span', { text: g.title }),
+      g.hidden ? el('i', { class: 'tv-n', text: '看板未顯示', title: '看板設定 › 顯示的資源區塊沒有勾這一項' }) : null,
+      dots(all.map((s) => s.id)) ? el('i', { class: 'dot', title: '有未送出的修改' }) : null,
+    ]);
+    hb.addEventListener('click', () => {
+      GOV_OPEN = g.key; try { localStorage.setItem('ems-admin:gov-open', g.key); } catch {}
+      if (secs[0]) goSection(secs[0].id); else renderNav();
+    });
+    head.append(hb);
+    if (g.manage) head.append(mng(g.manage, `${g.title} 區塊設定（代碼、圖示、名稱）`));
+    box.append(head);
+    if (!open) continue;
+    for (const s of secs) {
+      const row = el('div', { class: 'tv-row' + (isActive(s) ? ' active' : '') });
+      row.style.setProperty('--d', '2');
+      const ids = s.pair ? all.filter((x) => x.pair === s.pair).map((x) => x.id) : [s.id];
+      const b = el('button', { type: 'button', class: 'tv-name', 'data-sec': s.id }, [el('span', { text: s.label }), dots(ids) ? el('i', { class: 'dot', title: '有未送出的修改' }) : null]);
+      // 從戰時切到別的區塊時，維持在戰時
+      b.addEventListener('click', () => goSection(s.pair && cur?.scen === 'war' ? all.find((x) => x.pair === s.pair && x.scen === 'war').id : s.id));
+      row.append(el('span', { class: 'tv-caret' }), b);
+      box.append(row);
+    }
+  }
+  if (MODE === 'all') {
+    const addRes = el('button', { type: 'button', class: 'navadd', text: '＋ 新增資源區塊' });
+    addRes.addEventListener('click', () => {
+      const spec = specAt(['resources']);
+      DATA.resources = DATA.resources || [];
+      DATA.resources.push(clone(spec.itemBlank));
+      SECTIONS = buildSections();
+      goSection(`r${DATA.resources.length - 1}m`);
+      markChanged();
+    });
+    box.append(addRes);
+  }
+  return box;
+}
+
+// 右欄：這個院所自己的看板版面（依 show），標出正在改的位置
+function miniBoard({ resIdx = -1, part = null, scen = 'peace', clickable = false }) {
+  const show = DATA.show || null;
+  const vis = (id) => !show || show.includes(id);
+  const war = scen === 'war';
+  const wrap = el('div', { class: 'mb' });
+  wrap.append(el('div', { class: 'mb-title' }, [el('span', { text: `${DATA.name || ''}${DATA.boardTitle ? ` ${DATA.boardTitle}` : ''}` }), el('span', { class: 'mb-scen' + (war ? ' war' : ''), text: war ? '戰時/救災' : '平時' })]));
+  const cell = (label, i, p, extra = '') => {
+    const on = i === resIdx && (p === part || (p === 'use' && part === 'plan' && !war));
+    const n = el(clickable ? 'button' : 'div', { class: `mb-cell ${extra}${on ? ' on' : ''}`, text: label, ...(clickable ? { type: 'button' } : {}) });
+    if (clickable) n.addEventListener('click', () => goSection(`g${i}-${p}-${scen[0]}`));
+    return n;
+  };
+  const block = (r, i) => {
+    const hidden = !vis(r.id);
+    const b = el('div', { class: 'mb-res' + (hidden ? ' off' : '') });
+    const headOn = i === resIdx && part === 'head';
+    const head = el(clickable ? 'button' : 'div', { class: 'mb-head' + (headOn ? ' on' : ''), ...(clickable ? { type: 'button' } : {}) }, [
+      el('span', { text: `${r.icon || ''} ${r.name || r.id}` }),
+      el('span', { class: 'mb-detail' + (i === resIdx && (part === 'detail' || part === 'devices') ? ' on' : ''), text: '🔎 看詳情' }),
+      el('span', { class: 'mb-sub', text: war ? '撐○・餘○' : '效能摘要' }),
+    ]);
+    if (clickable) head.addEventListener('click', () => goSection(`g${i}-head-${scen[0]}`));
+    const left = el('div', { class: 'mb-col' }, [cell('供給端', i, 'supply'), cell('儲存端', i, 'store')]);
+    const right = el('div', { class: 'mb-col wide' }, [cell(war ? '使用端（收治場所）' : '使用端', i, 'use', 'tall')]);
+    if (r.id === 'power' && !war && DATA.peakShave) right.append(el('div', { class: 'mb-cell ghost', text: '削峰填谷（自動）' }));
+    const hasPlan = r[scen]?.plan || r[scen]?.power || r[scen]?.relief;
+    if (hasPlan) right.append(cell('配置圖／供電規劃', i, 'plan'));
+    b.append(head, el('div', { class: 'mb-body' }, [left, right]));
+    if (hidden) b.append(el('span', { class: 'mb-offtag', text: '看板未顯示' }));
+    return b;
+  };
+  const res = DATA.resources || [];
+  const pi = res.findIndex((r) => r.id === 'power');
+  const topRow = el('div', { class: 'mb-row' });
+  if (pi >= 0) topRow.append(block(res[pi], pi));
+  if (DATA.env) {
+    const on = part === 'env' || part === 'carbon';
+    const envb = el(clickable ? 'button' : 'div', { class: 'mb-res mb-env' + (vis('env') ? '' : ' off') + (on ? ' on' : ''), ...(clickable ? { type: 'button' } : {}) }, [el('span', { text: '🌡 環境（各樓層溫濕度／CO₂）' }), el('span', { class: 'mb-sub', text: '碳盤查列' })]);
+    if (clickable) envb.addEventListener('click', () => goSection(war ? 'envw' : 'envp'));
+    topRow.append(envb);
+  }
+  wrap.append(topRow);
+  // 看板沒顯示的資源：總覽大圖照畫（淡色）；右欄小圖收成一行，除非正在改的就是它
+  const rest = res.map((r, i) => [r, i]).filter(([r]) => r.id !== 'power');
+  const drawn = rest.filter(([r, i]) => clickable || vis(r.id) || i === resIdx);
+  const folded = rest.filter((x) => !drawn.includes(x));
+  if (drawn.length) wrap.append(el('div', { class: 'mb-row' }, drawn.map(([r, i]) => block(r, i))));
+  if (folded.length) wrap.append(el('div', { class: 'mb-fold', text: `看板未顯示：${folded.map(([r]) => r.name || r.id).join('、')}` }));
+  return wrap;
+}
+
+function govWhere(s) {
+  const r = s.resIdx !== undefined ? DATA.resources?.[s.resIdx] : null;
+  const hid = ME?.hid;
+  const base = `https://crinhealthcare.org/${hid}/`;
+  const out = [];
+  const name = r ? `${r.icon || ''} ${r.name || r.id}` : '';
+  const txt = {
+    head: `${name}區塊最上面一列：平時是效能摘要（右側灰字），戰時是「撐○小時・餘○%」。`,
+    supply: `${name}區塊左欄上半「供給端」：誰在供（平時）／誰還在供、能否自主（戰時）。`,
+    store: `${name}區塊左欄下半「儲存端」：剩多久、夠不夠。`,
+    use: `${name}區塊右側「使用端」：平時是分項用電卡片，戰時是收治場所與維生設備。`,
+    plan: `${name}區塊使用端下方的配置圖與供電規劃（戰時開設用）。`,
+    detail: `${name}的「🔎 看詳情」頁明細。`,
+    devices: `${name}的「🔎 看詳情」頁設備列（名稱、位置、狀態、即時值、管理人與廠商）。`,
+    env: '環境區塊：各大樓、各樓層的溫度、濕度、CO₂；關鍵樓層（ICU、手術室等）套較嚴的濕度標準。',
+    carbon: '環境區塊下方的碳盤查列。',
+    report: '看板右上「📤 匯出所需資料」選單。',
+    esg: 'ESG 面板。',
+  }[s.part] || (s.id === 'basic' ? '整個看板：抬頭、顯示哪些資源區塊、即時資料、削峰填谷、情境頁籤。' : s.id.endsWith('m') ? `${name}區塊的代碼、圖示與名稱（標題列左側）。` : '');
+  if (txt) out.push(el('p', { text: txt }));
+  if (r && DATA.show && !DATA.show.includes(r.id)) out.push(el('p', { class: 'tv-note', text: `目前看板沒有顯示「${r.name || r.id}」（治理 ›〔管理〕看板設定 › 顯示的資源區塊）。這裡填的內容不會出現在看板上。` }));
+  if (s.part === 'env' && DATA.show && !DATA.show.includes('env')) out.push(el('p', { class: 'tv-note', text: '目前看板沒有顯示環境區塊（看板設定 › 顯示的資源區塊）。' }));
+  if (s.scen) out.push(el('p', { class: 'muted', text: `平時與戰時是看板上同一塊位置，按看板右上「${s.scen === 'war' ? '☀ 轉平時' : '🚨 轉戰時/救災'}」切換。` }));
+  const link = (s.part === 'detail' || s.part === 'devices') && r ? `${base}detail/${r.id}` : base;
+  out.push(el('a', { href: link, target: '_blank', rel: 'noopener', text: (s.part === 'detail' || s.part === 'devices') ? '開啟看詳情頁 ↗' : '開啟正式看板 ↗' }));
+  return out;
+}
+
+function renderGov(s, root) {
+  root.textContent = '';
+  root.classList.add('tv-wide');
+  const main = el('div', { class: 'tv-main' });
+  const side = el('aside', { class: 'tv-side', 'aria-label': '看板位置' });
+  root.append(el('div', { class: 'tv' }, [main, side]));
+  if (s.overview) {
+    main.append(el('div', { class: 'i-head' }, [el('h2', { text: '治理（平戰轉換看板）' })]));
+    main.append(el('p', { class: 'note', text: '下面是貴院看板的版面。點任一塊直接到那一塊的設定；上方切換平時／戰時。' }));
+    let sc = 'peace';
+    const sw = scenSwitch(sc, (v) => { sc = v; const nb = miniBoard({ scen: sc, clickable: true }); nb.classList.add('big'); board.replaceWith(nb); board = nb; sw.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.sc === sc)); });
+    let board = miniBoard({ scen: sc, clickable: true });
+    board.classList.add('big');
+    main.append(sw, board);
+    side.append(el('h3', { class: 'tv-sideh', text: '看板' }), ...govWhere({ id: 'basic' }));
+    return;
+  }
+  main.append(el('div', { class: 'i-head' }, [el('h2', { text: s.crumb.split(' › ').slice(1).join(' › ') })]));
+  if (s.scen) {
+    const other = SECTIONS.find((x) => x.pair === s.pair && x.scen !== s.scen);
+    main.append(scenSwitch(s.scen, (v) => { if (v !== s.scen && other) goSection(other.id, { keepScroll: true }); }));
+  }
+  const body = el('div', {});
+  main.append(body);
+  renderBoardFields(s, body);
+  side.append(el('h3', { class: 'tv-sideh', text: '看板上的位置' }), miniBoard({ resIdx: s.resIdx ?? -1, part: s.part || (s.id === 'basic' ? null : null), scen: s.scen || 'peace' }), ...govWhere(s));
+}
+function scenSwitch(cur, onPick) {
+  const box = el('div', { class: 'scen-sw', role: 'group', 'aria-label': '情境' });
+  for (const [v, t] of [['peace', '☀ 平時'], ['war', '🚨 戰時/救災']]) {
+    const b = el('button', { type: 'button', class: (v === cur ? 'on ' : '') + v, text: t });
+    b.dataset.sc = v;
+    b.addEventListener('click', () => onPick(v));
+    box.append(b);
+  }
+  return box;
+}
+
 function buildSections() {
   const S = INV_ON ? window.EMSInventory.sections().map((s) => (TREE_ON ? { ...s, legacy: true } : s)) : [];
   const legacy = INV_ON || TREE_ON;
@@ -113,6 +340,9 @@ function buildSections() {
       label: `${b.icon} ${b.label}`, audit: b.id, legacy });
   }
 
+  // ── 治理（平戰轉換看板）──（有盤點樹時左欄的第二大項；分區照看板區塊切，平時／戰時在中間切換）
+  if (TREE_ON) { S.push(...govSections()); }
+  else {
   // ── 看板維護 ──
   // 2026-08-21 改版：原本這一整組是整個畫面的骨幹，現在降成與上面兩支任務平行的一支。
   // 「常用／全部欄位」與「看板對照圖」也只在這支任務裡出現（見 applyTaskChrome）。
@@ -143,6 +373,7 @@ function buildSections() {
 
   S.push({ task: 'board', id: 'rep', group: '📊 報表與 ESG', label: '匯出報表', base: [], keys: ['report'] });
   S.push({ task: 'board', id: 'esg', group: '📊 報表與 ESG', label: 'ESG 面板', base: [], keys: ['esgPanels'] });
+  }
 
   // 附件二：流程與權責 ＋ 填報送出紀錄 ＋ 報告交付。放最後，因為它是「看進度」不是「填東西」。
   if (window.EMSAudit?.spec()) S.push({ task: 'progress', id: 'a-progress', group: '', label: '📄 流程與權責', progress: true, legacy });
@@ -154,6 +385,10 @@ function buildSections() {
 // 一條資料路徑屬於哪個分區（變更摘要的圓點、422 錯誤定位都靠它）
 function sectionIdFor(segs) {
   const [a, b, c, d] = segs;
+  if (TREE_ON && a === 'resources' && typeof b === 'number' && (c === 'peace' || c === 'war')) {
+    const P = GOV_PARTS.find((x) => x.keys.includes(d)) || GOV_PARTS[0];
+    return `g${b}-${P.part}-${c[0]}`;
+  }
   if (a === 'resources' && typeof b === 'number') {
     if (c === 'peace' || c === 'war') {
       const big = (d === 'plan' || d === 'power') && SECTIONS.some((s) => s.id === `r${b}${c[0]}x`);
@@ -601,8 +836,9 @@ function renderNav() {
   let lastGroup = null, lastTask = null;
   // 盤點樹放最上面（油水電氣；電分台電與分區），下面才是看板維護
   if (TREE_ON) list.append(window.EMSInvTree.navNode(activeId));
+  if (TREE_ON) list.append(govNav(counts));
   // 「常用欄位」的過濾只對看板維護有意義：健檢填報沒有色票與座標那種欄位
-  const shown = SECTIONS.filter((s) => s.task !== 'board' || MODE === 'all' || sectionHasCommon(s) || counts.get(s.id));
+  const shown = SECTIONS.filter((s) => !s.gov && (s.task !== 'board' || MODE === 'all' || sectionHasCommon(s) || counts.get(s.id)));
   // 目前所在分區屬於舊版健檢時，次要入口自動展開，不然看不到自己在哪
   const legacyShown = legacyOpen || !!sectionById(activeId)?.legacy;
   let legacyHead = false;
@@ -674,6 +910,7 @@ function applyTaskChrome() {
   $('editor').classList.toggle('task-board', board);
   // 盤點各區塊自己存檔：頂列的送出／捨棄、看板送出狀態、健檢九階段在這裡都不適用
   $('editor').classList.toggle('task-inv', isInvTask(currentTask()) || currentTask() === 'tree');
+  $('editor').classList.toggle('task-gov', !!sectionById(activeId)?.gov);
   for (const id of ['modeCommon', 'modeAll', 'mapBtn']) {
     const n = $(id);
     n.disabled = !board;
@@ -689,8 +926,8 @@ function rerenderPane() {
   const root = $('formRoot');
   root.textContent = '';
   root.classList.toggle('i-wide', !!s.inv);
-  root.classList.toggle('tv-wide', !!s.tree);
-  $('crumb').textContent = s.tree ? s.label : [...new Set([TASKS[s.task], s.group, s.label].filter(Boolean))].join(' › ');
+  root.classList.toggle('tv-wide', !!s.tree || !!s.gov);
+  $('crumb').textContent = s.tree ? s.label : s.gov ? s.crumb : [...new Set([TASKS[s.task], s.group, s.label].filter(Boolean))].join(' › ');
   applyTaskChrome();
 
   // 盤點樹：中欄節點內容＋右欄報告欄位，由 invtree.js 負責
@@ -703,6 +940,11 @@ function rerenderPane() {
   if (s.audit) { window.EMSAudit.renderSection(s.audit, root); return; }
   if (s.progress) { window.EMSAudit.renderProgress(root); return; }
 
+  if (s.gov) { renderGov(s, root); return; }
+  renderBoardFields(s, root);
+}
+
+function renderBoardFields(s, root) {
   // 分區基底可能落在尚未存在的 optional 區塊上（例：整個 env 不存在）
   const parentSegs = s.base.slice(0, -1);
   const lastKey = s.base[s.base.length - 1];
