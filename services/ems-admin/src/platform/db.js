@@ -492,6 +492,11 @@ const MIGRATIONS = [
     updated_by TEXT, updated_at TEXT NOT NULL, UNIQUE (org_id, asset_id, year)
   );
   `,
+  // 6：114–117 年節約能源目標規定（前期超額節電量要分需量反應與非需量反應）
+  `
+  ALTER TABLE energy_measures ADD COLUMN demand_response INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE energy_saving_years ADD COLUMN dr_saving_kwh REAL;
+  `,
 ];
 
 let db = null;

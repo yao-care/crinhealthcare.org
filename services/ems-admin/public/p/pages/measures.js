@@ -18,6 +18,7 @@ function measureFields(accts, year, kind) {
     { key: 'source', label: '措施來源', type: 'select', options: SOURCES, required: true, default: 'current' },
     { key: 'energyType', label: '節約能源種類', type: 'select', options: Object.entries(state.meta.energyTypes || { electricity: '電力（度）' }), required: true, default: 'electricity' },
     { key: 'saving', label: kind === 'done' ? '節約能源量（依能源種類單位）' : '預估節約能源量', type: 'number' },
+    { key: 'demandResponse', label: '需量反應負載管理措施（節電量＝實際抑低量 × 抑低時數；計算前期超額節電量時分開計）', type: 'checkbox', wide: true },
     { key: 'periodFrom', label: '執行計畫期間起（年月）', type: 'month' }, { key: 'periodTo', label: '執行計畫期間迄（年月）', type: 'month' },
     { key: 'calcFromMonth', label: `效益計算起月（${roc(year)} 年）`, type: 'number' }, { key: 'calcToMonth', label: '效益計算迄月', type: 'number' },
     { key: 'peakReductionKw', label: '抑低尖峰需量（kW）', type: 'number' }, { key: 'benefitTwd', label: '節能效益金額（元）', type: 'number' }, { key: 'investmentTwd', label: '投資金額（元）', type: 'number' },
@@ -27,7 +28,7 @@ function measureFields(accts, year, kind) {
   ];
 }
 const toValues = (m) => ({ name: m.name, code: m.code, assetId: m.asset_id, source: m.source, energyType: m.energy_type, saving: m.saving, periodFrom: m.period_from, periodTo: m.period_to,
-  calcFromMonth: m.calc_from_month, calcToMonth: m.calc_to_month, peakReductionKw: m.peak_reduction_kw, benefitTwd: m.benefit_twd, investmentTwd: m.investment_twd, target: m.target, area: m.area, method: m.method, calcNote: m.calc_note });
+  demandResponse: !!m.demand_response, calcFromMonth: m.calc_from_month, calcToMonth: m.calc_to_month, peakReductionKw: m.peak_reduction_kw, benefitTwd: m.benefit_twd, investmentTwd: m.investment_twd, target: m.target, area: m.area, method: m.method, calcNote: m.calc_note });
 
 async function measuresPage(_, qy) {
   const orgId = needOrg();
@@ -53,18 +54,23 @@ async function measuresPage(_, qy) {
   // 歷年節電率（每個電號一張）
   const rates = await Promise.all((accts.length ? accts : [null]).map(async (a) => ({ a, t: await get('energy-saving-rate', { orgId, assetId: a?.id || '', year }) })));
   const editYear = (a, r) => formModal(`${a ? a.external_key || a.name : '全院'}：填寫歷年值`, [
-    { key: 'year', label: '年度（西元）', type: 'number', required: true }, { key: 'savingKwh', label: '年度節電量 S（度，留空＝依措施加總）', type: 'number' },
-    { key: 'usageKwh', label: '年度用電量 C（度，留空＝依資料集）', type: 'number' }, { key: 'deductKwh', label: '可扣除用電量（度）', type: 'number' },
+    { key: 'year', label: '年度（西元）', type: 'number', required: true }, { key: 'savingKwh', label: '非需量反應節電量（度，留空＝依措施加總）', type: 'number' },
+    { key: 'drSavingKwh', label: '需量反應節電量（度，留空＝依措施加總）', type: 'number' },
+    { key: 'usageKwh', label: '年度用電量（度，購電＋自發－售電；留空＝依資料集）', type: 'number' }, { key: 'deductKwh', label: '可扣除用電量（度，只適用 104–113 年）', type: 'number' },
     { key: 'note', label: '扣除項目說明（新建築、新設備、安全考量用電區域、工程施作、新法規、電動車充電）', type: 'textarea', wide: true }],
-  r ? { year: r.year, savingKwh: r.saving, usageKwh: r.usage, deductKwh: r.deduct, note: r.note } : { year: 2015 }, async (v) => {
+  r ? { year: r.year, savingKwh: r.saving, drSavingKwh: r.dr, usageKwh: r.usage, deductKwh: r.deduct, note: r.note } : { year: 2015 }, async (v) => {
     await api('energy-saving-years', { method: 'PUT', body: { orgId, assetId: a?.id || null, ...v } }); toast('已儲存'); render();
   });
   const rateCards = rates.map(({ a, t }) => {
     const last = t.rows[t.rows.length - 1];
-    return card(`表十之六 歷年平均年節電率${a ? `｜電號 ${a.external_key || a.name}` : ''}`,
-      last?.rate !== null && last?.rate !== undefined ? note(`${roc(last.year)} 年平均年節電率 ${fmtNum(last.rate, 2)}%${last.rate < 1 ? '，未達 1%：申報時須填表十之五說明及改善計畫' : ''}`, last.rate < 1 ? 'warn' : '') : null,
-      table([{ label: '年度', render: (r) => `${roc(r.year)} 年` }, { label: '節電量 S（度）', render: (r) => fmtNum(r.saving), num: true }, { label: '用電量 C（度）', render: (r) => fmtNum(r.usage), num: true },
-        { label: '扣除（度）', render: (r) => fmtNum(r.deduct), num: true }, { label: '平均年節電率 R', render: (r) => (r.rate === null ? '—' : `${fmtNum(r.rate, 2)}%`), num: true }, { label: '來源', key: 'from' },
+    if (a?.attrs?.militaryUnit) return card(`歷年節電率｜電號 ${a.external_key || a.name}`, note('此電號列入國防部國軍部隊用戶清冊，免受節約能源目標規範；仍須辦理能源查核申報。'));
+    const pctTxt = (v) => (v === null || v === undefined ? '—' : `${fmtNum(v, 2)}%`);
+    return card(`歷年節電率${a ? `｜電號 ${a.external_key || a.name}` : ''}`,
+      last?.rate !== null && last?.rate !== undefined ? note(`${roc(last.year)} 年平均年節電率 ${fmtNum(last.rate, 2)}%（目標 ${t.target}%）${last.year >= 2025 ? `，年度節電率 ${pctTxt(last.annualRate)}` : ''}${last.rate < t.target ? '：未達目標，申報時須填未達目標說明及改善計畫' : ''}`, last.rate < t.target ? 'warn' : '') : null,
+      h('p', { class: 'muted pf-small' }, `114 年起適用新規定：只累計 114 年起的節電量與用電量，另加前期超額節電量 ${fmtNum(t.excess, 0)} 度（依 104–113 年資料計算）。`),
+      table([{ label: '年度', render: (r) => `${roc(r.year)} 年` }, { label: '規定', key: 'period' }, { label: '節電量（度）', render: (r) => fmtNum(r.saving, 0), num: true }, { label: '需量反應（度）', render: (r) => fmtNum(r.dr, 0), num: true },
+        { label: '用電量（度）', render: (r) => fmtNum(r.usage, 0), num: true }, { label: '扣除（度）', render: (r) => fmtNum(r.deduct, 0), num: true },
+        { label: '年度節電率', render: (r) => pctTxt(r.annualRate), num: true }, { label: '平均年節電率', render: (r) => pctTxt(r.rate), num: true }, { label: '來源', render: (r) => [r.from, r.note].filter(Boolean).join('；') },
         { label: '動作', render: (r) => (w ? action('修改', () => editYear(a, r)) : '—') }], t.rows, { empty: '還沒有歷年資料：可以先填 104 年起的節電量與用電量' }),
       w ? h('div', { class: 'pf-actions' }, action('＋填寫某年度', () => editYear(a))) : null);
   });

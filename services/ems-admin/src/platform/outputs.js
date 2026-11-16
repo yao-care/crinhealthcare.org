@@ -513,14 +513,23 @@ function euMeasures(L, ctx) {
 }
 function euRate(L, ctx) {
   const accts = accountsOf(L); const tables = []; let state = 'measured'; const notes = [];
+  const pct = (v) => (v === null || v === undefined ? '' : r2(v, 2));
   for (const a of accts.length ? accts : [null]) {
+    const label = a ? accountLabel(a) : '全院';
+    // 是否列入國防部國軍部隊用戶清冊屬法規身分，取目前台帳設定（不受資料集定版快照影響）
+    const mil = a ? j(q.get('SELECT attrs FROM assets WHERE id = ?', a.id)?.attrs, {}).militaryUnit : false;
+    if (mil === true || mil === 'true') { notes.push(`${label} 列入國防部國軍部隊用戶清冊，免受節約能源目標規範（仍須辦理能源查核申報）`); continue; }
     const t = savingRateTable(ctx.orgId, a?.id || null, ctx.year);
-    if (!t.rows.length) { state = 'missing'; notes.push(`${a ? accountLabel(a) : '全院'} 沒有歷年節電量與用電量`); }
-    tables.push(T(`表十之六 歷年平均年節電率總表${a ? `（電號 ${accountLabel(a)}）` : ''}`, `表十之六節電率_${a ? accountLabel(a) : '全院'}`.slice(0, 31), ['年度', '年度節電量 S（度）', '年度用電量 C（度）', '扣除用電量（度）', '平均年節電率 R（%）', '來源'],
-      t.rows.map((r) => [`${roc(r.year)} 年`, cell(r2(r.saving, 0)), cell(r2(r.usage, 0)), cell(r2(r.deduct, 0)), cell(r2(r.rate, 2)), r.from])));
-    if (t.rows.length && t.rows[t.rows.length - 1].rate !== null && t.rows[t.rows.length - 1].rate < 1) notes.push(`${a ? accountLabel(a) : '全院'} 平均年節電率 ${r2(t.rows[t.rows.length - 1].rate, 2)}% 未達 1%，須填表十之五說明及改善計畫`);
+    if (!t.rows.length) { state = 'missing'; notes.push(`${label} 沒有歷年節電量與用電量`); }
+    const last = t.rows[t.rows.length - 1];
+    if (last?.rate !== null && last?.rate !== undefined && last.rate < t.target) notes.push(`${label} ${roc(last.year)} 年平均年節電率 ${r2(last.rate, 2)}% 未達 ${t.target}%，須填未達目標說明及改善計畫`);
+    if (last && last.year >= 2025 && last.annualRate !== null && last.annualRate < t.target) notes.push(`${label} ${roc(last.year)} 年度節電率 ${r2(last.annualRate, 2)}% 未達 ${t.target}%`);
+    if (t.rows.some((r) => r.incomplete)) notes.push(`${label} 有年度缺用電量，未計入累計`);
+    tables.push(T(`歷年節電率（電號 ${label}）`, `節電率_${label}`.slice(0, 31), ['年度', '適用規定', '非需量反應節電量（度）', '需量反應節電量（度）', '年度用電量（度）', '扣除用電量（度，104–113 年）', '年度節電率（%）', '平均年節電率（%）', '來源', '說明'],
+      t.rows.map((r) => [`${roc(r.year)} 年`, r.period, cell(r2(r.saving, 0)), cell(r2(r.dr, 0)), cell(r2(r.usage, 0)), cell(r2(r.deduct, 0)), pct(r.annualRate), pct(r.rate), r.from, r.note]),
+      { info: [['前期超額節電量（114 年起計入）', `${r2(t.excess, 0)} 度`], ['節電率目標', `年度 ${t.target}%、平均 ${t.target}%（醫療保健及社會工作服務業）`]] }));
   }
-  return { state, text: `R＝累計節電量 ÷（累計節電量＋累計用電量－扣除用電量）× 100%（附表三表十之六）。年度節電量來自「節約能源措施」已執行措施之電力節約量，或在該頁直接填歷年值。${notes.length ? notes.join('；') + '。' : ''}`, tables };
+  return { state, text: `104～113 年：平均年節電率＝累計節電量 ÷（累計節電量＋累計用電量－扣除用電量）。114 年起依「114 年至 117 年能源用戶訂定節約能源目標及執行計畫規定」：年度節電率＝當年節電量 ÷（當年節電量＋當年用電量）；平均年節電率＝（114 年起累計節電量＋前期超額節電量）÷（114 年起累計節電量＋累計用電量）；年度用電量＝購電量＋自發電量－售電量。醫院目標 1.0%。${notes.length ? notes.join('；') + '。' : ''}`, tables };
 }
 function euPlan(L, ctx) {
   const list = listMeasures(ctx.orgId, ctx.year + 1, 'plan');

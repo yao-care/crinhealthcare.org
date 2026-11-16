@@ -144,8 +144,13 @@ test('[53] 定版 2024、2025 資料集', () => {
   const r25 = t.rows.find((r) => r.year === 2025);
   assert.equal(r25.saving, 52000);
   assert.equal(r25.usage, MONTHLY_A.reduce((s, x) => s + x, 0));
-  // R2025 = (30000+52000) / (30000+52000+4500000+ΣA)
-  assert.ok(Math.abs(r25.rate - 82000 / (82000 + 4500000 + MONTHLY_A.reduce((s, x) => s + x, 0)) * 100) < 1e-9);
+  // 114 年起新制：只累計 114 年起；前期超額＝max(0, 30000 − 4,500,000×1%÷99%)＝0
+  const sumA = MONTHLY_A.reduce((s, x) => s + x, 0);
+  assert.equal(t.excess, 0);
+  assert.ok(Math.abs(r25.rate - 52000 / (52000 + sumA) * 100) < 1e-9);
+  assert.ok(Math.abs(r25.annualRate - 52000 / (52000 + sumA) * 100) < 1e-9);
+  assert.equal(t.rows.find((r) => r.year === 2024).period, '104～113 年規定');
+  assert.ok(Math.abs(t.rows.find((r) => r.year === 2024).rate - 30000 / 4530000 * 100) < 1e-9);
 });
 
 const run = async (code) => {
@@ -330,4 +335,25 @@ test('[覆核] 管理者刪掉的種子指標，重啟後不會被加回來', as
   q.run("DELETE FROM seed_marks WHERE key = 'item:ELE-GRID:metrics:elec_wheeled_kwh'");
   seedDictionary();
   assert.ok(JSON.parse(q.get('SELECT metrics FROM inventory_items WHERE id = ?', it.id).metrics).includes('elec_wheeled_kwh'));
+});
+
+test('[114 年新制] 前期超額節電量（需量反應分開）、國軍部隊用戶免規範', async () => {
+  // 主電號 2023 年：非需量反應 60,000、需量反應 10,000、用電 4,000,000 → A＝40,404.04；C(10,000)＜A → 超額＝60,000＋10,000＋30,000(2024)－A
+  EM.saveSavingYear(rep, { orgId: org, assetId: acctA, year: 2023, savingKwh: 60000, drSavingKwh: 10000, usageKwh: 4000000 });
+  const t = EM.savingRateTable(org, acctA, 2025);
+  const reqA = (4000000 + 4500000) * 0.01 / 0.99;
+  assert.ok(Math.abs(t.excess - (60000 + 30000 + 10000 - reqA)) < 1e-6, String(t.excess));
+  const sumA = MONTHLY_A.reduce((s, x) => s + x, 0);
+  assert.ok(Math.abs(t.rows.find((r) => r.year === 2025).rate - (52000 + t.excess) / (52000 + sumA) * 100) < 1e-9);
+  // 需量反應措施
+  EM.saveMeasure(rep, { orgId: org, assetId: acctA, year: 2025, kind: 'done', name: '需量反應', energyType: 'electricity', saving: 8000, demandResponse: true });
+  const r25 = EM.savingRateTable(org, acctA, 2025).rows.find((r) => r.year === 2025);
+  assert.equal(r25.saving, 52000); assert.equal(r25.dr, 8000);
+  // 國軍部隊用戶
+  A.updateAsset(col, acctB, { attrs: { ...JSON.parse(q.get('SELECT attrs FROM assets WHERE id = ?', acctB).attrs), militaryUnit: true }, reason: '國防部造冊' });
+  const c = R.createCase(rep, { orgId: org, templateCode: 'ENERGY-USER', year: 2025, datasetId: ds });
+  const b = R.readiness(rep, c.id).fields.find((f) => f.field_id === 'eu_rate').block;
+  assert.equal(b.tables.length, 1);
+  assert.match(b.text, /18-31-0800-22-0 列入國防部國軍部隊用戶清冊/);
+  assert.match(b.tables[0].info[0][1], /度/);
 });
