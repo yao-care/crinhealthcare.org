@@ -8,7 +8,8 @@
 //
 // 燃料係數存「公斤/兆焦耳」，另存熱值；計算時 單位排放係數＝係數 × 4186.8×10⁻⁹×10⁻³ × 熱值（兩版附表同一算法）。
 
-const V1 = { version: 1, valid_from: '2019-01-01', src: '環保署「溫室氣體排放係數管理表 6.0.4 版」（108 年 6 月）' };
+// v1 起日放寬到 1900：6.0.4 版是兩份附件中最早的版本，2019 年以前（重算基準年）也以它計算
+const V1 = { version: 1, valid_from: '1900-01-01', src: '環保署「溫室氣體排放係數管理表 6.0.4 版」（108 年 6 月）' };
 const V2 = { version: 2, valid_from: '2023-01-01', src: '環境部 113 年 2 月 5 日環部授氣字第 1139101231 號公告「溫室氣體排放係數」' };
 const FUEL_NAME = { diesel: '柴油', gasoline: '車用汽油', fuel_oil: '燃料油', lpg: '液化石油氣', ng: '天然氣' };
 
@@ -37,6 +38,8 @@ const FUEL_EF = {
     lpg: S(63100, 62, 0.2, { co2: [-2.4, 4.0], ch4: [null, null], n2o: [null, null] }),
   },
 };
+// 113 年公告附表一移動源另列天然氣（CH₄ 92、N₂O 3）；6.0.4 版無此列，111 年度以前退回固定源係數
+const V2_ONLY = { mobile: { ng: S(56100, 92, 3, { co2: [-3.2, 3.9], ch4: [null, null], n2o: [null, null] }) } };
 const IPCC_TABLE = { stationary: 'IPCC 2006 Vol.2 Ch.2 Table 2.2', mobile: 'IPCC 2006 Vol.2 Ch.3 Table 3.2.1、3.2.2' };
 
 export function fuelFactors() {
@@ -46,7 +49,8 @@ export function fuelFactors() {
       out.push({ code: `ghg.heat.${fuel}`, version: V.version, name: `${FUEL_NAME[fuel]}低位熱值（盤查用）`, category: 'heat', value: kcal, unit: `kcal/${unit}`, applies_to: fuel,
         valid_from: V.valid_from, source: V.src, note: ver === 'v2' ? '公告附表一低位熱值欄（事業得依檢測或供應商資料自訂）' : '6.0.4 版「我國熱值」欄（能源局公告）' });
     }
-    for (const [mode, fuels] of Object.entries(FUEL_EF)) {
+    const table = ver === 'v2' ? { ...FUEL_EF, mobile: { ...FUEL_EF.mobile, ...V2_ONLY.mobile } } : FUEL_EF;
+    for (const [mode, fuels] of Object.entries(table)) {
       for (const [fuel, gases] of Object.entries(fuels)) {
         for (const [gas, [kgtj, lo, hi]] of Object.entries(gases)) {
           out.push({

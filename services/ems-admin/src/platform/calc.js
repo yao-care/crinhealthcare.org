@@ -88,6 +88,11 @@ export const MATERIAL_NAME = { diesel: '柴油', gasoline: '車用汽油', fuel_
 const UKIND = { 'ghg.s1.stationary': 'combustion', 'ghg.s1.mobile': 'combustion', 'ghg.s1.refrigerant': 'refrigerant', 'ghg.s1.insulating': 'insulating',
   'ghg.s1.process': 'process', 'ghg.s1.septic': 'septic', 'ghg.s2.electricity': 'electricity', 'ghg.s2.imported_heat': 'imported_heat' };
 const unitDen = (u) => String(u || '').split('/')[1] || null;
+function latestPublished(cx, code) {
+  const f = q.get("SELECT * FROM factors WHERE code = ? AND status = 'published' ORDER BY valid_from DESC, version DESC LIMIT 1", code);
+  if (f) cx.usedFactors[code] = f.version;
+  return f;
+}
 const pushRef = (list, f) => { if (f && f.code !== 'gwp.CO2' && !list.some((x) => x.code === f.code)) list.push(fRef(f)); };
 function sumConverted(facts, unit) {
   let s = 0;
@@ -153,6 +158,12 @@ function makeSource(cx, o) {
 
 function sourceResult(cx, def, sources, state, trace) {
   const total = sources.reduce((s, x) => s + x.tco2e, 0);
+  // 展開計算用：排放源排放量依各期活動數據比例分攤到每筆採用值（僅供檢視；正式數字以排放源為準）
+  for (const src of sources) {
+    const ins = (trace.inputs || []).filter((i) => i.factId && !i.excluded && src.factIds.includes(i.factId));
+    const tot = ins.reduce((t, i) => t + Math.abs(i.value || 0), 0);
+    for (const i of ins) i.kgCO2e = tot ? round(src.tco2e * 1000 * Math.abs(i.value || 0) / tot, 3) : 0;
+  }
   return result(cx, def.unit, total, state, { ...trace, sources, edition: editionFor(cx.ds.year), gwpSet: gwpSetFor(cx) });
 }
 
@@ -181,7 +192,11 @@ function massBalance(cx, def, facts, gwpSet, gasOf, formula) {
 // 所有排放源（表三～表八共用）
 export function allSources(results) {
   const out = [];
-  for (const code of Object.keys(UKIND)) for (const s of results?.[code]?.trace?.sources || []) out.push({ ...s, indicator: code });
+  for (const code of Object.keys(UKIND)) {
+    const r = results?.[code];
+    if (!r || r.value === null || r.value === undefined) continue; // 無法計算（blocked）或缺漏的指標不列部分排放源，避免表單與總量對不上
+    for (const s of r.trace?.sources || []) out.push({ ...s, indicator: code });
+  }
   return out;
 }
 
@@ -234,7 +249,7 @@ const KINDS = {
       let heat = factor(cx, `ghg.heat.${fuel}`); let small = heat ? unitDen(heat.unit) : null;
       let adSmall = small ? sumConverted(facts, small) : null;
       if (heat && adSmall === null) {
-        const alt = factor(cx, `heat.${fuel}`); const altSmall = alt ? unitDen(alt.unit) : null; const v = altSmall ? sumConverted(facts, altSmall) : null;
+        const alt = factor(cx, `heat.${fuel}`) || latestPublished(cx, `heat.${fuel}`); const altSmall = alt ? unitDen(alt.unit) : null; const v = altSmall ? sumConverted(facts, altSmall) : null;
         if (v !== null) { notes.push(`${a0.asset_name}：盤查用熱值單位（${heat.unit}）與活動數據單位不同，改用能源署熱值 ${alt.value} ${alt.unit}`); heat = alt; small = altSmall; adSmall = v; state = worse(state, 'estimated'); }
       }
       if (!heat) { state = 'blocked'; notes.push(`缺已發布熱值 ghg.heat.${fuel}`); continue; }
@@ -260,7 +275,7 @@ const KINDS = {
       sources.push(s);
       for (const f of facts) { inputs.push(inp(f, { fuel, sourceKey: s.key })); if (f.value_state === 'estimated') state = worse(state, 'estimated'); }
     }
-    const covered = new Set(sources.map((s) => s.assetId));
+    const covered = new Set([...sources.map((s) => s.assetId), ...[...groups.values()].map((g) => g.facts[0].asset_id)]);
     const as = assetsFor(cx, def.items).filter((a) => a.applicability !== 'not_applicable');
     // 共用油槽：同槽任一設備（或油槽本身）已有消耗採用值，其他設備不算缺（不可把同一槽重複算給每台）
     const sharedCovered = (a) => q.all("SELECT parent_id FROM asset_links WHERE child_id = ? AND relation IN ('feeds','supplies') AND valid_to IS NULL", a.id)

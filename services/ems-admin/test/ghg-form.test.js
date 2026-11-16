@@ -159,3 +159,24 @@ test('ISO 報告書：方法、GWP 段落依盤查年度說明係數版本', () 
   const gwp = rd.fields.find((f) => f.field_id === 'gwp')?.block;
   if (gwp) assert.match(gwp.text, /第四次.*6\.0\.4/);
 });
+
+test('覆核修正：LPG 以公斤記錄、2019 年以前、無法計算時不列部分排放源、展開計算每筆 kgCO₂e', () => {
+  const lpg = asset('GAS-LPG', 'lpg_cylinder', '廚房 LPG', { attrs: { fuel: 'lpg' } });
+  obs(lpg, 'lpg_consumption_kg', '2018-01-01', '2019-01-01', 1000); obs(lpg, 'lpg_consumption_kg', '2021-01-01', '2022-01-01', 1000);
+  const g18 = asset('OIL-GEN', 'generator', '發電機（107 年）', { attrs: { fuel: 'diesel' } });
+  obs(g18, 'oil_consumption_l', '2018-01-01', '2019-01-01', 1000);
+  const ds18 = D.createDataset(rep, { orgId: org, year: 2018 }).id; approveAll(ds18);
+  const ds21 = D.createDataset(rep, { orgId: org, year: 2021 }).id; approveAll(ds21);
+  for (const d of [ds18, ds21]) {
+    const r = calc.computeAll(d, ['ghg.s1.stationary']).results['ghg.s1.stationary'];
+    assert.notEqual(r.value_state, 'blocked', JSON.stringify(r.trace.notes));
+    const s = r.trace.sources.find((x) => x.assetId === lpg);
+    assert.equal(s.adUnit, '公噸'); assert.equal(s.ad, 1); assert.ok(r.trace.notes.some((n) => /能源署熱值/.test(n)));
+  }
+  const r18 = calc.computeAll(ds18, ['ghg.s1.stationary']).results['ghg.s1.stationary'];
+  assert.equal(r18.trace.sources.find((x) => x.assetId === g18).gases[0].ef, 2.606031792, '2018 用 6.0.4 版');
+  const inp = r18.trace.inputs.find((i) => i.assetId === g18);
+  assert.ok(inp.kgCO2e > 0);
+  const { allSources } = calc;
+  assert.equal(allSources({ 'ghg.s1.stationary': { value: null, value_state: 'blocked', trace: { sources: [{ tco2e: 1, gases: [] }] } } }).length, 0);
+});
