@@ -104,8 +104,9 @@ export function seedFactors() {
   const t = nowIso();
   tx(() => {
     for (const f of allSeedFactors()) {
-      if (q.get('SELECT 1 FROM factors WHERE code = ?', f.code)) continue;
-      insert('factors', { id: newId('fac'), version: 1, status: 'pending', created_by: 'seed', created_at: t, reason: '系統預設值，待核對來源後發布', ...f });
+      const version = f.version || 1;
+      if (q.get('SELECT 1 FROM factors WHERE code = ? AND version = ?', f.code, version)) continue;
+      insert('factors', { id: newId('fac'), status: 'pending', created_by: 'seed', created_at: t, reason: '系統預設值，待核對來源後發布', ...f, version });
     }
   });
 }

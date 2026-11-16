@@ -3,7 +3,8 @@ import { q, insert, update, newId, nowIso, audit, tx } from './db.js';
 import { assertCan, orgById } from './authz.js';
 import { bad, notFound, conflict, j, round } from './util.js';
 import { getConfig } from './config-store.js';
-import { computeAll, gasClass, STATE_LABEL } from './calc.js';
+import { computeAll, gasClass, STATE_LABEL, allSources, editionFor } from './calc.js';
+import { dataQualitySummary } from './ghg-form.js';
 import { SIGNIFICANCE_ITEMS, ISO_CATEGORIES, ASSET_TYPES } from './seed/dictionary.js';
 import { MONTREAL } from './seed/factors.js';
 import { buildOutputBlocks } from './outputs.js';
@@ -131,21 +132,6 @@ function gasesFor(asset, type) {
   return '—';
 }
 
-function dqFor(asset, facts, cfg) {
-  const a = j(asset.attrs, {}); const dq = a.dq || {};
-  let activityType = dq.activityType; let activityTrust = dq.activityTrust;
-  if (!activityType || !activityTrust) {
-    const obs = facts.flatMap((f) => j(f.observation_ids, [])).map((id) => q.get('SELECT o.method, s.source_type FROM observations o JOIN data_sources s ON s.id = o.source_id WHERE o.id = ?', id)).filter(Boolean);
-    const derived = facts.some((f) => f.value_state === 'estimated' || q.get("SELECT 1 FROM decisions WHERE id = ? AND decision_type = 'derived'", f.decision_id));
-    activityType = activityType || (derived ? 3 : obs.some((o) => o.method === 'api') ? 1 : 2);
-    activityTrust = activityTrust || (obs.some((o) => o.source_type === 'bill') ? 1 : a.calibrated ? 2 : 3);
-  }
-  const factorType = dq.factorType || 3;
-  const score = activityType * activityTrust * factorType;
-  const grade = (cfg.grades || []).find((g) => score <= g.max)?.grade || '—';
-  return { activityType, activityTrust, factorType, score, grade, overridden: !!(a.dq) };
-}
-
 export function buildBlocks(keys, { caseRow, datasetId, results, factorVersions, ruleVersions }) {
   const ds = datasetId ? q.get('SELECT * FROM datasets WHERE id = ?', datasetId) : null;
   const orgId = caseRow.org_id; const year = caseRow.year;
@@ -216,7 +202,7 @@ export function buildBlocks(keys, { caseRow, datasetId, results, factorVersions,
       const r = q.get('SELECT * FROM calculation_rules WHERE code = ? AND version = ?', c, ruleVersions[c]);
       return [r?.name || c, `${c} v${ruleVersions[c]}`, results?.[c]?.trace?.formula || '', r?.description || ''];
     });
-    return { state: 'measured', text: '採排放係數法：活動數據（經審核之採用值）× 排放係數 × GWP。選用理由：醫院排放源以燃料燃燒、外購電力與冷媒逸散為主，無連續排放監測系統，排放係數法為主管機關指引建議之方法。',
+    return { state: 'measured', text: `採排放係數法：活動數據（經審核之採用值）× 排放係數 × GWP，計算與捨入依環保署溫室氣體盤查表單 3.0.0 版（活動數據取至小數點後 4 位、係數 10 位、各氣體排放量與排放當量 4 位、排放總量 3 位）；係數依${editionFor(year)}。選用理由：醫院排放源以燃料燃燒、外購電力與冷媒逸散為主，無連續排放監測系統，排放係數法為主管機關指引建議之方法。`,
       table: tbl(['項目', '規則版本', '公式', '說明'], rows) };
   });
   B('method_changes', () => {
@@ -240,18 +226,20 @@ export function buildBlocks(keys, { caseRow, datasetId, results, factorVersions,
     return { state: 'measured', text: '', table: tbl(['係數', '代碼與版本', '值', '單位', '有效期間', '來源'], rows) };
   });
   B('gwp', () => {
-    const set = (getConfig('calc.settings') || {}).gwpSet || 'AR5';
+    const cfgSet = (getConfig('calc.settings') || {}).gwpSet;
+    const set = cfgSet === 'AR6' || cfgSet === 'AR4' ? cfgSet : year >= 2023 ? 'AR5' : 'AR4';
     const rows = Object.entries(factorVersions || {}).filter(([c]) => c.startsWith('gwp.')).sort().map(([c, v]) => {
       const f = q.get('SELECT * FROM factors WHERE code = ? AND version = ?', c, v);
       return [f?.gas || c, fmt(f?.value, 2), f?.note || '', f?.source || ''];
     });
-    return { state: 'measured', text: `採用 IPCC ${set === 'AR6' ? '第六次' : '第五次'}評估報告（${set}）100 年全球暖化潛勢。`, table: tbl(['氣體', 'GWP', '說明', '來源'], rows) };
+    return { state: 'measured', text: `採用 IPCC ${{ AR4: '第四次', AR5: '第五次', AR6: '第六次' }[set]}評估報告（${set}）100 年全球暖化潛勢${set === 'AR6' ? '' : `（${editionFor(year)}）`}。`, table: tbl(['氣體', 'GWP', '說明', '來源'], rows) };
   });
   B('uncertainty_table', () => {
     const r = results?.['ghg.uncertainty_pct'];
     if (!r || r.value === null) return { state: 'missing', text: '無法評估不確定性（沒有排放量或資料不足）。' };
-    return { state: 'measured', text: `總不確定性 ±${fmt(r.value * 1, 2)}%（${(getConfig('ghg.uncertainty') || {}).confidence || '95%'} 信賴區間）。${(r.trace.notes || []).join('；')}`,
-      table: tbl(['排放源', '項目', '期數', 'tCO₂e', '活動數據 ±%', '係數 ±%', '合成 ±%'], r.trace.inputs.map((i) => [i.asset || i.indicator, q.get('SELECT name FROM calculation_rules WHERE code = ? ORDER BY version DESC', i.indicator)?.name || i.indicator, i.periods || 1, fmt(i.tCO2e), fmt(i.activityPct, 2), fmt(i.factorPct, 2), fmt(i.combinedPct, 2)])) };
+    const t = r.trace;
+    return { state: 'measured', text: `總不確定性 −${fmt(t.lowerPct, 2)}%／＋${fmt(t.upperPct, 2)}%（${(getConfig('ghg.uncertainty') || {}).confidence || '95%'} 信賴區間）；進行不確定性評估之排放量占總排放量 ${fmt(t.coveragePct, 2)}%。${(t.notes || []).join('；')}`,
+      table: tbl(['排放源', '項目', '原燃物料', 'tCO₂e', '活動數據 ±%', '下限 %', '上限 %'], t.inputs.map((i) => [i.asset || i.indicator, q.get('SELECT name FROM calculation_rules WHERE code = ? ORDER BY version DESC', i.indicator)?.name || i.indicator, i.material || '', fmt(i.tCO2e), fmt(i.activityPct, 2), `−${fmt(i.lowPct, 2)}`, `＋${fmt(i.highPct, 2)}`])) };
   });
   const emissionAssets = () => q.all(`SELECT a.*, i.code AS item_code, i.name AS item_name, i.ghg_ref FROM assets a JOIN inventory_items i ON i.id = a.item_id
     WHERE a.org_id = ? AND a.status <> 'archived' AND i.ghg_ref IS NOT NULL AND i.domain <> 'reference' ORDER BY i.code, a.name`, orgId);
@@ -266,24 +254,12 @@ export function buildBlocks(keys, { caseRow, datasetId, results, factorVersions,
       table: tbl(['排放源', '設備類型', '範疇／類別', '排放型式', '原燃物料', '可能產生之溫室氣體', '活動數據來源', '適用性'], rows) };
   });
   B('data_quality', () => {
-    const cfg = getConfig('ghg.data_quality') || {};
-    const rows = []; let wSum = 0; let wScore = 0;
-    const emissionByAsset = new Map();
-    for (const r of Object.values(results || {})) for (const i of r.trace?.inputs || []) if (i.assetId && i.kgCO2e && !i.excluded) emissionByAsset.set(i.assetId, (emissionByAsset.get(i.assetId) || 0) + i.kgCO2e);
-    for (const a of emissionAssets()) {
-      if (a.applicability !== 'applicable') continue;
-      const facts = datasetId ? q.all('SELECT * FROM approved_facts WHERE dataset_id = ? AND asset_id = ? AND is_current = 1', datasetId, a.id) : [];
-      if (!facts.length) continue;
-      const d = dqFor(a, facts, cfg);
-      const e = emissionByAsset.get(a.id) || 0;
-      wSum += e; wScore += e * d.score;
-      rows.push([a.name, `${d.activityType}（${cfg.activityType?.[d.activityType] || ''}）`, `${d.activityTrust}（${cfg.activityTrust?.[d.activityTrust] || ''}）`, `${d.factorType}（${cfg.factorType?.[d.factorType] || ''}）`,
-        d.score, d.grade, fmt(e / 1000), d.overridden ? '人工指定' : '系統推定']);
-    }
-    const avg = wSum ? wScore / wSum : null;
-    const grade = avg === null ? '—' : (cfg.grades || []).find((g) => avg <= g.max)?.grade || '—';
-    return { state: rows.length ? 'measured' : 'missing', text: rows.length ? `依排放量加權平均積分 ${fmt(avg, 2)}，整體${grade}。等級可在標的專屬欄位 dq（activityType／activityTrust／factorType）人工指定。` : '資料集沒有排放源採用值。',
-      table: rows.length ? tbl(['排放源', '活動數據種類', '活動數據可信度', '排放係數種類', '積分', '等級', 'tCO₂e', '依據'], rows) : null };
+    // 環保署盤查表單表六：活動數據種類等級 × 活動數據可信等級 × 係數種類等級；依排放量占比加權
+    const dq = dataQualitySummary(results);
+    const rows = dq.rows.map(({ s, share, weighted }) => [s.asset, s.materialName, `${s.adKindLevel}（${s.adKind}）`, `${s.adTrust}（${s.adTrustLabel?.replace(/^\(\d\)/, '') || ''}）`, `${s.efLevel}（${s.gases[0]?.efClass || ''}）`,
+      s.dqProduct, String(s.dqProduct < 10 ? 1 : s.dqProduct < 19 ? 2 : 3), `${fmt(share * 100, 2)}%`, fmt(weighted, 2), s.dqOverridden ? '人工指定' : '系統推定']);
+    return { state: rows.length ? 'measured' : 'missing', text: rows.length ? `清冊等級總平均分數 ${fmt(dq.avg, 2)}，${dq.grade}（第一級 <10 分、第二級 10～未滿 19 分、第三級 19～27 分）。等級可在標的專屬欄位 dq（activityType／activityTrust／factorType）人工指定。` : '資料集沒有排放源採用值。',
+      table: rows.length ? tbl(['排放源', '原燃物料', '活動數據種類等級', '活動數據可信等級', '係數種類等級', '數據誤差等級', '評分區間', '排放量占比', '加權', '依據'], rows) : null };
   });
   // 對外系統資料輸出的表格段落（outputs.js）
   Object.assign(out, buildOutputBlocks(keys, { caseRow, datasetId, results }));

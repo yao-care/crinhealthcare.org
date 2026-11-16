@@ -465,7 +465,9 @@ const FACTOR_CAT = { emission: '排放係數', gwp: '全球暖化潛勢（GWP）
 const FACTOR_FIELDS = [
   { key: 'name', label: '名稱', required: true }, { key: 'category', label: '類別', type: 'select', required: true, options: Object.entries(FACTOR_CAT) },
   { key: 'gas', label: '氣體', placeholder: 'CO2、CH4、N2O…' }, { key: 'value', label: '數值', type: 'number', required: true }, { key: 'unit', label: '單位', required: true },
-  { key: 'applies_to', label: '適用對象' }, { key: 'gwp_set', label: 'GWP 版本', placeholder: 'AR5' },
+  { key: 'applies_to', label: '適用對象' }, { key: 'gwp_set', label: 'GWP 版本', placeholder: 'AR4、AR5、AR6' },
+  { key: 'factor_class', label: '係數種類（盤查表單表五）', type: 'select', options: [['', '—'], ...['1自廠發展係數/質量平衡所得係數', '2同製程/設備經驗係數', '3製造廠提供係數', '4區域排放係數', '5國家排放係數', '6國際排放係數'].map((x) => [x, x])] },
+  { key: 'uncertainty_low', label: '95% 信賴區間下限（%）', type: 'number', placeholder: '-2.0' }, { key: 'uncertainty_high', label: '95% 信賴區間上限（%）', type: 'number', placeholder: '0.9' },
   { key: 'valid_from', label: '有效起日', type: 'date', required: true }, { key: 'valid_to', label: '有效迄日', type: 'date' },
   { key: 'source', label: '來源', required: true, wide: true }, { key: 'source_url', label: '來源網址', wide: true }, { key: 'note', label: '備註（推算式等）', type: 'textarea', wide: true },
 ];

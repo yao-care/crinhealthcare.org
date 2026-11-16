@@ -34,7 +34,8 @@ export const DEFAULT_CONFIG = {
   },
   'case.sla': { low: 30, medium: 14, high: 7, critical: 3 }, // 天
   'task.reminders': { beforeDueDays: [3, 1], overdueEveryDays: 2 },
-  'calc.settings': { gwpSet: 'AR5', precision: { tCO2e: 4, kWh: 0, GJ: 3, m3: 1 }, refrigerantMethod: 'recharge' },
+  // gwpSet：auto＝依盤查年度（111 年度以前 6.0.4 版 AR4；112 年度起 113 年公告 AR5）；AR6＝改用 AR6
+  'calc.settings': { gwpSet: 'auto', precision: { tCO2e: 4, kWh: 0, GJ: 3, m3: 1 }, refrigerantMethod: 'recharge' },
   'calc.septic': { visitHours: 2, workdayHours: 8, note: '門診人次以每次停留 2 小時折算人日；院方採用指引不同時請修改' },
   // 看板（PRD §9）：公開層只顯示這些欄位
   'dashboard.visibility': {

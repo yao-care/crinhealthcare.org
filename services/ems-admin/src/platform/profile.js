@@ -37,6 +37,11 @@ Object.assign(PROFILE_FIELDS, Object.fromEntries([
   P('govVisitors', '洽公或參訪人次（當年概估）', { group: 'gov' }), P('govWorkDays', '工作天數', { group: 'gov', default: '365' }), P('govWorkHours', '工作時間（例：24 小時）', { group: 'gov', default: '24 小時' }),
   P('govSurvey', '問卷與節約能源推動小組（強化節電管理、資訊機房、空調、照明、EMS、公用設備、落實節電措施等題目的回答）', { group: 'gov', short: false }),
   P('govGrowthReason', '用電／用油正（負）成長原因說明', { group: 'gov', short: false }),
+  P('factoryRegNo', '工廠登記證編號（醫院無則留空）', { group: 'moenv' }), P('employees', '員工人數', { group: 'basic' }), P('orgEmail', '公私場所電子信箱（忘記密碼寄發信箱）', { group: 'moenv' }),
+  P('contactMobile', '聯絡人手機', { group: 'basic' }), P('inventoryStandard', '盤查依據規範', { group: 'moenv', default: 'ISO / CNS 14064-1' }),
+  P('significancePct', '顯著性門檻', { group: 'moenv', default: '3.0%' }), P('materialityPct', '實質性門檻', { group: 'moenv', default: '5.0%' }), P('exclusionPct', '排除門檻', { group: 'moenv', default: '0.5%' }),
+  P('consolidation', '組織邊界設定方法（營運控制法／財務控制法／股權比例法）', { group: 'moenv', default: '營運控制法' }),
+  P('offsiteAreas', '場址外涵蓋區域（例：院外宿舍、餐廳；盤查表單表二）', { group: 'moenv', short: false }), P('excludedAreas', '場址內扣除區域（盤查表單表二）', { group: 'moenv', short: false }),
   P('excludedEntities', '邊界內未納入計算之排放源（環境部表2-3；每行：名稱｜地址｜原因）', { group: 'moenv', short: false }),
 ]));
 export const PROFILE_GROUPS = { ghg: '盤查報告說明', basic: '機關基本資料（各申報共用）', energy: '能源查核申報', moenv: '環境部盤查登錄', gov: '政府機關及學校節約能源填報網站' };

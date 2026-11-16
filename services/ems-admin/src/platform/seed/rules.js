@@ -174,6 +174,19 @@ export const TEMPLATES = [
     { id: 'import', title: '匯入表單（表1～表3）', fields: [X('moenv_import', '匯入表單內容（XLSX 匯出後另存為 Excel 再匯入）')] },
     { id: 'check', title: '排放源排放量核對', fields: [X('moenv_check', '本平台計算之各排放源排放量（供與系統計算結果核對）', 0)] },
   ], { applicability: { note: '依法應盤查登錄或自願登錄者；匯入前請在平台下載當年度最新版匯入表單核對欄位' } }),
+  // 組織型溫室氣體盤查表單（2026-11-16）：依環保署盤查表單 3.0.0 版表一～表九邏輯；係數 111 年度以前 6.0.4 版、112 年度起 113 年 2 月 5 日公告
+  T('GHG-FORM', '組織型溫室氣體盤查表單', '環保署「溫室氣體盤查表單」（表一～表九）', '3.0.0 版（係數：6.0.4 版／113 年 2 月 5 日公告）', [
+    { id: 'sum', title: '排放量摘要', fields: [F('s1_total', '範疇一', 'ghg.s1.total'), F('s2_total', '範疇二', 'ghg.s2.total'), F('total', '排放總量', 'ghg.total'), F('bio', '生質 CO₂（另計）', 'ghg.biogenic_co2', { required: 0 }), F('u', '總不確定性（95% 信賴區間，±%）', 'ghg.uncertainty_pct', { required: 0 })] },
+    { id: 't1', title: '表一 公私場所資料', fields: [X('ghg_t1', '公私場所資料')] },
+    { id: 't2', title: '表二 組織邊界調查', fields: [X('ghg_t2', '組織邊界')] },
+    { id: 't3', title: '表三 排放源鑑別', fields: [X('ghg_t3', '排放源鑑別')] },
+    { id: 't4', title: '表四 活動數據', fields: [X('ghg_t4', '活動數據')] },
+    { id: 't5', title: '表五 定量盤查', fields: [X('ghg_t5', '定量盤查')] },
+    { id: 't6', title: '表六 數據品質管理', fields: [X('ghg_t6', '數據品質管理')] },
+    { id: 't7', title: '表七 不確定性量化評估', fields: [X('ghg_t7', '不確定性量化評估', 0)] },
+    { id: 't8', title: '表八 溫室氣體排放量彙總', fields: [X('ghg_t8', '排放量彙總')] },
+    { id: 't9', title: '表九 全廠電力、蒸汽供需情況', fields: [X('ghg_t9', '電力、蒸汽供需', 0)] },
+  ], { applicability: { note: '111 年度以前依溫室氣體排放係數管理表 6.0.4 版（GWP AR4）；112 年度起依環境部 113 年 2 月 5 日公告溫室氣體排放係數（GWP AR5）' } }),
   T('ENERGY-USER', '非生產性質行業能源查核申報資料準備', '能源管理法第 9、12 條／能源查核制度申報表附表三（非生產性質行業）', '附表三（112-01-04 行政院公報版）', [
     { id: 't3', title: '表三 能源用戶基本資料', fields: [X('eu_basic', '基本資料（每個列管電號一欄）')] },
     { id: 't4', title: '表四 能源查核組織與能源政策', fields: [M('energyOrg', '表四之一 能源查核管理組織（管理／推行／執行三階層）'), M('energyPolicy', '表四之二 能源管理政策推動情形'), M('iso50001', 'ISO／CNS 50001 驗證'), M('emis', '能源管理資訊系統監測情形', 0)] },

@@ -11,10 +11,11 @@
 import { q } from './db.js';
 import { orgById } from './authz.js';
 import { j, round, convert } from './util.js';
-import { makeContext, compute, DEFAULT_FUEL, FUEL_ACTIVITY, FUEL_UNIT, gasClass } from './calc.js';
+import { makeContext, compute, DEFAULT_FUEL, FUEL_ACTIVITY, FUEL_UNIT, gasClass, allSources } from './calc.js';
 import { factorAt, getConfig } from './config-store.js';
 import { getProfile, PROFILE_FIELDS } from './profile.js';
 import { ASSET_TYPES } from './seed/dictionary.js';
+import { GHG_FORM_BUILDERS } from './ghg-form.js';
 import { MOENV_SHEETS, MOENV_EQUIP, MOENV_EQUIP_OTHER, MOENV_FUEL, MOENV_REFRIGERANT } from './seed/moenv-import.js';
 import { MONTREAL, REFRIGERANT_ALIASES } from './seed/factors.js';
 import { savingRateTable, listMeasures } from './measures.js';
@@ -163,7 +164,7 @@ function moenvImport(L, ctx) {
   const rows = []; const check = []; const seq = { GS: 0, GV: 0, GF: 0, GM: 0, GP: 0 };
   const no = (p, a) => a?.attrs?.moenvEquipNo || `${p}${String(++seq[p]).padStart(p === 'GF' ? 4 : 2, '0')}`;
   const kgByAsset = new Map();
-  for (const r of Object.values(results || {})) for (const i of r.trace?.inputs || []) if (i.assetId && i.kgCO2e && !i.excluded && i.factId) kgByAsset.set(i.assetId, (kgByAsset.get(i.assetId) || 0) + i.kgCO2e);
+  for (const s of allSources(results)) kgByAsset.set(s.assetId, (kgByAsset.get(s.assetId) || 0) + s.tco2e * 1000);
   const srcOf = (a) => q.all('SELECT name FROM data_sources WHERE asset_id = ? AND active = 1', a.id).map((s) => s.name).join('、');
   const freqOf = (facts) => {
     const obs = facts.flatMap((f) => j(f.observation_ids, [])).map((id) => q.get('SELECT method FROM observations WHERE id = ?', id)).filter(Boolean);
@@ -243,12 +244,12 @@ function moenvImport(L, ctx) {
   // 化糞池
   const sep = results?.['ghg.s1.septic'];
   for (const a of ghgAssets.filter((x) => x.item_code === 'WAT-SEPTIC' && x.applicability === 'applicable')) {
-    const bod = factorAt('septic.bod_g_per_person_day', `${year}-07-01`); const bo = factorAt('septic.bo', `${year}-07-01`); const mcf = factorAt('septic.mcf', `${year}-07-01`);
-    const pd = sep?.trace?.personDays;
+    const ef = factorAt('septic.ef_person_hour', `${year}-07-01`);
+    const ph = sep?.trace?.personHours;
     row(a, { no: no('GF', a), equip: equip(a), fuel: MOENV_FUEL.septic, direct: true, type: '逸散', gases: ['CH4'], cat: '一、生活廢水及廢棄污泥(BOD)',
-      activity: pd && bod ? pd * bod.value / 1e6 : null, unit: '公噸(BOD)', source: '人事工時與醫務統計（人日 × BOD 產生量）', tco2e: sep?.value ?? '—',
-      note: pd ? `人日 ${r2(pd, 2)} × BOD ${bod?.value ?? '?'} g/人日` : '缺員工工時或係數未發布',
-      factors: [{ gas: 'CH4', ef: bo && mcf ? r2(bo.value * mcf.value, 4) : '', unit: '公噸/公噸(BOD)', kind: '國家排放係數' }] });
+      activity: ph ?? null, unit: '人時', source: '人事工時與醫務統計（員工工時＋門急診停留＋住院人日×24）', tco2e: sep?.value ?? '—',
+      note: ph ? `人時 ${r2(ph, 2)}；匯入前請依系統可接受之活動數據單位換算` : '缺員工工時或係數未發布',
+      factors: [{ gas: 'CH4', ef: ef ? ef.value : '', unit: '公噸/人時', source: ef?.source || '', kind: '國家排放係數' }] });
   }
   // 外購電力：一個分據點一列（所有電號合計）
   if (accts.length) {
@@ -723,6 +724,7 @@ const BUILDERS = {
   eu_measures: euMeasures, eu_rate: euRate, eu_plan: euPlan, gov_monthly: govMonthly, gov_compare: govCompare, oew_monthly: oewMonthly,
   gov_basic: govBasic, gov_meters: govMeters, gov_pv: govPv, gov_oil: govOil, gov_lighting: govLighting, gov_ac: govAc, gov_public: govPublic, gov_dataroom: govDataRoom,
   gov_ems: govEms, gov_replace: govReplace, gov_hv: govHv, gov_vehicles: govVehicles,
+  ...GHG_FORM_BUILDERS,
 };
 export const OUTPUT_BLOCK_KEYS = [...Object.keys(BUILDERS), 'moenv_import', 'moenv_check'];
 
@@ -730,8 +732,9 @@ export function buildOutputBlocks(keys, { caseRow, datasetId, results }) {
   const want = keys.filter((k) => OUTPUT_BLOCK_KEYS.includes(k));
   if (!want.length) return {};
   const orgId = caseRow.org_id;
-  const ctx = { org: orgById(orgId), orgId, year: caseRow.year, profile: getProfile(orgId), results };
   calcSettings = getConfig('calc.settings') || {};
+  const ctx = { org: orgById(orgId), orgId, year: caseRow.year, profile: getProfile(orgId), results, datasetId,
+    gwpSet: calcSettings.gwpSet === 'AR6' || calcSettings.gwpSet === 'AR4' ? calcSettings.gwpSet : caseRow.year >= 2023 ? 'AR5' : 'AR4' };
   const L = loader(datasetId, orgId);
   const out = {};
   for (const k of want) {

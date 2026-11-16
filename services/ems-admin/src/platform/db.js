@@ -497,6 +497,15 @@ const MIGRATIONS = [
   ALTER TABLE energy_measures ADD COLUMN demand_response INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE energy_saving_years ADD COLUMN dr_saving_kwh REAL;
   `,
+  // 7：組織型盤查表單邏輯（盤查表單 3.0.0；係數 6.0.4 版＝v1、113 年 2 月 5 日公告＝v2）
+  //    係數加 95% 信賴區間上下限與係數種類（表五 S 欄／表六 O 欄）；燃料係數改存 kg/TJ，舊的待核准每公升種子作廢重建
+  `
+  ALTER TABLE factors ADD COLUMN uncertainty_low REAL;
+  ALTER TABLE factors ADD COLUMN uncertainty_high REAL;
+  ALTER TABLE factors ADD COLUMN factor_class TEXT;
+  DELETE FROM factors WHERE created_by = 'seed' AND status = 'pending' AND approved_by IS NULL
+    AND (code LIKE 'ef.%.stationary.%' OR code LIKE 'ef.%.mobile.%' OR code IN ('septic.bod_g_per_person_day','septic.bo','septic.mcf'));
+  `,
 ];
 
 let db = null;
