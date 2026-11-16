@@ -262,3 +262,72 @@ test('[52] 匯出四種格式都含多表內容', async () => {
     if (f !== 'docx') assert.ok(text.includes('18-31-0800-22-0') && text.includes('表五之二'), f);
   }
 });
+
+// ── 覆核修正的回歸測試 ──
+test('[覆核] 表三費用列、措施效益與投資金額對沒有機敏權限者遮罩', async () => {
+  const c = R.createCase(rep, { orgId: org, templateCode: 'ENERGY-USER', year: 2025, datasetId: ds });
+  const runId = R.generateRun(rep, c.id).id;
+  const f = R.getRun(col, runId).results.fields;
+  const basic = f.eu_basic.block.tables[0];
+  const cost = basic.rows.find((r) => r[0].startsWith('22 '));
+  assert.deepEqual(cost.slice(1), ['（需權限）', '（需權限）']);
+  assert.equal(f.eu_basic.masked, true);
+  assert.notEqual(R.getRun(rep, runId).results.fields.eu_basic.block.tables[0].rows.find((r) => r[0].startsWith('22 '))[1], '（需權限）');
+  const m = f.eu_measures.block.tables[0].rows[0];
+  assert.equal(m[8], '（需權限）'); assert.equal(m[9], '（需權限）');
+  assert.equal(R.readiness(col, c.id).fields.find((x) => x.field_id === 'eu_basic').block.tables[0].rows.find((r) => r[0].startsWith('22 '))[1], '（需權限）');
+  const list = EM.readMeasures(col, { orgId: org, year: 2025, kind: 'done' });
+  assert.equal(list[0].benefit_twd, null); assert.equal(list[0].investment_twd, null);
+  assert.equal(EM.readMeasures(rep, { orgId: org, year: 2025, kind: 'done' })[0].benefit_twd, 213000);
+});
+
+test('[覆核] 熱能平衡單位為百萬卡；油種不在清單時不拖垮整份匯入表單', async () => {
+  const c = R.createCase(rep, { orgId: org, templateCode: 'ENERGY-USER', year: 2025, datasetId: ds });
+  const heat = R.readiness(rep, c.id).fields.find((x) => x.field_id === 'eu_flow').block.tables.find((t) => t.title === '表六 熱能用量平衡');
+  const gas = heat.rows.find((r) => r[0] === '汽油');
+  const hv = q.get("SELECT value FROM factors WHERE code = 'heat.gasoline' AND status = 'published' ORDER BY version DESC").value;
+  assert.ok(Math.abs(gas[2] - 1440 * hv / 1000) < 0.01, `${gas[2]} vs ${1440 * hv / 1000}`);
+  // 定版後才新增一台油種打錯的發電機（不在資料集裡也會出現在台帳）
+  asset('OIL-GEN', 'generator', '油種打錯的發電機', { attrs: { fuel: 'kerosene' } });
+  const c2 = R.createCase(rep, { orgId: org, templateCode: 'GHG-REGISTRY', year: 2025, datasetId: ds });
+  const b = R.readiness(rep, c2.id).fields.find((x) => x.field_id === 'moenv_import').block;
+  assert.notEqual(b.state, 'blocked');
+  assert.match(b.text, /kerosene/);
+  assert.equal(b.tables.length, 8);
+});
+
+test('[覆核] 多電號時全院措施不重複計入；沒有用電量的年度不累計節電量', () => {
+  EM.saveMeasure(rep, { orgId: org, year: 2025, kind: 'done', name: '全院空調溫度調整', energyType: 'electricity', saving: 100000 });
+  const a = EM.savingRateTable(org, acctA, 2025).rows.find((r) => r.year === 2025);
+  assert.equal(a.saving, 52000);
+  assert.equal(EM.savingRateTable(org, acctB, 2025).rows.find((r) => r.year === 2025).saving ?? null, null);
+  EM.saveSavingYear(rep, { orgId: org, assetId: acctB, year: 2023, savingKwh: 50000 });
+  const rows = EM.savingRateTable(org, acctB, 2025).rows;
+  assert.equal(rows.find((r) => r.year === 2023).incomplete, true);
+  assert.equal(rows.find((r) => r.year === 2025).rate, 0);
+  assert.throws(() => EM.saveMeasure(rep, { orgId: org, year: 2010, kind: 'done', name: 'x', energyType: 'electricity' }), /104/);
+});
+
+test('[覆核] 定版後封存電號，歷年匯出仍列出該電號', async () => {
+  A.disableAsset(col, acctB, '電號註銷');
+  if (q.get('SELECT status FROM assets WHERE id = ?', acctB).status !== 'archived') q.run("UPDATE assets SET status = 'archived' WHERE id = ?", acctB);
+  const c = R.createCase(rep, { orgId: org, templateCode: 'GHG-REGISTRY', year: 2025, datasetId: ds });
+  const b = R.readiness(rep, c.id).fields.find((x) => x.field_id === 'moenv_import').block;
+  assert.equal(b.tables.find((t) => t.sheet === '表2-1邊界設定-電號資料').rows.length, 2);
+  const elec = b.tables.find((t) => t.sheet === '表3-排放源定性及定量').rows.find((r) => r[13] === '外購電力');
+  assert.equal(elec[26], (MONTHLY_A.reduce((s, x) => s + x, 0) + MONTHLY_B.reduce((s, x) => s + x, 0)) / 1000);
+  q.run("UPDATE assets SET status = 'active' WHERE id = ?", acctB);
+});
+
+test('[覆核] 管理者刪掉的種子指標，重啟後不會被加回來', async () => {
+  const { seedDictionary } = await import('../src/platform/seed.js');
+  const it = q.get("SELECT id, metrics FROM inventory_items WHERE code = 'ELE-GRID'");
+  const without = JSON.parse(it.metrics).filter((m) => m !== 'elec_wheeled_kwh');
+  q.run('UPDATE inventory_items SET metrics = ? WHERE id = ?', JSON.stringify(without), it.id);
+  seedDictionary();
+  assert.ok(!JSON.parse(q.get('SELECT metrics FROM inventory_items WHERE id = ?', it.id).metrics).includes('elec_wheeled_kwh'));
+  // 從沒套用過的新指標仍會補上
+  q.run("DELETE FROM seed_marks WHERE key = 'item:ELE-GRID:metrics:elec_wheeled_kwh'");
+  seedDictionary();
+  assert.ok(JSON.parse(q.get('SELECT metrics FROM inventory_items WHERE id = ?', it.id).metrics).includes('elec_wheeled_kwh'));
+});

@@ -60,6 +60,7 @@ export function seedOrgs(extra = new Map()) {
 
 export function seedDictionary() {
   const t = nowIso();
+  q.run('CREATE TABLE IF NOT EXISTS seed_marks (key TEXT PRIMARY KEY, at TEXT NOT NULL)');
   tx(() => {
     for (const [code, name, dimension, base, toBase] of UNITS) {
       if (!q.get('SELECT 1 FROM units WHERE code = ?', code)) insert('units', { code, name, dimension, base_unit: base, to_base: toBase });
@@ -68,13 +69,22 @@ export function seedDictionary() {
       if (!q.get('SELECT 1 FROM metrics WHERE code = ?', code)) insert('metrics', { code, domain, name, semantics, value_kind: kind, std_unit: unit, description: desc || null });
     }
     for (const it of [...ITEMS, ...REFERENCE_ITEMS]) {
-      const ex = q.get('SELECT id, asset_types, metrics FROM inventory_items WHERE code = ?', it.code);
+      const ex = q.get('SELECT id, asset_types, metrics, version FROM inventory_items WHERE code = ?', it.code);
       if (ex) {
-        // 已存在：只補新增的標的類型與指標（不覆蓋管理者改過的其他內容）
+        // 已存在：只補「種子從沒套用過」的標的類型與指標。套用過的記在 seed_marks，管理者之後刪掉的不會在重啟時被加回來
         const cur = { asset_types: JSON.parse(ex.asset_types || '[]'), metrics: JSON.parse(ex.metrics || '[]') };
-        const add = { asset_types: (it.asset_types || []).filter((x) => !cur.asset_types.includes(x)), metrics: (it.metrics || []).filter((x) => !cur.metrics.includes(x)) };
+        const add = { asset_types: [], metrics: [] };
+        for (const k of ['asset_types', 'metrics']) {
+          for (const x of it[k] || []) {
+            const mark = `item:${it.code}:${k}:${x}`;
+            if (q.get('SELECT 1 FROM seed_marks WHERE key = ?', mark)) continue;
+            q.run('INSERT INTO seed_marks (key, at) VALUES (?, ?)', mark, t);
+            if (!cur[k].includes(x)) add[k].push(x);
+          }
+        }
         if (add.asset_types.length || add.metrics.length) {
-          q.run('UPDATE inventory_items SET asset_types = ?, metrics = ?, updated_at = ? WHERE id = ?', JSON.stringify([...cur.asset_types, ...add.asset_types]), JSON.stringify([...cur.metrics, ...add.metrics]), t, ex.id);
+          q.run('UPDATE inventory_items SET asset_types = ?, metrics = ?, version = version + 1, updated_at = ? WHERE id = ?', JSON.stringify([...cur.asset_types, ...add.asset_types]), JSON.stringify([...cur.metrics, ...add.metrics]), t, ex.id);
+          audit({ actor: 'system', action: 'dictionary.seed_merge', targetType: 'inventory_item', targetId: ex.id, before: cur, after: add });
         }
         continue;
       }
@@ -85,6 +95,7 @@ export function seedDictionary() {
         applicability_rules: it.applicability_rules || null, special_rules: it.special_rules || [], usage_candidates: it.usage_candidates || [],
         ghg_ref: it.ghg_ref || null, created_at: t, updated_at: t,
       });
+      for (const k of ['asset_types', 'metrics']) for (const x of it[k] || []) q.run('INSERT OR IGNORE INTO seed_marks (key, at) VALUES (?, ?)', `item:${it.code}:${k}:${x}`, t);
     }
   });
 }

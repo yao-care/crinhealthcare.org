@@ -28,12 +28,13 @@
 | WAT-DIS | 水 | 污水與排水 | 排放口、污水處理設施 | water_discharge_m3、wastewater_treated_m3、effluent_bod_mg_l | 排水量、處理方式、檢測紀錄、委外處理紀錄、是否接管 | 污水處理單、放流水檢測報告、下水道接管證明 | 先確認是否自行處理或接管；水量不等於排放量，排放另依方法量化 | 範疇3／類別四／wastewater |
 | WAT-RECY | 水 | 回收再利用水 | 回收系統、水表 | water_recycled_m3、water_reused_m3 |  |  | 重複循環量不可列為新取水量 |  |
 | WAT-SEPTIC | 水 | 化糞池（逸散甲烷） | 化糞池 |  | 年度員工人力工時、就診病患人次、住院病患人數／天數、是否接管 | 人事室工時統計、醫務管理統計 | 已接管公共污水下水道者不適用；依方法以人數與工時計算，不以水量×任意係數 | 範疇1／類別一／septic_ch4 |
-| ELE-GRID | 電 | 外購電力 | 台電電號、計費點 | elec_purchased_kwh、elec_cost_twd、elec_peak_demand_kw、elec_contract_kw | kWh、費用、契約容量、計費期間、帳單 | 台電電費帳單、EMS、電費繳費紀錄 | 計費區間不一定是自然月，保存原期間並另存分攤值；帳單與 EMS 先校準邊界再比較；計費期間跨年前後都要收集 | 範疇2／類別二／purchased_electricity |
-| ELE-SUB | 電 | 院內分表 | 電表、變電站、建物 | elec_metered_kwh、elec_meter_reading_kwh、elec_peak_demand_kw |  |  | 母表與子表層級，損失與未計量部分；累積讀值差分處理換表、歸零、缺點與倍率 |  |
+| ELE-GRID | 電 | 外購電力 | 台電電號、計費點 | elec_purchased_kwh、elec_cost_twd、elec_peak_demand_kw、elec_contract_kw、elec_peak_kwh、elec_semipeak_kwh、elec_satsemipeak_kwh、elec_offpeak_kwh、elec_demand_semipeak_kw、elec_demand_satsemipeak_kw、elec_demand_offpeak_kw、elec_wheeled_kwh、elec_power_factor_pct、elec_contract_semipeak_kw、elec_contract_satsemipeak_kw、elec_contract_offpeak_kw | kWh、費用、契約容量、計費期間、帳單 | 台電電費帳單、EMS、電費繳費紀錄 | 計費區間不一定是自然月，保存原期間並另存分攤值；帳單與 EMS 先校準邊界再比較；計費期間跨年前後都要收集 | 範疇2／類別二／purchased_electricity |
+| ELE-SUB | 電 | 院內分表 | 分電盤、電表、變電站、建物 | elec_metered_kwh、elec_meter_reading_kwh、elec_peak_demand_kw、equip_estimated_kwh | 所屬電號（上層標的）、有無電表、主要負載系統 |  | 母表與子表層級，損失與未計量部分；累積讀值差分處理換表、歸零、缺點與倍率；沒有電表的分盤以額定功率 × 運轉時數推估，品質等級低於表計 |  |
 | ELE-HEAT | 電 | 外購蒸汽、熱能、冷能 | 供應契約、設備 | imported_energy_gj | 供應量（GJ 或噸蒸汽換算）、供應商排放係數、帳單 | 蒸汽供應契約、區域供冷／供熱帳單 | 排放係數向供應商取得，沒有係數時不可估算為 0 | 範疇2／類別二／imported_heat |
 | ELE-PV | 電 | 自發自用與售電（太陽能等） | 太陽能系統、發電計量表 | elec_generated_kwh、elec_self_used_kwh、elec_exported_kwh、elec_rec_kwh |  |  | 避免同筆電量重複認列；憑證另依條件，不自行扣減排放量 |  |
 | ELE-ESS | 電 | 儲能系統 | 儲能櫃 | ess_charge_kwh、ess_discharge_kwh、ess_soc_pct |  | 儲能櫃 Modbus、充放電表 | 充電與放電不可逕行互抵成組織用電 |  |
-| ELE-EQUIP | 電 | 高耗能設備（空調、冰機、資訊機房） | 冰水主機、空調箱、資訊機房、設備 | equip_runtime_h、equip_rated_kw、equip_estimated_kwh、elec_metered_kwh |  |  |  |  |
+| ELE-EQUIP | 電 | 高耗能設備（空調、冰機、資訊機房） | 冰水主機、冷卻水塔、泵浦、空調箱、送排風機、照明、電梯、熱泵、空壓機、冷凍冷藏設備、事務設備、資訊機房、設備 | equip_runtime_h、equip_rated_kw、equip_estimated_kwh、elec_metered_kwh | 系統別、容量與單位、額定電功率、數量、年運轉時數、製造年份 |  |  |  |
+| ELE-SYS | 電 | 變壓器與電能系統 | 變壓器、進相電容器 |  | 廠牌、製造年份、容量（kVA）、型式（乾式／油式／非晶質式）、一次／二次側電壓、功因調整器、電容器 | 電氣設備清冊、變壓器銘牌、電力技術人員巡檢紀錄 |  |  |
 | GAS-NG | 氣 | 天然氣（鍋爐、廚房爐具） | 瓦斯帳號、氣表、鍋爐 | ng_consumption_m3、ng_meter_reading_m3、ng_cost_twd、ng_heat_kcal_m3 | 用量、費用、計費期間、熱值（如需） | 天然氣帳單、採購單、氣表 | 帳單、表計、鍋爐運轉三方比對 | 範疇1／類別一／stationary_combustion |
 | GAS-LPG | 氣 | 液化石油氣（LPG） | LPG 鋼瓶、LPG 儲槽、供應契約 | lpg_purchase_kg、lpg_consumption_kg、lpg_stock_kg、lpg_cylinders、lpg_cost_twd |  | 採購單、鋼瓶交付單 | 採購、領用、庫存分開 | 範疇1／類別一／stationary_combustion |
 | GAS-REF | 氣 | 冷媒（空調、冰水主機、飲水機、冷藏、乾燥機、公務車） | 分離式冷氣、窗型冷氣、冰水主機、飲水機、冷藏設備、乾燥機、公務車冷氣 | ref_charge_kg、ref_recharge_kg、ref_recovered_kg | 設備位置、廠牌、型號、銘牌照片、冷媒種類、充填量、補充／回收維修單 | 設備財產清冊、維修保養紀錄、銘牌照片 | 銘牌充填量是設備特徵，不等於年度逸散量；HCFC（如 R-22）屬蒙特婁議定書管制物質，不納入京都七種溫室氣體 | 範疇1／類別一／fugitive_refrigerant |
@@ -41,9 +42,10 @@
 | GAS-MED | 氣 | 醫療／工業氣體（N₂O、CO₂ 瓶、氧氣） | 氣體鋼瓶、氣體供應 | n2o_purchase_kg、n2o_use_kg、co2_purchase_kg、co2_use_kg、o2_purchase_m3 |  | 採購單、氣體供應商出貨單、領用紀錄 | 不得假定全部採購量都是排放量；氧氣非溫室氣體，只列供應與風險管理 | 範疇1／類別一／process_gas |
 | GAS-FIRE | 氣 | 消防設備（滅火器） | 滅火器 | fire_ext_charge_kg、fire_ext_refill_kg | 類別（CO₂、ABC／KBC／BC 乾粉、潔淨型）、數量清冊 |  | 乾粉滅火器不含溫室氣體 | 範疇1／類別一／fugitive |
 | GAS-WWT | 氣 | 污水處理相關氣體 | 污水處理設施 | wastewater_treated_m3 |  |  | 依處理方法判斷甲烷，非水量×任意係數 | 範疇1／類別一／wastewater_ch4 |
-| ACT-STAFF | 營運活動 | 員工人數與工時 | 院所營運活動 | staff_count、staff_hours | 年底員工人數（全職＋兼職，統計至 12/31）、年度工時 | 人事室 |  |  |
+| ACT-STAFF | 營運活動 | 員工人數與工時 | 院所營運活動 | staff_count、staff_hours、medical_staff_count | 年底員工人數（全職＋兼職，統計至 12/31）、年度工時 | 人事室 |  |  |
 | ACT-PATIENT | 營運活動 | 就診與住院人次 | 院所營運活動 | outpatient_visits、inpatient_days |  | 醫務管理 |  |  |
-| ACT-CAP | 營運活動 | 病床與樓地板面積 | 院所營運活動 | beds、floor_area_m2 |  | 醫務管理、總務室、使用執照 |  |  |
+| ACT-CAP | 營運活動 | 病床與樓地板面積 | 院所營運活動 | beds、floor_area_m2、aircon_area_m2、parking_area_m2 |  | 醫務管理、總務室、使用執照 |  |  |
+| ACT-WASTE | 營運活動 | 廢棄物產出量 | 院所營運活動 | waste_general_kg、waste_hazardous_kg、waste_recycled_kg | 一般事業廢棄物（公斤）、有害事業廢棄物含感染性（公斤）、資源回收量（公斤） | 事業廢棄物清運聯單、環境部事業廢棄物申報系統、委託清除處理契約 |  |  |
 | REF-LAND | 其他盤查參照 | 土地使用變更 |  |  |  |  |  |  |
 | REF-UPTRANS | 其他盤查參照 | 上游（材料）運輸 |  |  |  |  |  |  |
 | REF-DOWNTRANS | 其他盤查參照 | 下游（產品）運輸 |  |  |  |  |  |  |
@@ -69,6 +71,18 @@
 | elec_cost_twd | electricity | 電費 | cost | interval | TWD | 帳單應繳總額 |
 | elec_peak_demand_kw | electricity | 最高需量 | demand | interval | kW | 計費期間最高需量 |
 | elec_contract_kw | electricity | 經常契約容量 | capacity | stock | kW |  |
+| elec_peak_kwh | electricity | 尖峰度數 | usage_tou | interval | kWh | 帳單時段度數；夏月／非夏月依帳單 |
+| elec_semipeak_kwh | electricity | 半尖峰度數 | usage_tou | interval | kWh |  |
+| elec_satsemipeak_kwh | electricity | 週六半尖峰度數 | usage_tou | interval | kWh |  |
+| elec_offpeak_kwh | electricity | 離峰度數 | usage_tou | interval | kWh |  |
+| elec_demand_semipeak_kw | electricity | 半尖峰最高需量 | demand | interval | kW | 「最高需量」欄為尖峰時段 |
+| elec_demand_satsemipeak_kw | electricity | 週六半尖峰最高需量 | demand | interval | kW |  |
+| elec_demand_offpeak_kw | electricity | 離峰最高需量 | demand | interval | kW |  |
+| elec_wheeled_kwh | electricity | 轉供度數 | wheeled | interval | kWh | 購買再生能源經台電電網轉供之用電量（帳單載明） |
+| elec_power_factor_pct | electricity | 功率因數 | power_factor | interval | pct | 帳單平均功因 |
+| elec_contract_semipeak_kw | electricity | 半尖峰契約容量 | capacity | stock | kW |  |
+| elec_contract_satsemipeak_kw | electricity | 週六半尖峰契約容量 | capacity | stock | kW |  |
+| elec_contract_offpeak_kw | electricity | 離峰契約容量 | capacity | stock | kW |  |
 | elec_generated_kwh | electricity | 自發電量 | generation | interval | kWh | 太陽能等院內發電系統總發電 |
 | elec_self_used_kwh | electricity | 自發自用電量 | self_use | interval | kWh |  |
 | elec_exported_kwh | electricity | 售電／輸出電量 | export | interval | kWh | 躉售或轉供，不可再計入自用 |
@@ -130,6 +144,12 @@
 | inpatient_days | activity | 住院人日 | bed_days | interval | bed_day |  |
 | beds | activity | 病床數 | capacity | stock | bed |  |
 | floor_area_m2 | activity | 樓地板面積 | area | stock | m2 |  |
+| aircon_area_m2 | activity | 空調使用面積 | area | stock | m2 | 能源查核申報基本資料 |
+| parking_area_m2 | activity | 室內停車場面積 | area | stock | m2 | 室內樓地板面積＝總樓地板面積－室內停車場面積 |
+| medical_staff_count | activity | 執業醫事人員數 | count | stock | person | 能源查核申報「員工人數」醫院填陳報衛福部之執業醫事人員總數 |
+| waste_general_kg | activity | 一般事業廢棄物產出量 | waste | interval | kg | 清運聯單或委託清除處理紀錄 |
+| waste_hazardous_kg | activity | 有害事業廢棄物產出量（含感染性） | waste | interval | kg |  |
+| waste_recycled_kg | activity | 資源回收量 | waste | interval | kg |  |
 
 ## 單位
 
@@ -214,6 +234,18 @@
 | dryer | 乾燥機 |
 | vehicle_ac | 公務車冷氣 |
 | gcb | 氣體斷路器（GCB） |
+| panel | 分電盤 |
+| transformer | 變壓器 |
+| capacitor | 進相電容器 |
+| cooling_tower | 冷卻水塔 |
+| pump | 泵浦 |
+| fan | 送排風機 |
+| lighting | 照明 |
+| elevator | 電梯 |
+| heat_pump | 熱泵 |
+| air_compressor | 空壓機 |
+| refrigeration | 冷凍冷藏設備 |
+| office_equipment | 事務設備 |
 | gas_cylinder | 氣體鋼瓶 |
 | gas_supply | 氣體供應 |
 | fire_extinguisher | 滅火器 |
@@ -295,6 +327,14 @@
 | act.staff_hours | 員工工時 | {"kind":"sum","items":["ACT-STAFF"],"metrics":["staff_hours"],"unit":"person_h"} |  |
 | act.outpatient | 門急診人次 | {"kind":"sum","items":["ACT-PATIENT"],"metrics":["outpatient_visits"],"unit":"visit"} |  |
 | act.inpatient_days | 住院人日 | {"kind":"sum","items":["ACT-PATIENT"],"metrics":["inpatient_days"],"unit":"bed_day"} |  |
+| act.aircon_area_m2 | 空調使用面積 | {"kind":"sum","items":["ACT-CAP"],"metrics":["aircon_area_m2"],"agg":"latest_per_asset","unit":"m2"} |  |
+| act.parking_area_m2 | 室內停車場面積 | {"kind":"sum","items":["ACT-CAP"],"metrics":["parking_area_m2"],"agg":"latest_per_asset","unit":"m2"} |  |
+| act.medical_staff | 執業醫事人員數 | {"kind":"sum","items":["ACT-STAFF"],"metrics":["medical_staff_count"],"agg":"latest_per_asset","unit":"person"} |  |
+| waste.general_kg | 一般事業廢棄物產出量 | {"kind":"sum","items":["ACT-WASTE"],"metrics":["waste_general_kg"],"unit":"kg"} |  |
+| waste.hazardous_kg | 有害事業廢棄物產出量（含感染性） | {"kind":"sum","items":["ACT-WASTE"],"metrics":["waste_hazardous_kg"],"unit":"kg"} |  |
+| waste.recycled_kg | 資源回收量 | {"kind":"sum","items":["ACT-WASTE"],"metrics":["waste_recycled_kg"],"unit":"kg"} |  |
+| energy.wheeled_kwh | 轉供度數（再生能源） | {"kind":"sum","items":["ELE-GRID"],"metrics":["elec_wheeled_kwh"],"unit":"kWh"} |  |
+| energy.total_cost | 總能源費用（油電燃氣） | {"kind":"sum","metrics":["elec_cost_twd","oil_cost_twd","ng_cost_twd","lpg_cost_twd"],"unit":"TWD"} |  |
 
 ## 報告模板
 
@@ -309,6 +349,11 @@
 | GOV-SAVING | 1 | 政府機關及學校節約能源填報資料準備 | 經濟部能源署「政府機關及學校用電效率管理計畫」 | 依當年度填報系統 | ～ | 5 |
 | HOSP-OPS | 1 | 醫院營運資料報告 | 院內自訂 | v1 | ～ | 8 |
 | GHG-EVIDENCE | 1 | 溫室氣體盤查佐證清單與查核追蹤表 | ISO 14064-1 第 8 章／查驗作業 | v1 | ～ | 3 |
+| GHG-REGISTRY | 1 | 環境部盤查登錄匯入表單 | 環境部「事業溫室氣體排放量資訊平台」盤查系統用匯入表單 | 匯入表單 V5（代碼檔 V2） | ～ | 5 |
+| ENERGY-USER | 2 | 非生產性質行業能源查核申報資料準備 | 能源管理法第 9、12 條／能源查核制度申報表附表三（非生產性質行業） | 附表三（112-01-04 行政院公報版） | ～ | 17 |
+| GOV-SAVING | 2 | 政府機關及學校節約能源填報資料準備 | 經濟部能源署「政府機關及學校節約能源填報網站」 | 依當年度填報系統 | ～ | 8 |
+| HOSP-HPA | 1 | 醫院節能減碳網路填報資料準備 | 衛生福利部國民健康署「醫院節能減碳網路填報系統」 | 依當年度填報系統（項目參照 108 年操作手冊） | ～ | 15 |
+| OEW-CONTROL | 1 | 油電水節能管制資料準備 | 「油電水節能管制系統」 | 通用格式（欄位待依系統畫面核對） | ～ | 8 |
 
 ## 預設係數（種子，待核准後發布）
 
@@ -602,6 +647,33 @@
 {
   "thresholdPct": 1,
   "criteria": "預估排放量占類別一＋類別二總量 1% 以上，或法規、主管機關、利害關係人要求揭露者，判定為顯著並量化"
+}
+```
+
+### ghg.significance_estimators
+
+```json
+{
+  "UPSTREAM-ENERGY": {
+    "indicator": "energy.elec_kwh",
+    "factor": "ef.upstream.electricity",
+    "label": "外購電力（度）× 電力上游排放係數（kgCO₂e/度）"
+  },
+  "UPSTREAM-WATER": {
+    "indicator": "water.withdrawal_m3",
+    "factor": "ef.upstream.water",
+    "label": "取水量（m³）× 自來水排放係數（kgCO₂e/m³）"
+  },
+  "WASTEWATER": {
+    "indicator": "water.discharge_m3",
+    "factor": "ef.wastewater.treatment",
+    "label": "排水量（m³）× 污水處理排放係數（kgCO₂e/m³）"
+  },
+  "REF-COMMUTE": {
+    "indicator": "act.staff_count",
+    "factor": "ef.commute.per_staff",
+    "label": "員工人數 × 每人年通勤排放（kgCO₂e/人）"
+  }
 }
 ```
 

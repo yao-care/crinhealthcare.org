@@ -96,7 +96,9 @@ export function listCases(ctx, orgId) {
 // 表格段落的費用欄（maskCols）對沒有機敏檢視權限者遮罩
 export function maskBlock(b) {
   if (!b?.tables) return b;
-  return { ...b, tables: b.tables.map((t) => (t.maskCols?.length ? { ...t, rows: t.rows.map((r) => r.map((v, i) => (t.maskCols.includes(i) && v !== '' && v !== null ? '（需權限）' : v))) } : t)) };
+  const hide = (v) => (v !== '' && v !== null && v !== undefined ? '（需權限）' : v);
+  return { ...b, tables: b.tables.map((t) => (t.maskCols?.length || t.maskRows?.length
+    ? { ...t, rows: t.rows.map((r, ri) => (t.maskRows?.includes(ri) ? r.map((v, i) => (i === 0 ? v : hide(v))) : r.map((v, i) => (t.maskCols?.includes(i) ? hide(v) : v)))) } : t)) };
 }
 function mappingsFor(templateId) { return q.all('SELECT * FROM report_mappings WHERE template_id = ? ORDER BY sort', templateId); }
 
@@ -179,7 +181,7 @@ export function getRun(ctx, runId) {
   if (!can(ctx, 'view.sensitive', r.org_id)) {
     for (const [k, f] of Object.entries(out.results.fields || {})) {
       if (/cost/.test(f.indicator || '') || /cost/.test(k)) out.results.fields[k] = { ...f, value: null, masked: true };
-      else if (f.block?.tables?.some((t) => t.maskCols?.length)) out.results.fields[k] = { ...f, block: maskBlock(f.block), masked: true };
+      else if (f.block?.tables?.some((t) => t.maskCols?.length || t.maskRows?.length)) out.results.fields[k] = { ...f, block: maskBlock(f.block), masked: true };
     }
   }
   out.artifacts = q.all('SELECT id, format, sha256, size, created_at FROM report_artifacts WHERE run_id = ? ORDER BY created_at DESC', runId);

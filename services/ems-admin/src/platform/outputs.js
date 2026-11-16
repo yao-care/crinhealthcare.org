@@ -61,6 +61,14 @@ function profileValue(profile, key) {
 function loader(datasetId, orgId) {
   const cx = datasetId ? makeContext(datasetId) : { facts: [], assets: q.all("SELECT a.*, i.code AS item_code FROM assets a LEFT JOIN inventory_items i ON i.id = a.item_id WHERE a.org_id = ? AND a.status <> 'archived'", orgId).map((a) => ({ ...a, attrs: j(a.attrs, {}) })), ds: null };
   const assets = cx.assets.filter((a) => a.status !== 'archived');
+  // 定版後才封存的標的：資料集裡有它的採用值就照樣列出（屬性用定版快照），避免歷年報告少一個電號
+  const have = new Set(assets.map((a) => a.id));
+  const missing = [...new Set(cx.facts.map((f) => f.asset_id).filter((id) => !have.has(id)))];
+  for (const id of missing) {
+    const a = q.get('SELECT a.*, i.code AS item_code FROM assets a LEFT JOIN inventory_items i ON i.id = a.item_id WHERE a.id = ?', id); if (!a) continue;
+    const s = cx.ds ? q.get('SELECT * FROM dataset_asset_snapshots WHERE dataset_id = ? AND asset_id = ?', cx.ds.id, id) : null;
+    assets.push({ ...a, attrs: j(s?.attrs ?? a.attrs, {}), applicability: s?.applicability ?? a.applicability, asset_type: s?.asset_type ?? a.asset_type, item_code: s?.item_code ?? a.item_code });
+  }
   const byId = new Map(assets.map((a) => [a.id, a]));
   const facts = cx.facts.map((f) => ({ ...f, asset: byId.get(f.asset_id) }));
   return { cx, assets, byId, facts };
@@ -183,11 +191,13 @@ function moenvImport(L, ctx) {
   for (const a of ghgAssets.filter((x) => ['OIL-GEN', 'OIL-BOILER', 'OIL-VEH', 'OIL-FORK', 'GAS-NG', 'GAS-LPG'].includes(x.item_code))) {
     if (a.asset_type === 'fuel_tank' || a.asset_type === 'fuel_card' || a.asset_type === 'supply_contract') continue;
     const fuel = a.attrs.fuel || DEFAULT_FUEL[a.item_code];
+    if (!FUEL_ACTIVITY[fuel] || !MOENV_FUEL[fuel]) { notes.push(`${a.name}：油種「${fuel || '未填'}」不在可計算清單（柴油、汽油、燃料油、天然氣、液化石油氣），請修正標的油種`); continue; }
     const facts = L.facts.filter((f) => f.asset_id === a.id && f.metric_code === FUEL_ACTIVITY[fuel]);
     const act = sum(facts.map((f) => val(f, FUEL_UNIT[fuel])));
     const mobile = ['OIL-VEH', 'OIL-FORK'].includes(a.item_code);
-    const heat = fuel === 'ng' ? (a.attrs.ngType ? `預設-公告熱值(天然氣${a.attrs.ngType})` : '') : '預設-公告熱值';
+    const heat = fuel === 'ng' ? (a.attrs.ngType ? `預設-公告熱值(天然氣${a.attrs.ngType})` : '') : fuel === 'fuel_oil' ? '' : '預設-公告熱值';
     if (fuel === 'ng' && !a.attrs.ngType) notes.push(`${a.name}：請在標的專屬欄位選天然氣 NG1 或 NG2（燃料熱值來源）`);
+    if (fuel === 'fuel_oil') notes.push(`${a.name}：燃料油沒有公告熱值，匯入前請填「自訂(其他)-非公告熱值」與低位熱值、資料來源`);
     row(a, { no: no(mobile ? 'GV' : 'GS', a), equip: equip(a, fuel), fuel: MOENV_FUEL[fuel], biogenic: Number(a.attrs.biogenicShare) > 0, direct: true, type: mobile ? '移動燃燒' : '固定燃燒',
       gases: ['CO2', 'CH4', 'N2O'], activity: act, unit: { L: '公升', Nm3: '立方公尺', kg: '公斤' }[FUEL_UNIT[fuel]], facts, heat, used: act === null && !facts.length ? undefined : act !== 0,
       factors: ['CO2', 'CH4', 'N2O'].map((g) => ({ gas: g })) });
@@ -304,7 +314,9 @@ function euBasic(L, ctx) {
   const rows = labels.map((l, i) => [l, ...colsFor.map((c) => c[i])]);
   rows.push(['能源管理人員（設置登記）', ...accts.map(() => profile.energyManager || '')]);
   const uniq = [...new Set(notes)];
-  return { state: uniq.length ? 'partial' : 'measured', text: uniq.length ? `待補：${uniq.join('；')}。` : '', tables: [T('表三 能源用戶基本資料', '表三基本資料', ['項目', ...accts.map(accountLabel)], rows, { maskCols: [] })] };
+  // 表格是轉置的（費用在列）：遮罩 22 總能源費用、24 能源費用占比兩列
+  const maskRows = rows.map((r, i) => (/^2[24] /.test(r[0]) ? i : -1)).filter((i) => i >= 0);
+  return { state: uniq.length ? 'partial' : 'measured', text: uniq.length ? `待補：${uniq.join('；')}。` : '', tables: [T('表三 能源用戶基本資料', '表三基本資料', ['項目', ...accts.map(accountLabel)], rows, { maskRows })] };
 }
 
 const HEAT_FUELS = [['fuel_oil', '燃料油', 'kL', '公秉'], ['lpg', '液化石油氣', 'kg', '公斤'], ['ng', '天然氣', 'Nm3', '立方公尺'], ['gasoline', '汽油', 'L', '公升'], ['diesel', '柴油', 'kL', '公秉']];
@@ -425,7 +437,7 @@ function euFlow(L, ctx) {
       const v = val(f, FUEL_UNIT[fuel]); if (v === null) continue;
       if (!hv) { hn.push(`熱值 heat.${fuel} 未發布`); continue; }
       const use = f.attrs.heatUse || { 'OIL-GEN': '發電機', 'OIL-VEH': '車輛', 'OIL-FORK': '車輛' }[f.item_code] || '其他設備';
-      const k = `${name}｜${use}`; heat.set(k, (heat.get(k) || 0) + v * hv.value / 1e6);
+      const k = `${name}｜${use}`; heat.set(k, (heat.get(k) || 0) + v * hv.value / 1e3); // kcal → 百萬卡（10⁶ cal）
     }
   }
   const htot = sum([...heat.values()]);
@@ -483,19 +495,20 @@ function euEquipment(L, ctx) {
 
 const ENERGY_LABEL = { electricity: '電力（度）', fuel_oil: '燃料油（公秉）', lpg: '液化石油氣（公斤）', ng: '天然氣（立方公尺）', gasoline: '汽油（公升）', diesel: '柴油（公秉）' };
 const mcols = ['項次', '電號', '節約能源措施來源', '措施代碼', '已執行之節約能源措施', '執行計畫期間', '效益計算起月', '效益計算迄月', '節能效益金額（千元）', '投資金額（千元）', '抑低尖峰需量（瓩）', ...Object.values(ENERGY_LABEL).map((l) => `節約能源量 ${l}`)];
+const kTwd = (v) => (v === null || v === undefined ? '' : r2(v / 1000, 1));
 function measureRows(L, list) {
   return list.map((m, i) => [i + 1, m.asset_id ? accountLabel(L.byId.get(m.asset_id) || { name: '' }) : '全院', m.source === 'cross_year' ? '跨年度成效' : '當年度計畫', m.code || '', m.name,
-    `${m.period_from || ''}～${m.period_to || ''}`, cell(m.calc_from_month), cell(m.calc_to_month), m.benefit_twd === null ? '' : r2(m.benefit_twd / 1000, 1), m.investment_twd === null ? '' : r2(m.investment_twd / 1000, 1), cell(m.peak_reduction_kw),
+    `${m.period_from || ''}～${m.period_to || ''}`, cell(m.calc_from_month), cell(m.calc_to_month), kTwd(m.benefit_twd), kTwd(m.investment_twd), cell(m.peak_reduction_kw),
     ...Object.keys(ENERGY_LABEL).map((k) => (m.energy_type === k ? cell(m.saving) : ''))]);
 }
 function euMeasures(L, ctx) {
   const list = listMeasures(ctx.orgId, ctx.year, 'done');
   const rows = measureRows(L, list);
   const tot = Object.keys(ENERGY_LABEL).map((k) => sum(list.filter((m) => m.energy_type === k).map((m) => m.saving)));
-  if (rows.length) rows.push(['合計', '', '', '', '', '', '', '', r2(sum(list.map((m) => m.benefit_twd)) / 1000, 1) ?? '', r2(sum(list.map((m) => m.investment_twd)) / 1000, 1) ?? '', cell(sum(list.map((m) => m.peak_reduction_kw))), ...tot.map(cell)]);
+  if (rows.length) rows.push(['合計', '', '', '', '', '', '', '', kTwd(sum(list.map((m) => m.benefit_twd))), kTwd(sum(list.map((m) => m.investment_twd))), cell(sum(list.map((m) => m.peak_reduction_kw))), ...tot.map(cell)]);
   const noCalc = list.filter((m) => !m.calc_note).map((m) => m.name);
   return { state: 'measured', text: list.length ? `${noCalc.length ? `下列措施未填節能量計算說明（表十之一）：${noCalc.join('、')}。` : ''}各措施節能量計算說明見「節約能源措施」頁。` : '本年度沒有登錄已執行之節約能源措施（當年度新適用之能源用戶得免填表十）。',
-    tables: [T('表十之二 節約能源措施執行成效分析表', '表十之二措施成效', mcols, rows),
+    tables: [T('表十之二 節約能源措施執行成效分析表', '表十之二措施成效', mcols, rows, { maskCols: [8, 9] }),
       T('表十之一 節能量計算說明', '表十之一計算說明', ['項次', '措施', '施行對象', '實施區域', '具體作法', '數值來源與計算說明'], list.map((m, i) => [i + 1, m.name, m.target || '', m.area || '', m.method || '', m.calc_note || '']))] };
 }
 function euRate(L, ctx) {
@@ -512,7 +525,7 @@ function euRate(L, ctx) {
 function euPlan(L, ctx) {
   const list = listMeasures(ctx.orgId, ctx.year + 1, 'plan');
   return { state: list.length ? 'measured' : 'missing', text: list.length ? '' : `尚未登錄 ${roc(ctx.year + 1)} 年節約能源措施執行計畫（節約能源措施 › 新增計畫）。`,
-    tables: [T(`表十一之二 ${roc(ctx.year + 1)} 年節約能源措施暨節能量預估`, '表十一之二計畫', mcols.map((c) => c.replace('已執行之', '預計執行之').replace('節約能源量', '預估節約能源量')), measureRows(L, list))] };
+    tables: [T(`表十一之二 ${roc(ctx.year + 1)} 年節約能源措施暨節能量預估`, '表十一之二計畫', mcols.map((c) => c.replace('已執行之', '預計執行之').replace('節約能源量', '預估節約能源量')), measureRows(L, list), { maskCols: [8, 9] })] };
 }
 
 // ════════════════ 政府機關及學校節約能源填報 ════════════════
