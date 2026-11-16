@@ -24,8 +24,9 @@ import * as CFG from './config-store.js';
 import * as BK from './backup.js';
 import * as G from './ghg.js';
 import * as P from './profile.js';
+import * as EM from './measures.js';
 import { computeAll, ALL_RULE_CODES, STATE_LABEL } from './calc.js';
-import { DOMAINS, ASSET_TYPES, WORK_STATUS, APPLICABILITY, USAGE_STATUS } from './seed/dictionary.js';
+import { DOMAINS, ASSET_TYPES, WORK_STATUS, APPLICABILITY, USAGE_STATUS, ASSET_ATTRS } from './seed/dictionary.js';
 import { CASE_STATUS_LABEL } from './cases.js';
 import { insert, update, newId, nowIso, audit } from './db.js';
 
@@ -56,7 +57,7 @@ route('POST', '/api/v1/me/totp/disable', '關閉自己的兩步驟驗證', (ctx)
 
 route('GET', '/api/v1/meta', '資料字典與代碼表', () => ({
   domains: DOMAINS, assetTypes: ASSET_TYPES, workStatus: WORK_STATUS, applicability: APPLICABILITY, usageStatus: USAGE_STATUS, roles: ROLES, actionLabels: ACTION_LABELS,
-  caseStatus: CASE_STATUS_LABEL, valueStates: STATE_LABEL, connectors: N.CONNECTORS,
+  caseStatus: CASE_STATUS_LABEL, valueStates: STATE_LABEL, connectors: N.CONNECTORS, assetAttrs: ASSET_ATTRS, energyTypes: EM.ENERGY_TYPES,
   metrics: q.all('SELECT * FROM metrics WHERE active = 1 ORDER BY domain, code'), units: q.all('SELECT * FROM units ORDER BY dimension, to_base'),
   items: q.all('SELECT * FROM inventory_items WHERE active = 1 ORDER BY domain, code').map((i) => parseJson(i, ['asset_types', 'metrics', 'required_data', 'source_hints', 'special_rules', 'usage_candidates', 'ghg_ref', 'open_questions'])),
 }));
@@ -316,6 +317,11 @@ route('GET', '/api/v1/ghg/base-years/suggest', '建議基準年', (ctx, { query 
 route('GET', '/api/v1/org-profile', '院所基本資料', (ctx, { query }) => P.readProfile(ctx, query.orgId));
 route('PUT', '/api/v1/org-profile', '儲存院所基本資料', (ctx, { body }) => { P.saveProfile(ctx, body.orgId, body.data); return { ok: true }; });
 route('GET', '/api/v1/ghg/base-years', '基準年與重新計算紀錄', (ctx, { query }) => G.listBaseYears(ctx, query.orgId));
+route('GET', '/api/v1/energy-measures', '節約能源措施（orgId、year、kind=done|plan）', (ctx, { query }) => EM.readMeasures(ctx, query));
+route('POST', '/api/v1/energy-measures', '新增或修改節約能源措施', (ctx, { body }) => EM.saveMeasure(ctx, body));
+route('DELETE', '/api/v1/energy-measures/:id', '刪除節約能源措施（需原因）', (ctx, { params, body, query }) => { EM.cancelMeasure(ctx, params.id, body?.reason || query.reason); return { ok: true }; });
+route('GET', '/api/v1/energy-saving-rate', '歷年節電量、用電量與平均年節電率（orgId、assetId、year）', (ctx, { query }) => EM.readSavingRate(ctx, query));
+route('PUT', '/api/v1/energy-saving-years', '填寫某年度節電量、用電量或扣除用電量', (ctx, { body }) => { EM.saveSavingYear(ctx, body); return { ok: true }; });
 route('POST', '/api/v1/ghg/base-years', '設定基準年或重新計算（kind=set|recalculated）', (ctx, { body }) => G.setBaseYear(ctx, body));
 route('GET', '/api/v1/ghg/preview', '盤查報告自動段落預覽（orgId、year、datasetId）', (ctx, { query }) => {
   assertCan(ctx, 'view.internal', query.orgId);

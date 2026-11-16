@@ -471,6 +471,27 @@ const MIGRATIONS = [
     org_id TEXT PRIMARY KEY REFERENCES organizations(id), data TEXT NOT NULL DEFAULT '{}', updated_by TEXT, updated_at TEXT NOT NULL
   );
   `,
+  // 5：對外系統資料輸出（能源查核申報表七建築資料、表十／十一節約能源措施、表十之六歷年節電率）
+  `
+  ALTER TABLE buildings ADD COLUMN attrs TEXT NOT NULL DEFAULT '{}';
+  CREATE TABLE energy_measures (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL REFERENCES organizations(id), asset_id TEXT REFERENCES assets(id),
+    year INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('done','plan')),
+    source TEXT NOT NULL DEFAULT 'current' CHECK (source IN ('cross_year','current')),
+    code TEXT, name TEXT NOT NULL, target TEXT, area TEXT, method TEXT,
+    energy_type TEXT NOT NULL CHECK (energy_type IN ('electricity','fuel_oil','lpg','ng','gasoline','diesel')),
+    period_from TEXT, period_to TEXT, calc_from_month INTEGER, calc_to_month INTEGER,
+    saving REAL, peak_reduction_kw REAL, benefit_twd REAL, investment_twd REAL, calc_note TEXT,
+    evidence_ids TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','cancelled')),
+    created_by TEXT, created_at TEXT NOT NULL, updated_by TEXT, updated_at TEXT NOT NULL
+  );
+  CREATE INDEX energy_measures_org ON energy_measures(org_id, year);
+  CREATE TABLE energy_saving_years (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL REFERENCES organizations(id), asset_id TEXT REFERENCES assets(id),
+    year INTEGER NOT NULL, saving_kwh REAL, usage_kwh REAL, deduct_kwh REAL, note TEXT,
+    updated_by TEXT, updated_at TEXT NOT NULL, UNIQUE (org_id, asset_id, year)
+  );
+  `,
 ];
 
 let db = null;

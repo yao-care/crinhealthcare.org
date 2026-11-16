@@ -40,6 +40,19 @@ export const METRICS = [
   ['elec_cost_twd', 'electricity', '電費', 'cost', 'interval', 'TWD', '帳單應繳總額'],
   ['elec_peak_demand_kw', 'electricity', '最高需量', 'demand', 'interval', 'kW', '計費期間最高需量'],
   ['elec_contract_kw', 'electricity', '經常契約容量', 'capacity', 'stock', 'kW', ''],
+  // 電費單細項（能源查核申報表五之二：時段度數、時段最高需量、轉供度數、功因）
+  ['elec_peak_kwh', 'electricity', '尖峰度數', 'usage_tou', 'interval', 'kWh', '帳單時段度數；夏月／非夏月依帳單'],
+  ['elec_semipeak_kwh', 'electricity', '半尖峰度數', 'usage_tou', 'interval', 'kWh', ''],
+  ['elec_satsemipeak_kwh', 'electricity', '週六半尖峰度數', 'usage_tou', 'interval', 'kWh', ''],
+  ['elec_offpeak_kwh', 'electricity', '離峰度數', 'usage_tou', 'interval', 'kWh', ''],
+  ['elec_demand_semipeak_kw', 'electricity', '半尖峰最高需量', 'demand', 'interval', 'kW', '「最高需量」欄為尖峰時段'],
+  ['elec_demand_satsemipeak_kw', 'electricity', '週六半尖峰最高需量', 'demand', 'interval', 'kW', ''],
+  ['elec_demand_offpeak_kw', 'electricity', '離峰最高需量', 'demand', 'interval', 'kW', ''],
+  ['elec_wheeled_kwh', 'electricity', '轉供度數', 'wheeled', 'interval', 'kWh', '購買再生能源經台電電網轉供之用電量（帳單載明）'],
+  ['elec_power_factor_pct', 'electricity', '功率因數', 'power_factor', 'interval', 'pct', '帳單平均功因'],
+  ['elec_contract_semipeak_kw', 'electricity', '半尖峰契約容量', 'capacity', 'stock', 'kW', ''],
+  ['elec_contract_satsemipeak_kw', 'electricity', '週六半尖峰契約容量', 'capacity', 'stock', 'kW', ''],
+  ['elec_contract_offpeak_kw', 'electricity', '離峰契約容量', 'capacity', 'stock', 'kW', ''],
   ['elec_generated_kwh', 'electricity', '自發電量', 'generation', 'interval', 'kWh', '太陽能等院內發電系統總發電'],
   ['elec_self_used_kwh', 'electricity', '自發自用電量', 'self_use', 'interval', 'kWh', ''],
   ['elec_exported_kwh', 'electricity', '售電／輸出電量', 'export', 'interval', 'kWh', '躉售或轉供，不可再計入自用'],
@@ -105,6 +118,13 @@ export const METRICS = [
   ['inpatient_days', 'activity', '住院人日', 'bed_days', 'interval', 'bed_day', ''],
   ['beds', 'activity', '病床數', 'capacity', 'stock', 'bed', ''],
   ['floor_area_m2', 'activity', '樓地板面積', 'area', 'stock', 'm2', ''],
+  ['aircon_area_m2', 'activity', '空調使用面積', 'area', 'stock', 'm2', '能源查核申報基本資料'],
+  ['parking_area_m2', 'activity', '室內停車場面積', 'area', 'stock', 'm2', '室內樓地板面積＝總樓地板面積－室內停車場面積'],
+  ['medical_staff_count', 'activity', '執業醫事人員數', 'count', 'stock', 'person', '能源查核申報「員工人數」醫院填陳報衛福部之執業醫事人員總數'],
+  // 廢棄物（國健署醫院節能減碳填報）
+  ['waste_general_kg', 'activity', '一般事業廢棄物產出量', 'waste', 'interval', 'kg', '清運聯單或委託清除處理紀錄'],
+  ['waste_hazardous_kg', 'activity', '有害事業廢棄物產出量（含感染性）', 'waste', 'interval', 'kg', ''],
+  ['waste_recycled_kg', 'activity', '資源回收量', 'waste', 'interval', 'kg', ''],
 ];
 
 // 盤點項目：PRD §4.1–4.4 的子項，加上原碳盤查表拆出來的項目
@@ -159,13 +179,17 @@ export const ITEMS = [
     applicability_rules: '確認院區用水是否接管', ghg_ref: { scope: 1, iso: '類別一', type: 'septic_ch4' } }),
   // 電
   I('ELE-GRID', 'electricity', 'grid', '外購電力', {
-    asset_types: ['power_account', 'billing_point'], metrics: ['elec_purchased_kwh', 'elec_cost_twd', 'elec_peak_demand_kw', 'elec_contract_kw'],
+    asset_types: ['power_account', 'billing_point'], metrics: ['elec_purchased_kwh', 'elec_cost_twd', 'elec_peak_demand_kw', 'elec_contract_kw',
+      'elec_peak_kwh', 'elec_semipeak_kwh', 'elec_satsemipeak_kwh', 'elec_offpeak_kwh', 'elec_demand_semipeak_kw', 'elec_demand_satsemipeak_kw', 'elec_demand_offpeak_kw',
+      'elec_wheeled_kwh', 'elec_power_factor_pct', 'elec_contract_semipeak_kw', 'elec_contract_satsemipeak_kw', 'elec_contract_offpeak_kw'],
     required_data: ['kWh', '費用', '契約容量', '計費期間', '帳單'], source_hints: ['台電電費帳單', 'EMS', '電費繳費紀錄'],
     special_rules: ['計費區間不一定是自然月，保存原期間並另存分攤值', '帳單與 EMS 先校準邊界再比較', '計費期間跨年前後都要收集'],
-    usage_candidates: ['溫室氣體盤查（範疇二）', 'ESG', '能源用戶申報（附表三）', '成本管理'], ghg_ref: { scope: 2, iso: '類別二', type: 'purchased_electricity' } }),
+    usage_candidates: ['溫室氣體盤查（範疇二）', 'ESG', '能源查核申報（附表三）', '政府機關節能填報', '成本管理'], ghg_ref: { scope: 2, iso: '類別二', type: 'purchased_electricity' } }),
   I('ELE-SUB', 'electricity', 'submeter', '院內分表', {
-    asset_types: ['power_meter', 'substation', 'building'], metrics: ['elec_metered_kwh', 'elec_meter_reading_kwh', 'elec_peak_demand_kw'],
-    special_rules: ['母表與子表層級，損失與未計量部分', '累積讀值差分處理換表、歸零、缺點與倍率'] }),
+    asset_types: ['panel', 'power_meter', 'substation', 'building'], metrics: ['elec_metered_kwh', 'elec_meter_reading_kwh', 'elec_peak_demand_kw', 'equip_estimated_kwh'],
+    required_data: ['所屬電號（上層標的）', '有無電表', '主要負載系統'],
+    special_rules: ['母表與子表層級，損失與未計量部分', '累積讀值差分處理換表、歸零、缺點與倍率', '沒有電表的分盤以額定功率 × 運轉時數推估，品質等級低於表計'],
+    usage_candidates: ['能源查核申報（表六 電力使用分布）', 'ISO 50001', '節能診斷'] }),
   I('ELE-HEAT', 'electricity', 'imported_heat', '外購蒸汽、熱能、冷能', {
     asset_types: ['supply_contract', 'equipment'], metrics: ['imported_energy_gj'], required_data: ['供應量（GJ 或噸蒸汽換算）', '供應商排放係數', '帳單'],
     source_hints: ['蒸汽供應契約', '區域供冷／供熱帳單'], special_rules: ['排放係數向供應商取得，沒有係數時不可估算為 0'],
@@ -177,8 +201,14 @@ export const ITEMS = [
     asset_types: ['ess'], metrics: ['ess_charge_kwh', 'ess_discharge_kwh', 'ess_soc_pct'], source_hints: ['儲能櫃 Modbus', '充放電表'],
     special_rules: ['充電與放電不可逕行互抵成組織用電'] }),
   I('ELE-EQUIP', 'electricity', 'high_load', '高耗能設備（空調、冰機、資訊機房）', {
-    asset_types: ['chiller', 'ahu', 'data_room', 'equipment'], metrics: ['equip_runtime_h', 'equip_rated_kw', 'equip_estimated_kwh', 'elec_metered_kwh'],
-    usage_candidates: ['ISO 50001', '設備汰換', '節能診斷'] }),
+    asset_types: ['chiller', 'cooling_tower', 'pump', 'ahu', 'fan', 'lighting', 'elevator', 'heat_pump', 'air_compressor', 'refrigeration', 'office_equipment', 'data_room', 'equipment'],
+    metrics: ['equip_runtime_h', 'equip_rated_kw', 'equip_estimated_kwh', 'elec_metered_kwh'],
+    required_data: ['系統別', '容量與單位', '額定電功率', '數量', '年運轉時數', '製造年份'],
+    usage_candidates: ['能源查核申報（表九 使用能源設備統計）', 'ISO 50001', '設備汰換', '節能診斷'] }),
+  I('ELE-SYS', 'electricity', 'power_system', '變壓器與電能系統', {
+    asset_types: ['transformer', 'capacitor'], metrics: [],
+    required_data: ['廠牌', '製造年份', '容量（kVA）', '型式（乾式／油式／非晶質式）', '一次／二次側電壓', '功因調整器、電容器'],
+    source_hints: ['電氣設備清冊', '變壓器銘牌', '電力技術人員巡檢紀錄'], usage_candidates: ['能源查核申報（表八 電能系統資料）'] }),
   // 氣
   I('GAS-NG', 'gas', 'natural_gas', '天然氣（鍋爐、廚房爐具）', {
     asset_types: ['gas_account', 'gas_meter', 'boiler'], metrics: ['ng_consumption_m3', 'ng_meter_reading_m3', 'ng_cost_twd', 'ng_heat_kcal_m3'],
@@ -211,10 +241,13 @@ export const ITEMS = [
     asset_types: ['wwtp'], metrics: ['wastewater_treated_m3'], special_rules: ['依處理方法判斷甲烷，非水量×任意係數'],
     ghg_ref: { scope: 1, iso: '類別一', type: 'wastewater_ch4' } }),
   // 營運活動
-  I('ACT-STAFF', 'activity', 'staff', '員工人數與工時', { asset_types: ['org_activity'], metrics: ['staff_count', 'staff_hours'],
+  I('ACT-STAFF', 'activity', 'staff', '員工人數與工時', { asset_types: ['org_activity'], metrics: ['staff_count', 'staff_hours', 'medical_staff_count'],
     required_data: ['年底員工人數（全職＋兼職，統計至 12/31）', '年度工時'], source_hints: ['人事室'] }),
   I('ACT-PATIENT', 'activity', 'patients', '就診與住院人次', { asset_types: ['org_activity'], metrics: ['outpatient_visits', 'inpatient_days'], source_hints: ['醫務管理'] }),
-  I('ACT-CAP', 'activity', 'capacity', '病床與樓地板面積', { asset_types: ['org_activity'], metrics: ['beds', 'floor_area_m2'], source_hints: ['醫務管理', '總務室', '使用執照'] }),
+  I('ACT-CAP', 'activity', 'capacity', '病床與樓地板面積', { asset_types: ['org_activity'], metrics: ['beds', 'floor_area_m2', 'aircon_area_m2', 'parking_area_m2'], source_hints: ['醫務管理', '總務室', '使用執照'] }),
+  I('ACT-WASTE', 'activity', 'waste', '廢棄物產出量', { asset_types: ['org_activity'], metrics: ['waste_general_kg', 'waste_hazardous_kg', 'waste_recycled_kg'],
+    required_data: ['一般事業廢棄物（公斤）', '有害事業廢棄物含感染性（公斤）', '資源回收量（公斤）'], source_hints: ['事業廢棄物清運聯單', '環境部事業廢棄物申報系統', '委託清除處理契約'],
+    usage_candidates: ['國健署醫院節能減碳填報', 'ESG'] }),
 ];
 
 // 原碳盤查表的非油水電氣項目：保留為參照（PRD §0、§19），不塞進四大類
@@ -261,7 +294,8 @@ export const ASSET_TYPES = {
   generation_meter: '發電計量表', ess: '儲能櫃', chiller: '冰水主機', ahu: '空調箱', data_room: '資訊機房', equipment: '設備',
   gas_account: '瓦斯帳號', gas_meter: '氣表', lpg_cylinder: 'LPG 鋼瓶', lpg_tank: 'LPG 儲槽', split_ac: '分離式冷氣',
   window_ac: '窗型冷氣', water_dispenser: '飲水機', refrigerator: '冷藏設備', dryer: '乾燥機', vehicle_ac: '公務車冷氣',
-  gcb: '氣體斷路器（GCB）',  gas_cylinder: '氣體鋼瓶', gas_supply: '氣體供應', fire_extinguisher: '滅火器', org_activity: '院所營運活動',
+  gcb: '氣體斷路器（GCB）', panel: '分電盤', transformer: '變壓器', capacitor: '進相電容器', cooling_tower: '冷卻水塔', pump: '泵浦', fan: '送排風機',
+  lighting: '照明', elevator: '電梯', heat_pump: '熱泵', air_compressor: '空壓機', refrigeration: '冷凍冷藏設備', office_equipment: '事務設備', gas_cylinder: '氣體鋼瓶', gas_supply: '氣體供應', fire_extinguisher: '滅火器', org_activity: '院所營運活動',
 };
 
 // 資料工作進度（PRD §5.2）
@@ -271,3 +305,46 @@ export const WORK_STATUS = {
 };
 export const APPLICABILITY = { undetermined: '未判定', applicable: '適用', not_applicable: '不適用', pending: '待查證' };
 export const USAGE_STATUS = { candidate: '候選用途', evaluated: '評估適用', mapped: '已對應欄位', cited: '已引用', published: '已出報告／已完成申報資料準備' };
+
+// 標的專屬欄位（存在 attrs）：依標的類型出現在新增／編輯畫面。[鍵, 標籤, 型態, 選項, 預設, 是否收在進階]
+// 用途：能源查核申報（表三、表五之二、表六～表九）、環境部匯入表單（表3）、政府機關節能填報
+const SYS_OPTS = ['空調', '照明', '冷凍冷藏', '事務設備', '送排風', '給水污水', '電梯', '鍋爐', '熱泵', '壓縮空氣', '醫療設備', '資訊機房', '其他'].map((x) => [x, x]);
+const CAP_UNITS = ['RT', 'kW', 'HP', 'W', 'kVA', '公噸/小時', '仟卡/小時', '公升', 'CMH'].map((x) => [x, x]);
+const EQUIP_COMMON = [['qty', '數量（台）', 'number', null, 1, true], ['ratedKw', '額定電功率（kW，單台）', 'number', null, '', true], ['hoursPerYear', '年運轉時數（小時）', 'number', null, '', true],
+  ['year', '製造年份（民國年）', 'number', null, '', true], ['brand', '廠牌', 'text', null, '', true], ['model', '型號', 'text', null, '', true]];
+const EQUIP_FULL = [['system', '系統別', 'select', SYS_OPTS, '', false], ['equipName', '設備名稱（例：中央空調主機、冰水泵、LED 燈）', 'text', null, '', false],
+  ['capacity', '設備容量', 'number', null, '', false], ['capacityUnit', '容量單位', 'select', CAP_UNITS, '', false], ...EQUIP_COMMON,
+  ['inverter', '有變頻控制', 'checkbox', null, false, true], ['efficiency', '能源效率（COP、kW/RT、EER、IE 等級）', 'text', null, '', true], ['loadPct', '平均負載率（%，推估用電用）', 'number', null, '', true]];
+const MOENV_ADV = [['dept', '所屬單位／部門', 'text', null, '', true], ['moenvEquipNo', '環境部設備編號（GS01、GF0001…，歷年須相同）', 'text', null, '', true],
+  ['moenvEquipCode', '環境部設備代碼與名稱（覆寫預設，例：0298 發電機）', 'text', null, '', true]];
+export const ASSET_ATTRS = {
+  power_account: [['tariffType', '契約用電別（例：65 需量綜合(高壓)非營業用）', 'text', null, '', false], ['contractKw', '經常契約容量（kW）', 'number', null, '', false],
+    ['accountName', '戶名', 'text', null, '', true], ['supplyAddress', '用電地址', 'text', null, '', true], ['industry', '行業別（電費單）', 'text', null, '', true],
+    ['energyUserNo', '能源用戶編號（能源署）', 'text', null, '', true], ['contractSemiPeakKw', '半尖峰契約容量（kW）', 'number', null, '', true],
+    ['contractSatSemiPeakKw', '週六半尖峰契約容量（kW）', 'number', null, '', true], ['contractOffPeakKw', '離峰契約容量（kW）', 'number', null, '', true],
+    ['supplyFloorAreaM2', '供電範圍總樓地板面積（m²，多電號時必填）', 'number', null, '', true], ['supplyAcAreaM2', '供電範圍空調使用面積（m²）', 'number', null, '', true],
+    ['supplyParkingAreaM2', '供電範圍室內停車場面積（m²）', 'number', null, '', true], ['supplyStaff', '供電範圍員工人數（執業醫事人員）', 'number', null, '', true],
+    ['sharedMeter', '與他人共用電表', 'checkbox', null, false, true], ['mergedReport', '經核准合併申報之電號（無則留空）', 'text', null, '', true]],
+  panel: [['metered', '有電表', 'checkbox', null, true, false], ['system', '主要負載系統', 'select', SYS_OPTS, '', false],
+    ['ratedKw', '總額定功率（kW，沒有電表時推估用）', 'number', null, '', true], ['hoursPerYear', '年運轉時數（小時，沒有電表時推估用）', 'number', null, '', true], ['loadPct', '平均負載率（%）', 'number', null, '', true]],
+  power_meter: [['system', '主要負載系統', 'select', SYS_OPTS, '', true]],
+  transformer: [['kva', '容量（kVA）', 'number', null, '', false], ['xfmrType', '型式', 'select', [['乾式', '乾式'], ['油式', '油式'], ['非晶質式', '非晶質式']], '', false],
+    ['brand', '廠牌', 'text', null, '', true], ['year', '製造年份（民國年）', 'number', null, '', true], ['primaryKv', '一次側電壓（kV）', 'number', null, '', true], ['secondaryV', '二次側電壓（V）', 'number', null, '', true],
+    ['loadDesc', '迴路名稱／負載概述', 'text', null, '', true], ['pfController', '有功因自動調整器', 'checkbox', null, false, true], ['capacitorKvar', '裝置電容器量（kVAr）', 'number', null, '', true]],
+  capacitor: [['kvar', '容量（kVAr）', 'number', null, '', false]],
+  generator: [['kva', '容量（kVA）', 'number', null, '', true], ['voltageV', '電壓（V）', 'number', null, '', true], ['ratedKw', '額定功率（kW）', 'number', null, '', true], ...MOENV_ADV],
+  pv_system: [['capacityKw', '裝置容量（kW）', 'number', null, '', false]],
+  boiler: [['boilerKind', '鍋爐種類', 'select', [['蒸汽鍋爐', '蒸汽鍋爐'], ['熱水鍋爐', '熱水鍋爐'], ['貫流式鍋爐', '貫流式鍋爐']], '', true], ['capacity', '容量（額定蒸發量或發熱量）', 'number', null, '', true],
+    ['capacityUnit', '容量單位', 'select', [['公噸/小時', '公噸/小時'], ['仟卡/小時', '仟卡/小時']], '', true], ['heatUse', '熱能用途', 'select', [['房間用', '房間用'], ['洗衣房', '洗衣房'], ['廚房餐廳', '廚房餐廳'], ['消毒設備', '消毒設備'], ['溫水游泳池', '溫水游泳池'], ['其他設備', '其他設備']], '', true], ...EQUIP_COMMON, ...MOENV_ADV],
+  gas_account: [['heatUse', '熱能用途', 'select', [['廚房餐廳', '廚房餐廳'], ['洗衣房', '洗衣房'], ['消毒設備', '消毒設備'], ['房間用', '房間用'], ['其他設備', '其他設備']], '', true],
+    ['ngType', '天然氣種類（彰化以北多為 NG1）', 'select', [['NG1', 'NG1'], ['NG2', 'NG2']], '', true], ['supplier', '供應商', 'text', null, '', true], ...MOENV_ADV],
+  vehicle: [['vehicleClass', '車種', 'select', [['小客車', '小客車'], ['小貨車', '小貨車'], ['大客車', '大客車'], ['大貨車', '大貨車'], ['機車', '機車']], '小客車', true], ...MOENV_ADV],
+  lighting: [['system', '系統別', 'select', SYS_OPTS, '照明', true], ['equipName', '燈具種類（日光燈、LED 燈、複金屬燈…）', 'text', null, '', false], ['lightingSpec', '容量規格（例：20W×4）', 'text', null, '', false],
+    ['area', '裝設區域', 'text', null, '', false], ['qty', '數量', 'number', null, 1, false], ['ratedKw', '單具功率（kW）', 'number', null, '', true], ['hoursPerYear', '年運轉時數（小時）', 'number', null, '', true]],
+};
+for (const t of ['chiller', 'cooling_tower', 'pump', 'ahu', 'fan', 'elevator', 'heat_pump', 'air_compressor', 'refrigeration', 'office_equipment', 'data_room', 'equipment']) ASSET_ATTRS[t] = EQUIP_FULL;
+for (const t of ['split_ac', 'window_ac', 'water_dispenser', 'refrigerator', 'dryer', 'vehicle_ac']) ASSET_ATTRS[t] = [...EQUIP_COMMON, ...MOENV_ADV];
+for (const t of ['gas_meter', 'lpg_cylinder', 'lpg_tank', 'forklift', 'machinery', 'gcb', 'gas_cylinder', 'gas_supply', 'fire_extinguisher', 'septic_tank', 'supply_contract']) ASSET_ATTRS[t] = ASSET_ATTRS[t] || MOENV_ADV;
+ASSET_ATTRS.gas_meter = ASSET_ATTRS.gas_account;
+// chiller 同時是冷媒設備（GAS-REF）與高耗能設備（ELE-EQUIP）：兩邊都問設備規格與環境部欄位
+ASSET_ATTRS.chiller = [...EQUIP_FULL, ...MOENV_ADV];

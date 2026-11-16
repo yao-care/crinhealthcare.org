@@ -3,9 +3,17 @@ import { state, get, post, patch, h, route, page, card, table, link, chip, value
   action, btn, modal, formModal, form, userOptions, toast, can, needOrg, render, note, dl, go, metricName, download } from '../core.js';
 
 // 自動段落（ISO 14064-1 等）：文字＋表格
+const cellText = (v) => (v === null || v === undefined || v === '' ? '—' : typeof v === 'number' ? fmtNum(v) : String(v));
+const tableView = (t) => table(t.columns.map((c, i) => ({ label: c, render: (r) => cellText(r[i]) })), t.rows, { empty: '（無資料）' });
+// 多表段落（能源查核、環境部匯入表單…）：每張表收合，標題列出列數；匯出 XLSX 時每張表一個工作表
 export function blockView(b) {
   if (!b) return '—';
-  return h('div', { class: 'pf-small' }, b.text ? h('p', b.text) : null, b.table ? table(b.table.columns.map((c, i) => ({ label: c, render: (r) => (r[i] === null || r[i] === undefined || r[i] === '' ? '—' : String(r[i])) })), b.table.rows) : null);
+  const ts = b.tables?.length ? b.tables : b.table ? [b.table] : [];
+  return h('div', { class: 'pf-small' }, b.text ? h('p', b.text) : null,
+    ts.length === 1 && !ts[0].title ? tableView(ts[0]) : ts.map((t, i) => h('details', { open: ts.length === 1 || undefined },
+      h('summary', `${t.title || `表 ${i + 1}`}（${t.rows.length} 列）`),
+      t.info?.length ? h('p', { class: 'muted' }, t.info.map(([k, v]) => `${k}：${v || '—'}`).join('｜')) : null,
+      tableView(t))));
 }
 
 export function register() {

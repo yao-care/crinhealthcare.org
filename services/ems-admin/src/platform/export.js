@@ -46,6 +46,10 @@ function model(run) {
   };
 }
 
+// 段落可有一張（table）或多張（tables）表；多張時每張有標題、可另附基本資訊（info）與官方表頭（xlsxHead）
+const tablesOf = (b) => (b?.tables?.length ? b.tables : b?.table ? [b.table] : []);
+const str = (v) => (v === null || v === undefined ? '' : typeof v === 'number' ? v.toLocaleString('en-US', { maximumFractionDigits: 6 }) : String(v));
+
 function toRows(m) {
   const rows = [[{ v: m.title, s: 'title' }], [{ v: `${m.template}｜第 ${m.runNo} 版｜狀態 ${m.status}`, s: 'note' }], [{ v: `報告雜湊 ${m.hash}`, s: 'note' }], []];
   rows.push(['章節', '欄位', '數值', '單位', '狀態', '指標', '計算式', '說明'].map((v) => ({ v, s: 'head' })));
@@ -53,7 +57,9 @@ function toRows(m) {
     if (f.kind === 'evidence_list') { for (const e of f.list || []) rows.push([s.title, f.label, e.filename, '', '', e.metric_code, `${e.asset_name} ${e.period_start}～${exclusiveEndToInclusive(e.period_end)}`, `sha256 ${e.sha256.slice(0, 12)}…`].map((v) => ({ v, s: 'cell' }))); continue; }
     if (f.block) {
       rows.push([s.title, f.label, f.block.text || '', '', STATE_LABEL[f.state] || '', '', '', ''].map((v) => ({ v, s: 'cell' })));
-      if (f.block.table) { rows.push(['', ...f.block.table.columns].map((v) => ({ v, s: 'head' }))); for (const r of f.block.table.rows) rows.push(['', ...r].map((v) => ({ v, s: 'cell' }))); }
+      const ts = tablesOf(f.block);
+      if (ts.length === 1 && !ts[0].sheet) { rows.push(['', ...ts[0].columns].map((v) => ({ v, s: 'head' }))); for (const r of ts[0].rows) rows.push(['', ...r].map((v) => ({ v, s: 'cell' }))); }
+      else for (const t of ts) rows.push(['', `→ 工作表「${t.sheet || t.title}」：${t.title}（${t.rows.length} 列）`].map((v) => ({ v, s: 'note' })));
       continue;
     }
     if (f.kind === 'quality') { rows.push([s.title, f.label, JSON.stringify(f.quality?.byState || {}), '', '', '', `採用值 ${f.quality?.facts ?? 0} 筆、高影響裁決 ${f.quality?.highImpact ?? 0} 筆、未結差異 ${f.quality?.openCases ?? 0} 件`, ''].map((v) => ({ v, s: 'cell' }))); continue; }
@@ -65,11 +71,36 @@ function toRows(m) {
   return rows;
 }
 
+// 多表段落：每張表一個工作表。有官方表頭（xlsxHead）時逐列照抄，資料緊接在表頭之後（可直接另存後匯入）
+function tableSheets(m) {
+  const out = [];
+  for (const s of m.sections) for (const f of s.fields) {
+    const ts = tablesOf(f.block);
+    if (!(ts.length > 1 || ts.some((t) => t.sheet))) continue;
+    for (const t of ts) {
+      const rows = [];
+      if (t.xlsxHead) for (const hr of t.xlsxHead) rows.push(hr.map((v) => ({ v, s: 'head' })));
+      else {
+        rows.push([{ v: t.title, s: 'title' }]);
+        for (const [k, v] of t.info || []) rows.push([{ v: k, s: 'head' }, { v, s: 'cell' }]);
+        rows.push(t.columns.map((v) => ({ v, s: 'head' })));
+      }
+      for (const r of t.rows) rows.push(r.map((v) => ({ v: v === '' ? null : v, s: 'cell' })));
+      out.push({ name: t.sheet || t.title, rows, cols: t.columns.map((c) => Math.min(40, Math.max(10, String(c).length * 1.6))) });
+    }
+  }
+  return out;
+}
+
 function csv(m) {
   const lines = [['章節', '欄位', '數值', '單位', '狀態', '指標', '計算式', '說明']];
   for (const s of m.sections) for (const f of s.fields) {
     if (f.kind === 'evidence_list') { for (const e of f.list || []) lines.push([s.title, f.label, e.filename, '', '', e.metric_code, e.asset_name, e.sha256]); continue; }
-    if (f.block) { lines.push([s.title, f.label, f.block.text || '', '', STATE_LABEL[f.state] || '', '', '', '']); if (f.block.table) { lines.push(['', '', ...f.block.table.columns]); for (const r of f.block.table.rows) lines.push(['', '', ...r]); } continue; }
+    if (f.block) {
+      lines.push([s.title, f.label, f.block.text || '', '', STATE_LABEL[f.state] || '', '', '', '']);
+      for (const t of tablesOf(f.block)) { if (t.title) lines.push(['', `【${t.title}】`]); for (const [k, v] of t.info || []) lines.push(['', '', k, v]); lines.push(['', '', ...t.columns]); for (const r of t.rows) lines.push(['', '', ...r]); }
+      continue;
+    }
     if (f.kind === 'quality') { lines.push([s.title, f.label, JSON.stringify(f.quality), '', '', '', '', '']); continue; }
     lines.push([s.title, f.label, f.masked ? '' : f.value ?? '', f.unit, STATE_LABEL[f.state] || f.state || '', f.indicator || '', f.formula, f.notes.join('；')]);
   }
@@ -81,7 +112,7 @@ export function html(m) {
   const sec = m.sections.map((s) => `<section><h2>${esc(s.title)}</h2><table><thead><tr><th>欄位</th><th>數值</th><th>單位</th><th>狀態</th><th>計算與說明</th></tr></thead><tbody>${
     s.fields.map((f) => {
       if (f.kind === 'evidence_list') return `<tr><td>${esc(f.label)}</td><td colspan="4"><ol>${(f.list || []).map((e) => `<li>${esc(e.filename)}（${esc(e.asset_name)}，${esc(e.metric_code)}，sha256 ${esc(e.sha256.slice(0, 16))}…）</li>`).join('') || '<li>無</li>'}</ol></td></tr>`;
-      if (f.block) return `<tr><td>${esc(f.label)}</td><td colspan="4">${f.block.text ? `<p>${esc(f.block.text)}</p>` : ''}${f.block.table ? `<table><thead><tr>${f.block.table.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${f.block.table.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : ''}${f.state && f.state !== 'measured' ? `<small>狀態：${esc(STATE_LABEL[f.state] || f.state)}</small>` : ''}</td></tr>`;
+      if (f.block) return `<tr><td>${esc(f.label)}</td><td colspan="4">${f.block.text ? `<p>${esc(f.block.text)}</p>` : ''}${tablesOf(f.block).map((t) => `${tablesOf(f.block).length > 1 || t.sheet ? `<p><b>${esc(t.title || '')}</b></p>` : ''}${(t.info || []).length ? `<p class="meta">${t.info.map(([k, v]) => `${esc(k)}：${esc(v)}`).join('｜')}</p>` : ''}<table class="wide"><thead><tr>${t.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(str(v))}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${t.columns.length}">（無資料）</td></tr>`}</tbody></table>`).join('')}${f.state && f.state !== 'measured' ? `<small>狀態：${esc(STATE_LABEL[f.state] || f.state)}</small>` : ''}</td></tr>`;
       if (f.kind === 'quality') return `<tr><td>${esc(f.label)}</td><td colspan="4">採用值 ${f.quality?.facts ?? 0} 筆；狀態 ${esc(JSON.stringify(f.quality?.byState || {}))}；高影響裁決 ${f.quality?.highImpact ?? 0}；未結差異 ${f.quality?.openCases ?? 0}</td></tr>`;
       return `<tr><td>${esc(f.label)}</td><td class="num">${esc(fmtVal(f))}</td><td>${esc(f.unit)}</td><td>${esc(STATE_LABEL[f.state] || f.state || '')}</td><td>${esc(f.formula)}${f.notes.length ? `<br><small>${esc(f.notes.join('；'))}</small>` : ''}</td></tr>`;
     }).join('')}</tbody></table></section>`).join('');
@@ -89,7 +120,7 @@ export function html(m) {
     body{font-family:"Noto Sans CJK TC","Noto Serif CJK TC",sans-serif;font-size:12pt;margin:18mm;color:#111}
     h1{font-size:18pt;margin:0 0 4pt}h2{font-size:14pt;margin:14pt 0 4pt;border-bottom:1px solid #999}
     table{border-collapse:collapse;width:100%;font-size:10.5pt}th,td{border:1px solid #bbb;padding:3pt 5pt;vertical-align:top;text-align:left}th{background:#eee}
-    .num{text-align:right;white-space:nowrap}.meta{font-size:9.5pt;color:#444}small{color:#555}</style></head><body>
+    .num{text-align:right;white-space:nowrap}.meta{font-size:9.5pt;color:#444}small{color:#555}table.wide{font-size:8pt}table.wide td,table.wide th{padding:1pt 2pt}</style></head><body>
     <h1>${esc(m.title)}</h1><p class="meta">${esc(m.template)}｜第 ${m.runNo} 版｜狀態：${esc(m.status)}${m.lockedAt ? `｜封存：${esc(m.lockedAt)}` : ''}<br>
     報告雜湊 ${esc(m.hash)}｜資料集 ${esc(m.datasetId)}${m.datasetHash ? `（雜湊 ${esc(m.datasetHash.slice(0, 16))}…）` : ''}</p>
     <p class="meta">缺漏、不適用、估計值一律明示，不以 0 代替。本文件為依官方格式準備之資料，不代表已完成官方申報。</p>${sec}
@@ -108,7 +139,16 @@ function docx(m) {
     const rows = [row(['欄位', '數值', '單位', '狀態', '計算與說明'], true)];
     for (const f of s.fields) {
       if (f.kind === 'evidence_list') { for (const e of f.list || []) rows.push(row([f.label, e.filename, '', '', `${e.asset_name}｜sha256 ${e.sha256.slice(0, 16)}…`])); continue; }
-      if (f.block) { rows.push(row([f.label, f.block.text || '', '', STATE_LABEL[f.state] || '', ''])); if (f.block.table) { body += tbl(rows.splice(0)); body += tbl([row(f.block.table.columns, true), ...f.block.table.rows.map((r) => row(r.map(String)))]); rows.push(row(['欄位', '數值', '單位', '狀態', '計算與說明'], true)); } continue; }
+      if (f.block) {
+        rows.push(row([f.label, f.block.text || '', '', STATE_LABEL[f.state] || '', '']));
+        const ts = tablesOf(f.block);
+        if (ts.length) {
+          body += tbl(rows.splice(0));
+          for (const t of ts) { if (t.title) body += p(t.title); if (t.info?.length) body += p(t.info.map(([k, v]) => `${k}：${v}`).join('｜')); body += tbl([row(t.columns, true), ...t.rows.map((r) => row(r.map(str)))]); }
+          rows.push(row(['欄位', '數值', '單位', '狀態', '計算與說明'], true));
+        }
+        continue;
+      }
       if (f.kind === 'quality') { rows.push(row([f.label, String(f.quality?.facts ?? 0), '筆', '', JSON.stringify(f.quality?.byState || {})])); continue; }
       rows.push(row([f.label, fmtVal(f), f.unit, STATE_LABEL[f.state] || f.state || '', [f.formula, ...f.notes].filter(Boolean).join('；')]));
     }
@@ -160,7 +200,7 @@ export async function exportRun(ctx, runId, format) {
   }
   const m = model(run);
   let data;
-  if (format === 'xlsx') data = buildWorkbook([{ name: '報告', rows: toRows(m), cols: [18, 26, 16, 10, 10, 22, 40, 40] }]).buffer;
+  if (format === 'xlsx') data = buildWorkbook([{ name: '報告', rows: toRows(m), cols: [18, 26, 16, 10, 10, 22, 40, 40] }, ...tableSheets(m)]).buffer;
   else if (format === 'csv') data = csv(m);
   else if (format === 'docx') data = docx(m);
   else if (format === 'html') data = Buffer.from(html(m), 'utf8');

@@ -161,12 +161,18 @@ function siteCard(orgId, sites) {
   const siteFields = [{ key: 'name', label: '院區名稱', required: true }, { key: 'address', label: '地址', wide: true }, { key: 'note', label: '備註', type: 'textarea', wide: true },
     { key: 'validFrom', label: '生效日', type: 'date' }, { key: 'validTo', label: '失效日（含）', type: 'date' }];
   const bldFields = [{ key: 'name', label: '建物名稱', required: true }, { key: 'floors', label: '樓層', placeholder: '例：B2–12F' }, { key: 'floorAreaM2', label: '樓地板面積（m²）', type: 'number' },
-    { key: 'note', label: '備註', type: 'textarea', wide: true }, { key: 'validFrom', label: '生效日', type: 'date' }, { key: 'validTo', label: '失效日（含）', type: 'date' }];
+    { key: 'note', label: '備註', type: 'textarea', wide: true }, { key: 'validFrom', label: '生效日', type: 'date' }, { key: 'validTo', label: '失效日（含）', type: 'date' },
+    { type: 'heading', label: '建築資料（能源查核申報表七，可不填）' }, { key: 'builtYear', label: '建造年份（民國年）', type: 'number' }, { key: 'floorsBelow', label: '地下樓層數', type: 'number' },
+    { key: 'floorsAbove', label: '地上樓層數', type: 'number' }, { key: 'roof', label: '屋頂構造' }, { key: 'entrance', label: '建築入口大門方位' }, { key: 'use', label: '用途（例：醫療大樓）' }];
+  const BA = ['builtYear', 'floorsBelow', 'floorsAbove', 'roof', 'entrance', 'use'];
+  const battrs = (b) => (typeof b?.attrs === 'string' ? JSON.parse(b.attrs || '{}') : b?.attrs || {});
   const saveSite = (s) => formModal(s ? `修改院區：${s.name}` : '新增院區', siteFields, s ? { name: s.name, address: s.address, note: s.note, validFrom: s.valid_from, validTo: s.valid_to } : {}, async (v) => {
     await post('sites', nn({ ...v, orgId, id: s?.id })); toast('已儲存'); render();
   });
-  const saveBld = (site, b) => formModal(b ? `修改建物：${b.name}` : `新增建物（${site.name}）`, bldFields, b ? { name: b.name, floors: b.floors, floorAreaM2: b.floor_area_m2, note: b.note, validFrom: b.valid_from, validTo: b.valid_to } : {}, async (v) => {
-    await post('buildings', nn({ ...v, siteId: site.id, id: b?.id })); toast('已儲存'); render();
+  const saveBld = (site, b) => formModal(b ? `修改建物：${b.name}` : `新增建物（${site.name}）`, bldFields, b ? { name: b.name, floors: b.floors, floorAreaM2: b.floor_area_m2, note: b.note, validFrom: b.valid_from, validTo: b.valid_to, ...battrs(b) } : {}, async (v) => {
+    const attrs = Object.fromEntries(BA.filter((k) => v[k] !== undefined).map((k) => [k, v[k]]));
+    const rest = Object.fromEntries(Object.entries(v).filter(([k]) => !BA.includes(k)));
+    await post('buildings', nn({ ...rest, attrs, siteId: site.id, id: b?.id })); toast('已儲存'); render();
   });
   return card('院區與建物',
     w ? h('div', { class: 'pf-actions' }, action('＋新增院區', () => saveSite())) : null,
@@ -175,6 +181,7 @@ function siteCard(orgId, sites) {
       s.address ? h('p', { class: 'muted pf-small' }, s.address) : null,
       table([
         { label: '建物', key: 'name' }, { label: '樓層', key: 'floors' }, { label: '樓地板面積（m²）', key: 'floor_area_m2', num: true },
+        { label: '建造年份', render: (b) => battrs(b).builtYear ? `民國 ${battrs(b).builtYear} 年` : '—' },
         { label: '有效期間', render: (b) => `${b.valid_from && b.valid_from !== '1900-01-01' ? b.valid_from : '—'} ～ ${b.valid_to || '迄今'}` },
         { label: '備註', key: 'note' },
         { label: '動作', render: (b) => (w ? action('修改', () => saveBld(s, b)) : '—') },

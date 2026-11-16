@@ -6,6 +6,7 @@ import { getConfig } from './config-store.js';
 import { computeAll, gasClass, STATE_LABEL } from './calc.js';
 import { SIGNIFICANCE_ITEMS, ISO_CATEGORIES, ASSET_TYPES } from './seed/dictionary.js';
 import { MONTREAL } from './seed/factors.js';
+import { buildOutputBlocks } from './outputs.js';
 
 // ── 顯著性評估 ──
 export function listSignificance(ctx, orgId, year) {
@@ -284,6 +285,8 @@ export function buildBlocks(keys, { caseRow, datasetId, results, factorVersions,
     return { state: rows.length ? 'measured' : 'missing', text: rows.length ? `依排放量加權平均積分 ${fmt(avg, 2)}，整體${grade}。等級可在標的專屬欄位 dq（activityType／activityTrust／factorType）人工指定。` : '資料集沒有排放源採用值。',
       table: rows.length ? tbl(['排放源', '活動數據種類', '活動數據可信度', '排放係數種類', '積分', '等級', 'tCO₂e', '依據'], rows) : null };
   });
+  // 對外系統資料輸出的表格段落（outputs.js）
+  Object.assign(out, buildOutputBlocks(keys, { caseRow, datasetId, results }));
   return out;
 }
 

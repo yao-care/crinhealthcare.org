@@ -93,6 +93,11 @@ export function listCases(ctx, orgId) {
     WHERE c.org_id IN (${orgIds.map(() => '?').join(',')}) ORDER BY c.year DESC, c.created_at DESC`, ...orgIds);
 }
 
+// 表格段落的費用欄（maskCols）對沒有機敏檢視權限者遮罩
+export function maskBlock(b) {
+  if (!b?.tables) return b;
+  return { ...b, tables: b.tables.map((t) => (t.maskCols?.length ? { ...t, rows: t.rows.map((r) => r.map((v, i) => (t.maskCols.includes(i) && v !== '' && v !== null ? '（需權限）' : v))) } : t)) };
+}
 function mappingsFor(templateId) { return q.all('SELECT * FROM report_mappings WHERE template_id = ? ORDER BY sort', templateId); }
 
 // 就緒度：每個欄位能否引用（PRD §9.2 報告就緒率的分母依版本化模板）
@@ -106,7 +111,7 @@ export function readiness(ctx, caseId) {
   const manual = j(c.manual_values, {}); const profile = getProfile(c.org_id);
   const blocks = buildBlocks(maps.filter((m) => m.source_kind === 'text').map((m) => m.source_ref), { caseRow: c, datasetId: c.dataset_id, results, factorVersions, ruleVersions });
   const fields = maps.map((m) => {
-    if (m.source_kind === 'text') { const b = blocks[m.source_ref] || { state: 'blocked', text: '未知的自動段落' }; return { ...m, block: b, state: b.state, notes: b.state !== 'measured' && b.text ? [b.text] : [] }; }
+    if (m.source_kind === 'text') { const b0 = blocks[m.source_ref] || { state: 'blocked', text: '未知的自動段落' }; const b = can(ctx, 'view.sensitive', c.org_id) ? b0 : maskBlock(b0); return { ...m, block: b, state: b.state, notes: b.state !== 'measured' && b.text ? [b.text] : [] }; }
     if (m.source_kind === 'indicator') { const r = results[m.source_ref]; return { ...m, value: r?.value ?? null, unit: r?.unit, state: r?.value_state || 'blocked', stateLabel: STATE_LABEL[r?.value_state], notes: r?.trace?.notes || [] }; }
     if (m.source_kind === 'manual') { const mv = manualValue(m.field_id, manual, profile); return { ...m, value: mv.value, valueFrom: mv.from, state: mv.value ? 'measured' : 'missing' }; }
     return { ...m, state: 'measured', note: '產製時自動彙整' };
@@ -170,9 +175,12 @@ export function getRun(ctx, runId) {
   assertCan(ctx, 'view.internal', r.org_id);
   const tpl = templateDetail(r.template_id);
   const out = { ...parseJson(r, ['factor_versions', 'rule_versions', 'results']), template: tpl };
-  // 財務欄位遮罩
+  // 財務欄位遮罩（含表格段落的費用欄）
   if (!can(ctx, 'view.sensitive', r.org_id)) {
-    for (const [k, f] of Object.entries(out.results.fields || {})) if (/cost/.test(f.indicator || '') || /cost/.test(k)) out.results.fields[k] = { ...f, value: null, masked: true };
+    for (const [k, f] of Object.entries(out.results.fields || {})) {
+      if (/cost/.test(f.indicator || '') || /cost/.test(k)) out.results.fields[k] = { ...f, value: null, masked: true };
+      else if (f.block?.tables?.some((t) => t.maskCols?.length)) out.results.fields[k] = { ...f, block: maskBlock(f.block), masked: true };
+    }
   }
   out.artifacts = q.all('SELECT id, format, sha256, size, created_at FROM report_artifacts WHERE run_id = ? ORDER BY created_at DESC', runId);
   return out;

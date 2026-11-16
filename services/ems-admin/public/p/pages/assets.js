@@ -56,6 +56,18 @@ function itemSpecific(code) {
   if (['ELE-SUB', 'WAT-SUB', 'WAT-TAP', 'WAT-GROUND', 'GAS-NG'].includes(code)) return [['rolloverAt', '表頭最大讀數（回轉用）', 'number', null, '', true], ['calibrated', '表計有校正紀錄', 'checkbox', null, false, true]];
   return [];
 }
+// 依標的類型的專屬欄位（資料字典 ASSET_ATTRS：電號契約、分盤、變壓器、設備規格、環境部代碼…）
+const typeSpecific = (type) => state.meta.assetAttrs?.[type] || [];
+function specFor(code, type) {
+  const out = [...itemSpecific(code)];
+  for (const f of typeSpecific(type)) if (!out.some((x) => x[0] === f[0])) out.push(f);
+  return out;
+}
+// 標的詳細頁顯示專屬欄位（中文標籤）
+export function attrsLabeled(a) {
+  const spec = specFor(itemOf(a.item_id)?.code, a.asset_type);
+  return Object.entries(a.attrs || {}).map(([k, v]) => { const f = spec.find((x) => x[0] === k); const opt = f?.[3]?.find?.(([ov]) => ov === v); return `${f ? f[1].replace(/（.*?）$/, '') : k}：${v === true ? '是' : v === false ? '否' : opt ? opt[1] : v}`; }).join('；');
+}
 function attrsToValues(attrs = {}) {
   const v = { ...attrs };
   if (attrs.biogenicShare !== undefined) v.biogenicPct = attrs.biogenicShare * 100;
@@ -63,8 +75,14 @@ function attrsToValues(attrs = {}) {
   if (attrs.type === '乾粉') v.agent = '乾粉';
   return v;
 }
-function valuesToAttrs(code, v, old = {}) {
+function valuesToAttrs(code, v, old = {}, spec = []) {
   const a = { ...old };
+  for (const [k, , type, , def] of spec) {
+    if (['biogenicPct', 'refrigerant', 'refrigerantOther', 'fuel', 'agent', 'switchType', 'rolloverAt', 'calibrated'].includes(k) || !(k in v)) continue;
+    const x = v[k];
+    if (type === 'checkbox') { if (x) a[k] = true; else if (def === true) a[k] = false; else delete a[k]; continue; }
+    if (x === undefined || x === '' || x === null) delete a[k]; else a[k] = x;
+  }
   for (const k of ['fuel', 'agent', 'switchType', 'rolloverAt', 'calibrated']) if (v[k] !== undefined && v[k] !== '') a[k] = v[k]; else if (k in v) delete a[k];
   if (v.biogenicPct !== undefined && v.biogenicPct !== '') a.biogenicShare = Number(v.biogenicPct) / 100; else delete a.biogenicShare;
   if (v.refrigerant) a.refrigerant = v.refrigerant === '__other' ? (v.refrigerantOther || '') : v.refrigerant;
@@ -81,28 +99,29 @@ function assetForm({ a = {}, sites, assets, users, itemId }) {
   const itemSel = form([{ key: 'itemId', label: '盤點什麼？', type: 'select', options: itemOptions(['oil', 'water', 'electricity', 'gas', 'activity']), required: true, wide: true, readonly: editing }],
     { itemId: a.item_id || itemId || '' });
   const body = h('div');
-  let parts = null;
+  let parts = null; let selType = a.asset_type || null;
   const draw = () => {
     const it = itemOf(itemSel.inputs.itemId.value);
     if (!it) { body.replaceChildren(note('先選盤點項目，下面只會出現需要填的欄位。')); parts = null; return; }
     const types = it.asset_types?.length ? it.asset_types : Object.keys(state.meta.assetTypes);
-    const same = assets.filter((x) => x.asset_type === types[0] && x.id !== a.id).length;
-    const shortName = assetTypeName(types[0]);
-    const spec = itemSpecific(it.code);
+    if (!selType || !types.includes(selType)) selType = types[0];
+    const same = assets.filter((x) => x.asset_type === selType && x.id !== a.id).length;
+    const shortName = assetTypeName(selType);
+    const spec = specFor(it.code, selType);
     const attrVals = attrsToValues(a.attrs || {});
     const basic = form([
       types.length > 1 ? { key: 'assetType', label: '類型', type: 'select', options: types.map((t) => [t, assetTypeName(t)]), required: true } : null,
       { key: 'name', label: '名稱', required: true, hint: editing ? '' : '已依項目帶入，可直接改' },
-      { key: 'externalKey', label: ({ power_account: '電號', water_account: '水號', gas_account: '瓦斯用戶號碼', vehicle: '車牌' }[a.asset_type || types[0]]) || '資產編號（可空）', hint: '同院區同類型不可重複' },
+      { key: 'externalKey', label: ({ power_account: '電號', water_account: '水號', gas_account: '瓦斯用戶號碼', vehicle: '車牌', panel: '盤號（可空）', transformer: '變壓器編號' }[selType]) || '資產編號（可空）', hint: '同院區同類型不可重複' },
       { key: 'location', label: '位置（大樓、樓層、機房）' },
-      ...spec.filter((x) => !x[5]).map(([key, label, type, options, def]) => ({ key, label, type, options, required: type === 'select' && key !== 'refrigerant' ? true : false, default: def })),
-    ].filter(Boolean), { assetType: a.asset_type || types[0], name: a.name || `${shortName}${same ? ` ${same + 1}` : ''}`, externalKey: a.masked ? '' : a.external_key, location: a.location, ...attrVals });
+      ...spec.filter((x) => !x[5]).map(([key, label, type, options, def]) => ({ key, label, type, options, required: ['fuel', 'agent', 'switchType'].includes(key), default: def })),
+    ].filter(Boolean), { assetType: selType, name: (a.id ? a.name : null) || `${shortName}${same ? ` ${same + 1}` : ''}`, externalKey: a.masked ? '' : a.external_key, location: a.location, ...attrVals });
     const adv = form([
       ...spec.filter((x) => x[5]).map(([key, label, type, options, def]) => ({ key, label, type, options, default: def })),
       { key: 'siteId', label: '院區', type: 'select', options: sites.map((x) => [x.id, x.name]) },
       { key: 'buildingId', label: '建物', type: 'select', options: buildings }, { key: 'floor', label: '樓層' },
       { key: 'meterMultiplier', label: '表計倍率', type: 'number', default: 1 },
-      { key: 'parentAssetId', label: '上層標的（總表、共用油槽）', type: 'select', options: assets.filter((x) => x.id !== a.id).map((x) => [x.id, `${x.name}（${assetTypeName(x.asset_type)}）`]) },
+      { key: 'parentAssetId', label: selType === 'panel' || selType === 'power_meter' ? '上層（所屬電號或上一層分盤）' : '上層標的（總表、共用油槽）', type: 'select', options: assets.filter((x) => x.id !== a.id).map((x) => [x.id, `${x.name}（${assetTypeName(x.asset_type)}）`]) },
       { key: 'shared', label: '共用（例：多台發電機共用油槽）', type: 'checkbox' }, { key: 'leased', label: '租賃設備', type: 'checkbox' },
       { key: 'externalKeySensitive', label: '識別碼屬敏感資訊', type: 'checkbox' },
       { key: 'ownerUserId', label: '實際保管者（可空）', type: 'select', options: users },
@@ -110,8 +129,11 @@ function assetForm({ a = {}, sites, assets, users, itemId }) {
     ], { siteId: a.site_id || sites[0]?.id, buildingId: a.building_id, floor: a.floor, meterMultiplier: a.meter_multiplier ?? 1, parentAssetId: a.parent_asset_id,
       shared: !!a.shared, leased: !!a.leased, externalKeySensitive: a.external_key_sensitive ?? /power_account|water_account|gas_account/.test(types[0]), ownerUserId: a.owner_user_id,
       dueDate: a.due_date, nextStep: a.next_step, ...attrVals });
-    parts = { it, basic, adv, types };
-    body.replaceChildren(basic.el, h('details', h('summary', { class: 'pf-small' }, '進階（院區、樓層、倍率、上下層、保管者…，不確定可不填）'), adv.el), itemCard(it));
+    parts = { it, basic, adv, types, spec };
+    basic.inputs.assetType?.addEventListener('change', () => { selType = basic.inputs.assetType.value; draw(); });
+    // 分盤、分表要先選所屬電號：放在基本欄位下方提示
+    const needParent = ['panel', 'power_meter'].includes(selType) && !a.parent_asset_id;
+    body.replaceChildren(basic.el, needParent ? note('分盤請在「進階」選所屬電號（上層），能源查核申報才會依電號彙整。') : '', h('details', { open: needParent || undefined }, h('summary', { class: 'pf-small' }, '進階（院區、樓層、倍率、上下層、保管者、設備規格…，不確定可不填）'), adv.el), itemCard(it));
   };
   itemSel.inputs.itemId.addEventListener('change', draw); draw();
   wrap.append(itemSel.el, body);
@@ -119,7 +141,7 @@ function assetForm({ a = {}, sites, assets, users, itemId }) {
     if (!parts) { toast('請先選盤點項目', 'err'); return null; }
     const v1 = parts.basic.read(); if (!v1) return null; const v2 = parts.adv.read(); if (!v2) return null;
     const all = { ...v2, ...v1 };
-    const attrs = valuesToAttrs(parts.it.code, all, a.attrs || {});
+    const attrs = valuesToAttrs(parts.it.code, all, a.attrs || {}, parts.spec);
     const out = { itemId: parts.it.id, domain: parts.it.domain, assetType: all.assetType || parts.types[0], name: all.name, externalKey: all.externalKey || null, location: all.location,
       siteId: all.siteId, buildingId: all.buildingId, floor: all.floor, meterMultiplier: all.meterMultiplier || 1, parentAssetId: all.parentAssetId, shared: !!all.shared, leased: !!all.leased,
       externalKeySensitive: !!all.externalKeySensitive, ownerUserId: all.ownerUserId, dueDate: all.dueDate, nextStep: all.nextStep, attrs };
@@ -163,7 +185,7 @@ async function detail({ id }, qy) {
       h('a', { class: 'pf-chip ok', href: `#/assets/${id}?tab=usage` }, `這項盤點已支援 ${usageN} 項成果`)),
     dl([['盤點項目', d.item ? `${d.item.code} ${d.item.name}` : '—'], ['類型', assetTypeName(a.asset_type)], ['識別碼', a.external_key || '—'],
       ['位置', [a.location, a.floor].filter(Boolean).join(' ') || '—'], ['表計倍率', a.meter_multiplier], ['共用／租賃', [a.shared ? '共用' : '', a.leased ? '租賃' : ''].filter(Boolean).join('、') || '否'],
-      ['資料完整度', `${d.completeness.covered}/${d.completeness.required} 項必要指標有 ${state.year} 年資料`], ['專屬欄位', Object.keys(a.attrs || {}).length ? JSON.stringify(a.attrs) : '—']]),
+      ['資料完整度', `${d.completeness.covered}/${d.completeness.required} 項必要指標有 ${state.year} 年資料`], ['專屬欄位', Object.keys(a.attrs || {}).length ? attrsLabeled(a) : '—']]),
     h('div', { class: 'pf-actions' },
       can('obs.write', orgId) ? btn('📱 登錄數據', () => go(`#/collect/${id}`), 'primary') : null,
       can('asset.write', orgId) ? action('編輯', () => editAsset(a)) : null,

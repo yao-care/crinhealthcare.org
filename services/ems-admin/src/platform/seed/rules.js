@@ -70,11 +70,23 @@ export const RULES = [
   R('act.staff_hours', '員工工時', { kind: 'sum', items: ['ACT-STAFF'], metrics: ['staff_hours'], unit: 'person_h' }),
   R('act.outpatient', '門急診人次', { kind: 'sum', items: ['ACT-PATIENT'], metrics: ['outpatient_visits'], unit: 'visit' }),
   R('act.inpatient_days', '住院人日', { kind: 'sum', items: ['ACT-PATIENT'], metrics: ['inpatient_days'], unit: 'bed_day' }),
+  // ── 對外申報補充指標（2026-11-16）──
+  R('act.aircon_area_m2', '空調使用面積', { kind: 'sum', items: ['ACT-CAP'], metrics: ['aircon_area_m2'], agg: 'latest_per_asset', unit: 'm2' }),
+  R('act.parking_area_m2', '室內停車場面積', { kind: 'sum', items: ['ACT-CAP'], metrics: ['parking_area_m2'], agg: 'latest_per_asset', unit: 'm2' }),
+  R('act.medical_staff', '執業醫事人員數', { kind: 'sum', items: ['ACT-STAFF'], metrics: ['medical_staff_count'], agg: 'latest_per_asset', unit: 'person' }),
+  R('waste.general_kg', '一般事業廢棄物產出量', { kind: 'sum', items: ['ACT-WASTE'], metrics: ['waste_general_kg'], unit: 'kg' }),
+  R('waste.hazardous_kg', '有害事業廢棄物產出量（含感染性）', { kind: 'sum', items: ['ACT-WASTE'], metrics: ['waste_hazardous_kg'], unit: 'kg' }),
+  R('waste.recycled_kg', '資源回收量', { kind: 'sum', items: ['ACT-WASTE'], metrics: ['waste_recycled_kg'], unit: 'kg' }),
+  R('energy.wheeled_kwh', '轉供度數（再生能源）', { kind: 'sum', items: ['ELE-GRID'], metrics: ['elec_wheeled_kwh'], unit: 'kWh' }),
+  R('energy.total_cost', '總能源費用（油電燃氣）', { kind: 'sum', metrics: ['elec_cost_twd', 'oil_cost_twd', 'ng_cost_twd', 'lpg_cost_twd'], unit: 'TWD' }),
 ];
 
 // ── 報告模板（PRD §12.2 七種）──
 const F = (field_id, label, source_ref, o = {}) => ({ field_id, label, source_kind: 'indicator', source_ref, ...o });
 const T = (code, name, standard, standard_version, sections, o = {}) => ({ code, name, standard, standard_version, sections, ...o });
+// 自動表格段落（outputs.js／ghg.js 的 buildBlocks 鍵）與手填段落（院所基本資料可帶入）
+const X = (key, label, required = 1) => ({ field_id: key, label, source_kind: 'text', data_type: 'text', source_ref: key, required });
+const M = (key, label, required = 1) => ({ field_id: key, label, source_kind: 'manual', data_type: 'text', required });
 
 export const TEMPLATES = [
   T('GHG-INV', '組織溫室氣體盤查', 'ISO 14064-1／環境部盤查登錄及查驗管理辦法', 'ISO 14064-1:2018', [
@@ -156,4 +168,41 @@ export const TEMPLATES = [
     { id: 'q', title: '資料品質摘要', fields: [{ field_id: 'quality', label: '資料品質', source_kind: 'quality' }] },
     { id: 'track', title: '查核追蹤', fields: [{ field_id: 'track_note', label: '查核意見與改善追蹤', source_kind: 'manual', data_type: 'text', required: 0 }] },
   ]),
+  // ── 對外系統資料輸出（2026-11-16）：表格由 outputs.js 的自動段落產生，XLSX 每張表一個工作表 ──
+  T('GHG-REGISTRY', '環境部盤查登錄匯入表單', '環境部「事業溫室氣體排放量資訊平台」盤查系統用匯入表單', '匯入表單 V5（代碼檔 V2）', [
+    { id: 'sum', title: '排放量摘要', fields: [F('s1_total', '類別一（直接排放）', 'ghg.s1.total'), F('s2_total', '類別二（能源間接排放）', 'ghg.s2.total'), F('total', '排放總量', 'ghg.total')] },
+    { id: 'import', title: '匯入表單（表1～表3）', fields: [X('moenv_import', '匯入表單內容（XLSX 匯出後另存為 Excel 再匯入）')] },
+    { id: 'check', title: '排放源排放量核對', fields: [X('moenv_check', '本平台計算之各排放源排放量（供與系統計算結果核對）', 0)] },
+  ], { applicability: { note: '依法應盤查登錄或自願登錄者；匯入前請在平台下載當年度最新版匯入表單核對欄位' } }),
+  T('ENERGY-USER', '非生產性質行業能源查核申報資料準備', '能源管理法第 9、12 條／能源查核制度申報表附表三（非生產性質行業）', '附表三（112-01-04 行政院公報版）', [
+    { id: 't3', title: '表三 能源用戶基本資料', fields: [X('eu_basic', '基本資料（每個列管電號一欄）')] },
+    { id: 't4', title: '表四 能源查核組織與能源政策', fields: [M('energyOrg', '表四之一 能源查核管理組織（管理／推行／執行三階層）'), M('energyPolicy', '表四之二 能源管理政策推動情形'), M('iso50001', 'ISO／CNS 50001 驗證'), M('emis', '能源管理資訊系統監測情形', 0)] },
+    { id: 't5', title: '表五 能源使用量', fields: [X('eu_heat', '表五之一 熱能使用量統計'), X('eu_elec', '表五之二 電能使用量統計（每個電號一張）'), X('eu_eui', '表五之四 電能績效自我評比（EUI）')] },
+    { id: 't6', title: '表六 能源流程分析', fields: [X('eu_flow', '電力與熱能使用分布')] },
+    { id: 't7', title: '表七 建築資料', fields: [X('eu_buildings', '建築資料')] },
+    { id: 't8', title: '表八 電能系統資料', fields: [X('eu_elec_system', '變壓器、電容器、緊急發電機')] },
+    { id: 't9', title: '表九 使用能源設備統計', fields: [X('eu_equipment', '空調、照明、其他系統設備')] },
+    { id: 't10', title: '表十 節約能源目標及執行計畫達成情形', fields: [X('eu_measures', '表十之二 節約能源措施執行成效'), X('eu_rate', '表十之四／十之六 平均年節電率')] },
+    { id: 't11', title: '表十一 節約能源目標及執行計畫', fields: [X('eu_plan', '表十一之二 次年度節約能源措施暨節能量預估')] },
+    { id: 'sum', title: '全院合計（參考）', fields: [F('elec', '外購電力（度）', 'energy.elec_kwh', { required: 0 }), F('toe', '能源使用總量（公噸油當量）', 'energy.total_toe', { required: 0 })] },
+  ], { version: 2, applicability: { note: '契約用電容量超過 800 瓩之列管電號；每個電號為一個能源用戶，經經濟部核准合併申報者合併填寫。國軍部隊用戶不適用節約能源目標規定（表十之四）' } }),
+  T('GOV-SAVING', '政府機關及學校節約能源填報資料準備', '經濟部能源署「政府機關及學校節約能源填報網站」', '依當年度填報系統', [
+    { id: 'year', title: '年度用量', fields: [F('elec', '用電量（度）', 'energy.elec_kwh'), F('water', '用水量（度）', 'water.withdrawal_m3'), F('gasoline', '汽油（公升）', 'energy.gasoline_l', { required: 0 }),
+      F('diesel', '柴油（公升）', 'energy.diesel_l', { required: 0 }), F('area', '樓地板面積（m²，依使用執照）', 'act.floor_area_m2'), F('eui', 'EUI（度/m²）', 'energy.eui_kwh_m2')] },
+    { id: 'month', title: '逐月用量（依帳單月份）', fields: [X('gov_monthly', '各電號、各水號、用油逐月用量')] },
+    { id: 'cmp', title: '與前一年度比較', fields: [X('gov_compare', '用電、用水、用油、樓地板面積、EUI 增減', 0)] },
+  ], { version: 2, applicability: { note: '各年度用電量及用油量為該年度各帳單月份登載之使用量總和；與能源用戶申報是不同制度' } }),
+  T('HOSP-HPA', '醫院節能減碳網路填報資料準備', '衛生福利部國民健康署「醫院節能減碳網路填報系統」', '依當年度填報系統（項目參照 108 年操作手冊）', [
+    { id: 'energy', title: '能源', fields: [F('elec', '電力（度）', 'energy.elec_kwh'), F('fuel_oil', '燃料油（公升）', 'energy.fuel_oil_l'), F('ng', '天然氣（立方公尺）', 'energy.ng_m3'), F('lpg', '液化石油氣（公斤）', 'energy.lpg_kg'),
+      F('gasoline', '汽油（公升）', 'energy.gasoline_l', { required: 0 }), F('diesel', '柴油（公升）', 'energy.diesel_l', { required: 0 })] },
+    { id: 'water', title: '水', fields: [F('water', '用水量（度）', 'water.withdrawal_m3')] },
+    { id: 'waste', title: '廢棄物', fields: [F('waste_haz', '有害事業廢棄物（含感染性，公斤）', 'waste.hazardous_kg'), F('waste_gen', '一般事業廢棄物（公斤）', 'waste.general_kg'), F('waste_rec', '資源回收量（公斤）', 'waste.recycled_kg', { required: 0 })] },
+    { id: 'base', title: '規模與強度', fields: [F('beds', '病床數', 'act.beds'), F('area', '樓地板面積（m²）', 'act.floor_area_m2'), F('ghg', '溫室氣體排放量（類別一＋二）', 'ghg.total', { required: 0 }), F('ghg_bed', '每床排放量', 'ghg.intensity_bed', { required: 0 })] },
+    { id: 'self', title: '自我評估表', fields: [M('self_assess', '自我評估表（依填報系統當年度題目填寫）', 0)] },
+  ], { applicability: { note: '全年總消耗量；未使用的能源於系統填 0（本平台判定不適用者匯出為「不適用」，填報時請填 0）' } }),
+  T('OEW-CONTROL', '油電水節能管制資料準備', '「油電水節能管制系統」', '通用格式（欄位待依系統畫面核對）', [
+    { id: 'month', title: '逐月油電水用量與費用', fields: [X('oew_monthly', '逐月用電、用水、用油用量與費用')] },
+    { id: 'year', title: '年度合計', fields: [F('elec', '用電量（度）', 'energy.elec_kwh'), F('elec_cost', '電費（元）', 'energy.elec_cost', { required: 0 }), F('water', '用水量（度）', 'water.withdrawal_m3'),
+      F('water_cost', '水費（元）', 'water.cost', { required: 0 }), F('gasoline', '汽油（公升）', 'energy.gasoline_l', { required: 0 }), F('diesel', '柴油（公升）', 'energy.diesel_l', { required: 0 }), F('fuel_cost', '燃料費（元）', 'energy.fuel_cost', { required: 0 })] },
+  ], { applicability: { note: '系統欄位規格尚待業主提供畫面核對；目前為逐月油電水通用表' } }),
 ];

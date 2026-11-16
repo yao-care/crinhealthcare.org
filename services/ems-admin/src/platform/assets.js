@@ -58,6 +58,9 @@ export function saveSite(ctx, body) {
   return { id };
 }
 
+// 建築資料（能源查核申報表七）：建造年份、地下／地上樓層、屋頂構造、入口方位、用途
+const BUILDING_ATTRS = ['builtYear', 'floorsBelow', 'floorsAbove', 'roof', 'entrance', 'use'];
+function buildingAttrs(a) { return Object.fromEntries(Object.entries(a || {}).filter(([k, v]) => BUILDING_ATTRS.includes(k) && v !== '' && v !== null && v !== undefined)); }
 export function saveBuilding(ctx, body) {
   const t = nowIso();
   const site = q.get('SELECT * FROM sites WHERE id = ?', body.siteId); if (!site) throw notFound('院區');
@@ -65,13 +68,14 @@ export function saveBuilding(ctx, body) {
   if (!body.name) throw bad('請填建物名稱');
   if (body.id) {
     const b = q.get('SELECT * FROM buildings WHERE id = ?', body.id); if (!b) throw notFound('建物');
-    const patch = { name: body.name, floors: body.floors, floor_area_m2: body.floorAreaM2, note: body.note, valid_from: body.validFrom, valid_to: body.validTo, updated_at: t };
+    const patch = { name: body.name, floors: body.floors, floor_area_m2: body.floorAreaM2, note: body.note, valid_from: body.validFrom, valid_to: body.validTo, updated_at: t,
+      ...(body.attrs ? { attrs: buildingAttrs(body.attrs) } : {}) };
     update('buildings', b.id, patch);
     audit({ actor: ctx.userId, actorName: ctx.name, orgId: site.org_id, action: 'building.update', targetType: 'building', targetId: b.id, before: b, after: patch });
     return { id: b.id };
   }
   const id = newId('bld');
-  insert('buildings', { id, site_id: site.id, name: body.name, floors: body.floors || null, floor_area_m2: body.floorAreaM2 ?? null, note: body.note || null,
+  insert('buildings', { id, site_id: site.id, name: body.name, floors: body.floors || null, floor_area_m2: body.floorAreaM2 ?? null, note: body.note || null, attrs: buildingAttrs(body.attrs || {}),
     valid_from: body.validFrom || '1900-01-01', valid_to: body.validTo || null, created_at: t, updated_at: t });
   audit({ actor: ctx.userId, actorName: ctx.name, orgId: site.org_id, action: 'building.create', targetType: 'building', targetId: id, after: body });
   return { id };

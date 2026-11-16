@@ -9,9 +9,9 @@ import { MONTREAL, REFRIGERANT_ALIASES } from './seed/factors.js';
 const STATE_RANK = { measured: 0, zero: 0, estimated: 1, partial: 2, missing: 3, not_applicable: 4, blocked: 5 };
 const worse = (a, b) => (STATE_RANK[b] > STATE_RANK[a] ? b : a);
 
-const DEFAULT_FUEL = { 'OIL-GEN': 'diesel', 'OIL-FORK': 'diesel', 'OIL-VEH': 'gasoline', 'OIL-BOILER': 'fuel_oil', 'GAS-NG': 'ng', 'GAS-LPG': 'lpg' };
-const FUEL_ACTIVITY = { diesel: 'oil_consumption_l', gasoline: 'oil_consumption_l', fuel_oil: 'oil_consumption_l', ng: 'ng_consumption_m3', lpg: 'lpg_consumption_kg' };
-const FUEL_UNIT = { diesel: 'L', gasoline: 'L', fuel_oil: 'L', ng: 'Nm3', lpg: 'kg' };
+export const DEFAULT_FUEL = { 'OIL-GEN': 'diesel', 'OIL-FORK': 'diesel', 'OIL-VEH': 'gasoline', 'OIL-BOILER': 'fuel_oil', 'GAS-NG': 'ng', 'GAS-LPG': 'lpg' };
+export const FUEL_ACTIVITY = { diesel: 'oil_consumption_l', gasoline: 'oil_consumption_l', fuel_oil: 'oil_consumption_l', ng: 'ng_consumption_m3', lpg: 'lpg_consumption_kg' };
+export const FUEL_UNIT = { diesel: 'L', gasoline: 'L', fuel_oil: 'L', ng: 'Nm3', lpg: 'kg' };
 
 export function makeContext(datasetId, { pinnedRules = {}, pinnedFactors = {} } = {}) {
   const ds = q.get('SELECT * FROM datasets WHERE id = ?', datasetId);
@@ -71,7 +71,14 @@ function emptyState(cx, items) {
 const KINDS = {
   sum(cx, def) {
     const facts = factsFor(cx, def);
-    if (!facts.length) return result(cx, def.unit, null, def.items ? emptyState(cx, def.items) : 'missing', { formula: '查無採用值', inputs: [] });
+    if (!facts.length) {
+      // 依油種彙總（柴油、汽油、燃料油）：院內沒有使用該油種的標的 → 不適用，不是缺漏
+      if (def.fuel && !def.items) {
+        const users = cx.assets.filter((a) => a.applicability !== 'not_applicable' && FUEL_ACTIVITY[a.attrs.fuel || DEFAULT_FUEL[a.item_code]] && (a.attrs.fuel || DEFAULT_FUEL[a.item_code]) === def.fuel);
+        return result(cx, def.unit, null, users.length ? 'missing' : 'not_applicable', { formula: '查無採用值', inputs: [], notes: users.length ? [] : ['院內沒有使用此油種的標的'] });
+      }
+      return result(cx, def.unit, null, def.items ? emptyState(cx, def.items) : 'missing', { formula: '查無採用值', inputs: [] });
+    }
     let state = 'measured'; let total = 0; const inputs = [];
     let use = facts;
     if (def.agg === 'latest_per_asset') {

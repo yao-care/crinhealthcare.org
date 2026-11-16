@@ -138,13 +138,50 @@ async function entry({ id }) {
     render();
   };
   return page(`📱 ${a.name}`, { crumbs: [['#/collect', '現場盤點'], a.name] },
-    card(null, h('div', { class: 'pf-bar' }, domainChip(a.domain), chip(assetTypeName(a.asset_type)), a.location ? chip(a.location) : null, link(`#/assets/${id}`, '標的詳細')),
+    d.item?.code === 'ELE-GRID' ? billCard(a, recent, nextMonth, prevMonth) : null,
+    card(d.item?.code === 'ELE-GRID' ? '單一項目登錄' : null, h('div', { class: 'pf-bar' }, domainChip(a.domain), chip(assetTypeName(a.asset_type)), a.location ? chip(a.location) : null, link(`#/assets/${id}`, '標的詳細')),
       d.item?.required_data?.length ? note(`這項需要：${d.item.required_data.join('、')}`) : null,
       d.item?.special_rules?.length ? note(d.item.special_rules.join('；'), 'warn') : null, f.el, dupWarn,
       h('div', { class: 'pf-actions' }, action('送出', submit, 'primary'), btn('清除草稿', () => { try { localStorage.removeItem(draftKey); } catch { /* 無 */ } render(); }, 'ghost')),
       h('p', { class: 'muted pf-small' }, '網路不穩時會自動暫存在這支裝置，恢復連線後由你確認再上傳。')),
     card('最近紀錄', table([{ label: '項目', render: (o) => metricName(o.metric_code) }, { label: '期間', render: (o) => fmtPeriod(o.period_start, o.period_end) },
       { label: '數字', render: (o) => (o.raw_value === null ? valueStateChip(o.value_state) : `${o.raw_value} ${o.raw_unit}`) }], recent.slice(0, 6), { empty: '還沒有紀錄' })));
+}
+
+// ── 整張電費單一次登錄（能源查核申報表五之二需要的時段度數、需量、功因、轉供度數）──
+const BILL_MAIN = [['elec_purchased_kwh', '總用電度數（度）'], ['elec_cost_twd', '總電費（含稅，元）'], ['elec_peak_demand_kw', '尖峰最高需量（kW）']];
+const BILL_MORE = [['elec_peak_kwh', '尖峰度數'], ['elec_semipeak_kwh', '半尖峰度數'], ['elec_satsemipeak_kwh', '週六半尖峰度數'], ['elec_offpeak_kwh', '離峰度數'],
+  ['elec_demand_semipeak_kw', '半尖峰最高需量（kW）'], ['elec_demand_satsemipeak_kw', '週六半尖峰最高需量（kW）'], ['elec_demand_offpeak_kw', '離峰最高需量（kW）'],
+  ['elec_power_factor_pct', '功率因數（%）'], ['elec_wheeled_kwh', '轉供度數'], ['elec_contract_kw', '經常契約容量（kW，有變更才填）']];
+function billCard(a, recent, nextMonth, prevMonth) {
+  const main = form([{ key: 'month', label: '帳單月份', type: 'month', required: true }, ...BILL_MAIN.map(([k, l]) => ({ key: k, label: l, inputmode: 'decimal' })),
+    { key: 'photo', label: '電費單照片或 PDF', type: 'file', accept: 'image/*,.pdf', wide: true }], { month: prevMonth });
+  const more = form([{ key: 'customPeriod', label: '計費期間不是整月', type: 'checkbox', wide: true }, { key: 'periodStart', label: '計費起日', type: 'date' }, { key: 'periodEndIncl', label: '計費迄日（含當日）', type: 'date' },
+    ...BILL_MORE.map(([k, l]) => ({ key: k, label: l, inputmode: 'decimal' }))]);
+  const submit = async () => {
+    const v1 = main.read(); if (!v1) return; const v2 = more.read(); if (!v2) return;
+    let ps; let pe;
+    if (v2.customPeriod) { if (!v2.periodStart || !v2.periodEndIncl) throw new Error('請填計費起迄'); ps = v2.periodStart; pe = inclEndToExcl(v2.periodEndIncl); } else { ps = `${v1.month}-01`; pe = nextMonth(v1.month); }
+    const vals = [...BILL_MAIN, ...BILL_MORE].map(([k]) => [k, v1[k] ?? v2[k]]).filter(([, x]) => x !== undefined && x !== '');
+    if (!vals.length) throw new Error('至少填總用電度數');
+    const tou = ['elec_peak_kwh', 'elec_semipeak_kwh', 'elec_satsemipeak_kwh', 'elec_offpeak_kwh'].map((k) => Number(v2[k])).filter((x) => Number.isFinite(x) && x > 0);
+    const total = Number(v1.elec_purchased_kwh);
+    if (tou.length === 4 && Number.isFinite(total) && Math.abs(tou.reduce((x, y) => x + y, 0) - total) > Math.max(1, total * 0.001)
+      && !(await confirmBox('時段度數合計不等於總度數', `尖峰＋半尖峰＋週六半尖峰＋離峰＝${tou.reduce((x, y) => x + y, 0)}，總度數 ${total}。仍要送出？`, '仍要送出'))) return;
+    if (recent.some((o) => o.metric_code === 'elec_purchased_kwh' && o.period_start === ps) && !(await confirmBox('這期帳單已登錄過', `${fmtPeriod(ps, pe)} 已有總用電度數紀錄。仍要再登錄一份（不會覆蓋，會另存版本）？`, '仍要登錄'))) return;
+    let evidenceIds = [];
+    if (v1.photo) { const ev = await upload('evidence', { orgId: a.org_id, kind: '電費單', assetId: a.id, confidentiality: 'internal' }, v1.photo); evidenceIds = [ev.id]; }
+    let n = 0;
+    for (const [metricCode, rawValue] of vals) {
+      const point = metricCode === 'elec_contract_kw';
+      await post('observations', { assetId: a.id, metricCode, periodStart: ps, periodEnd: point ? ps : pe, rawValue, valueState: 'measured',
+        sourceRecordKey: `bill:${a.id}:${metricCode}:${ps}:${pe}`, evidenceIds }); n++;
+    }
+    toast(`已送出 ${n} 項`); render();
+  };
+  return card('整張電費單', note('一張帳單一次登錄：月份、總度數、電費、需量；時段度數與功因收在下方。能源查核申報（表五之二）需要時段度數與最高需量。'), main.el,
+    h('details', h('summary', { class: 'pf-small' }, '帳單細項：尖峰／半尖峰／週六半尖峰／離峰度數、各時段需量、功因、轉供度數、契約容量'), more.el),
+    h('div', { class: 'pf-actions' }, action('送出整張帳單', submit, 'primary')));
 }
 
 // ── 匯入／辨識／介接 ──

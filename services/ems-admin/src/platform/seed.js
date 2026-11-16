@@ -68,7 +68,16 @@ export function seedDictionary() {
       if (!q.get('SELECT 1 FROM metrics WHERE code = ?', code)) insert('metrics', { code, domain, name, semantics, value_kind: kind, std_unit: unit, description: desc || null });
     }
     for (const it of [...ITEMS, ...REFERENCE_ITEMS]) {
-      if (q.get('SELECT 1 FROM inventory_items WHERE code = ?', it.code)) continue;
+      const ex = q.get('SELECT id, asset_types, metrics FROM inventory_items WHERE code = ?', it.code);
+      if (ex) {
+        // 已存在：只補新增的標的類型與指標（不覆蓋管理者改過的其他內容）
+        const cur = { asset_types: JSON.parse(ex.asset_types || '[]'), metrics: JSON.parse(ex.metrics || '[]') };
+        const add = { asset_types: (it.asset_types || []).filter((x) => !cur.asset_types.includes(x)), metrics: (it.metrics || []).filter((x) => !cur.metrics.includes(x)) };
+        if (add.asset_types.length || add.metrics.length) {
+          q.run('UPDATE inventory_items SET asset_types = ?, metrics = ?, updated_at = ? WHERE id = ?', JSON.stringify([...cur.asset_types, ...add.asset_types]), JSON.stringify([...cur.metrics, ...add.metrics]), t, ex.id);
+        }
+        continue;
+      }
       insert('inventory_items', {
         id: newId('item'), code: it.code, domain: it.domain, subtype: it.subtype, name: it.name, description: it.description || null,
         asset_types: it.asset_types || [], metrics: it.metrics || [], required_data: it.required_data || [], source_hints: it.source_hints || [],
@@ -133,7 +142,7 @@ export function seedActivityAssets() {
       for (const it of items) {
         if (q.get('SELECT 1 FROM assets WHERE org_id = ? AND item_id = ?', o.id, it.id)) continue;
         insert('assets', { id: newId('ast'), org_id: o.id, site_id: site?.id || null, item_id: it.id, domain: 'activity', asset_type: 'org_activity',
-          name: { 'ACT-STAFF': '員工人數與工時', 'ACT-PATIENT': '就診與住院人次', 'ACT-CAP': '病床與樓地板面積' }[it.code] || it.code,
+          name: { 'ACT-STAFF': '員工人數與工時', 'ACT-PATIENT': '就診與住院人次', 'ACT-CAP': '病床與樓地板面積', 'ACT-WASTE': '廢棄物產出量' }[it.code] || it.code,
           applicability: 'applicable', created_by: 'seed', created_at: t, updated_at: t });
       }
     }
