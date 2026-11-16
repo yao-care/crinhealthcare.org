@@ -87,7 +87,9 @@ const TASKS = {
   progress: '📄 進度與交付',
   // 能源盤點的任務名稱由 inventory.js 提供（它在 app.js 之後才載入），見 loadInventory()
 };
-const sectionById = (id) => SECTIONS.find((s) => s.id === id) || null;
+// 盤點樹（invtree.js）的節點不在 SECTIONS 裡：樹是動態的，section 依 id 現場組
+const treeSection = (id) => (window.EMSInvTree?.isSection(id) ? { id, task: 'tree', tree: true, label: window.EMSInvTree.labelFor(id) } : null);
+const sectionById = (id) => SECTIONS.find((s) => s.id === id) || treeSection(id);
 const currentTask = () => sectionById(activeId)?.task || 'board';
 // 能源盤點（inventory.js）的任務：各區塊自己存檔，不經過頂列的「送出」
 const isInvTask = (t) => String(t || '').startsWith('inv-');
@@ -96,11 +98,13 @@ const isInvTask = (t) => String(t || '').startsWith('inv-');
 // /api/inv 拿不到（例如後端還沒更新）就維持原本的導覽，畫面不會壞。
 const LEGACY_TASKS = new Set(['contact', 'audit', 'progress']);
 let INV_ON = false;
+let TREE_ON = false;   // 盤點樹（平台資料）載入成功：左欄最上面是盤點樹，原本的點位貼紙／初始建檔收進「其他」
 let legacyOpen = false;
+window.EMSInvTreeHost = { navChanged: () => renderNav() };
 
 function buildSections() {
-  const S = INV_ON ? window.EMSInventory.sections() : [];
-  const legacy = INV_ON;
+  const S = INV_ON ? window.EMSInventory.sections().map((s) => (TREE_ON ? { ...s, legacy: true } : s)) : [];
+  const legacy = INV_ON || TREE_ON;
 
   // ── 電力健檢填報（公文附件一／三）──
   // 這些區塊的資料存在主機本地、不進公開 repo，由 audit.js 負責渲染與送出。
@@ -143,7 +147,7 @@ function buildSections() {
   // 附件二：流程與權責 ＋ 填報送出紀錄 ＋ 報告交付。放最後，因為它是「看進度」不是「填東西」。
   if (window.EMSAudit?.spec()) S.push({ task: 'progress', id: 'a-progress', group: '', label: '📄 流程與權責', progress: true, legacy });
   // 新版導覽：舊版健檢的三支任務排到最後，收在「舊版健檢填報」底下
-  if (INV_ON) return [...S.filter((s) => !s.legacy), ...S.filter((s) => s.legacy)];
+  if (INV_ON || TREE_ON) return [...S.filter((s) => !s.legacy), ...S.filter((s) => s.legacy)];
   return S;
 }
 
@@ -595,6 +599,8 @@ function renderNav() {
   const list = $('navList');
   list.textContent = '';
   let lastGroup = null, lastTask = null;
+  // 盤點樹放最上面（油水電氣；電分台電與分區），下面才是看板維護
+  if (TREE_ON) list.append(window.EMSInvTree.navNode(activeId));
   // 「常用欄位」的過濾只對看板維護有意義：健檢填報沒有色票與座標那種欄位
   const shown = SECTIONS.filter((s) => s.task !== 'board' || MODE === 'all' || sectionHasCommon(s) || counts.get(s.id));
   // 目前所在分區屬於舊版健檢時，次要入口自動展開，不然看不到自己在哪
@@ -603,9 +609,9 @@ function renderNav() {
   for (const s of shown) {
     if (s.legacy && !legacyHead) {
       legacyHead = true;
-      const t = el('button', { type: 'button', class: 'navlegacy', text: `${legacyShown ? '▾' : '▸'} 舊版健檢填報` });
+      const t = el('button', { type: 'button', class: 'navlegacy', text: `${legacyShown ? '▾' : '▸'} ${TREE_ON ? '其他（點位貼紙、申報建檔、舊版健檢）' : '舊版健檢填報'}` });
       t.setAttribute('aria-expanded', String(legacyShown));
-      t.title = '原本的電力健檢填報、進度與交付、聯絡人與帳號（功能不變）';
+      t.title = TREE_ON ? '原本的點位與進度、初始建檔、異動登錄、申報與報告、電力健檢填報（功能不變）' : '原本的電力健檢填報、進度與交付、聯絡人與帳號（功能不變）';
       t.addEventListener('click', () => { legacyOpen = !legacyShown; renderNav(); });
       list.append(t);
       lastTask = null;
@@ -623,7 +629,7 @@ function renderNav() {
       continue;
     }
     if (s.task !== lastTask) {
-      list.append(el('div', { class: 'navtask' + (s.task === 'board' && !INV_ON ? ' demoted' : '') + (s.legacy ? ' legacy' : ''), text: TASKS[s.task] || '' }));
+      list.append(el('div', { class: 'navtask' + (s.task === 'board' && !INV_ON && !TREE_ON ? ' demoted' : '') + (s.task === 'board' && TREE_ON ? ' tv-boardh' : '') + (s.legacy ? ' legacy' : ''), text: TASKS[s.task] || '' }));
       lastTask = s.task; lastGroup = null;
     }
     if (s.group && s.group !== lastGroup) { list.append(el('div', { class: 'navgroup', text: s.group })); lastGroup = s.group; }
@@ -667,7 +673,7 @@ function applyTaskChrome() {
   const board = currentTask() === 'board';
   $('editor').classList.toggle('task-board', board);
   // 盤點各區塊自己存檔：頂列的送出／捨棄、看板送出狀態、健檢九階段在這裡都不適用
-  $('editor').classList.toggle('task-inv', isInvTask(currentTask()));
+  $('editor').classList.toggle('task-inv', isInvTask(currentTask()) || currentTask() === 'tree');
   for (const id of ['modeCommon', 'modeAll', 'mapBtn']) {
     const n = $(id);
     n.disabled = !board;
@@ -679,12 +685,16 @@ function applyTaskChrome() {
 }
 
 function rerenderPane() {
-  const s = SECTIONS.find((x) => x.id === activeId) || SECTIONS[0];
+  const s = sectionById(activeId) || SECTIONS[0];
   const root = $('formRoot');
   root.textContent = '';
   root.classList.toggle('i-wide', !!s.inv);
-  $('crumb').textContent = [...new Set([TASKS[s.task], s.group, s.label].filter(Boolean))].join(' › ');
+  root.classList.toggle('tv-wide', !!s.tree);
+  $('crumb').textContent = s.tree ? s.label : [...new Set([TASKS[s.task], s.group, s.label].filter(Boolean))].join(' › ');
   applyTaskChrome();
+
+  // 盤點樹：中欄節點內容＋右欄報告欄位，由 invtree.js 負責
+  if (s.tree) { window.EMSInvTree.render(s.id, root); return; }
 
   // 能源盤點（點位與進度／初始建檔／異動登錄／申報與報告）由 inventory.js 負責
   if (s.inv) { window.EMSInventory.render(s, root); return; }
@@ -1068,10 +1078,12 @@ async function loadHospital(opts = {}) {
   if (!(await loadSpec())) return false;
   await loadAudit();
   await loadInventory();
+  TREE_ON = !!(window.EMSInvTree && (await window.EMSInvTree.load()));
+  $('editor').classList.toggle('has-tree', TREE_ON);
   const { status, body } = await api('/api/hospital');
   if (status === 401) { showLogin('登入逾時，請重新登入'); return false; }
   // 還沒建看板的院所照樣可以用盤點（兩套資料獨立），看板維護那幾區只是空的
-  const noBoard = status === 404 && body?.error === 'hospital_not_found' && INV_ON;
+  const noBoard = status === 404 && body?.error === 'hospital_not_found' && (INV_ON || TREE_ON);
   if (!body?.ok && !noBoard) { toast('載入失敗：' + (body?.error || status), 'err'); return false; }
   if (noBoard) toast('貴院尚未建立看板，看板維護暫不可用；盤點功能照常', 'warn');
 
@@ -1081,7 +1093,7 @@ async function loadHospital(opts = {}) {
   if (!opts.skipDraft) await maybeRestoreDraft();   // 草稿會換掉 DATA，所以要先於分區計算
 
   SECTIONS = buildSections();
-  if (!SECTIONS.some((s) => s.id === activeId)) activeId = SECTIONS[0]?.id || 'basic';
+  if (!sectionById(activeId)) activeId = TREE_ON ? window.EMSInvTree.defaultSection() : SECTIONS[0]?.id || 'basic';
 
   // 搜尋索引改在使用搜尋時才建（見 runSearch）
   renderNav(); rerenderPane(); updateDirtyBadge();

@@ -452,6 +452,7 @@ function euFlow(L, ctx) {
 
 function euBuildings(L, ctx) {
   const rows = q.all('SELECT b.*, s.name AS site_name FROM buildings b JOIN sites s ON s.id = b.site_id WHERE s.org_id = ? AND b.valid_to IS NULL ORDER BY s.name, b.name', ctx.orgId)
+    .filter((b) => j(b.attrs, {}).zoneKind !== 'outdoor')  // 周邊（停車場、路燈）不是建物
     .map((b, i) => { const a = j(b.attrs, {}); return [i + 1, b.name, a.use || profileValue(ctx.profile, 'userCategory'), a.builtYear || '', a.floorsBelow ?? '', a.floorsAbove ?? '', cell(b.floor_area_m2), a.roof || '', a.entrance || '']; });
   const miss = rows.filter((r) => !r[3] || r[6] === '').map((r) => r[1]);
   return { state: !rows.length ? 'missing' : miss.length ? 'partial' : 'measured', text: !rows.length ? '尚未建立建物（組織院區與邊界 › 建物）。' : miss.length ? `建物缺建造年份或樓地板面積：${miss.join('、')}。` : '',

@@ -59,7 +59,8 @@ export function saveSite(ctx, body) {
 }
 
 // 建築資料（能源查核申報表七）：建造年份、地下／地上樓層、屋頂構造、入口方位、用途
-const BUILDING_ATTRS = ['builtYear', 'floorsBelow', 'floorsAbove', 'roof', 'entrance', 'use'];
+// zoneKind：'outdoor'＝周邊區域（停車場、路燈），不是建物，不列入表七
+const BUILDING_ATTRS = ['builtYear', 'floorsBelow', 'floorsAbove', 'roof', 'entrance', 'use', 'zoneKind'];
 function buildingAttrs(a) { return Object.fromEntries(Object.entries(a || {}).filter(([k, v]) => BUILDING_ATTRS.includes(k) && v !== '' && v !== null && v !== undefined)); }
 export function saveBuilding(ctx, body) {
   const t = nowIso();

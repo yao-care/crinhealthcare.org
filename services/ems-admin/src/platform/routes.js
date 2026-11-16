@@ -25,6 +25,7 @@ import * as BK from './backup.js';
 import * as G from './ghg.js';
 import * as P from './profile.js';
 import * as EM from './measures.js';
+import * as T from './inv-tree.js';
 import { computeAll, ALL_RULE_CODES, STATE_LABEL } from './calc.js';
 import { DOMAINS, ASSET_TYPES, WORK_STATUS, APPLICABILITY, USAGE_STATUS, ASSET_ATTRS } from './seed/dictionary.js';
 import { CASE_STATUS_LABEL } from './cases.js';
@@ -149,6 +150,20 @@ route('POST', '/api/v1/asset-links', '建立上下層（總表→分表、油槽
 route('DELETE', '/api/v1/asset-links/:id', '結束上下層關係', (ctx, { params }) => { A.unlinkAssets(ctx, params.id); return { ok: true }; });
 
 // ── 來源與追查 ──
+// ── 盤點樹（院所頁三欄：左樹、中節點內容、右報告欄位）──
+route('GET', '/api/v1/orgs/:id/inv-tree', '盤點樹：油水電氣；電分台電（電號→分盤→設備）與分區（建物→樓層）', (ctx, { params }) => T.tree(ctx, params.id));
+route('GET', '/api/v1/inv-node', '盤點節點內容（kind=asset｜building｜floor；year、metric 選填）', (ctx, { query }) => {
+  if (query.kind === 'asset') return T.assetNode(ctx, query.id, { year: query.year, metric: query.metric });
+  if (query.kind === 'building' || query.kind === 'floor') return T.zoneNode(ctx, query.orgId, query.id);
+  throw bad('kind 須為 asset、building 或 floor');
+});
+route('GET', '/api/v1/inv-fields', '某標的（某指標）或建物會用在哪些報告欄位', (ctx, { query }) => {
+  if (query.assetId) { const a = A.getAsset(ctx, query.assetId); return T.fieldsFor({ asset: q.get('SELECT * FROM assets WHERE id = ?', a.id), metric: query.metric || null }); }
+  return T.fieldsFor({ zone: true });
+});
+route('POST', '/api/v1/asset-zones', '標的供應範圍（建物或樓層；網狀關係）', (ctx, { body }) => T.addZoneLink(ctx, body));
+route('DELETE', '/api/v1/asset-zones/:id', '結束供應範圍', (ctx, { params }) => T.endZoneLink(ctx, params.id));
+
 route('GET', '/api/v1/data-sources', '資料來源', (ctx, { query }) => S.listSources(ctx, query));
 route('POST', '/api/v1/data-sources', '新增／修改資料來源', (ctx, { body }) => S.saveSource(ctx, body));
 route('POST', '/api/v1/source-contacts', '來源與窗口關聯（候選／確認保管者／代理）', (ctx, { body }) => S.linkSourceContact(ctx, body));

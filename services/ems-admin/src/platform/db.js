@@ -506,6 +506,16 @@ const MIGRATIONS = [
   DELETE FROM factors WHERE created_by = 'seed' AND status = 'pending' AND approved_by IS NULL
     AND (code LIKE 'ef.%.stationary.%' OR code LIKE 'ef.%.mobile.%' OR code IN ('septic.bod_g_per_person_day','septic.bo','septic.mcf'));
   `,
+  // 8：盤點樹的網狀關係——盤或設備供應哪些建物／樓層（一盤可供多層、一層可由多盤供電）。floor 為 NULL＝整棟
+  `
+  CREATE TABLE asset_zones (
+    id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id), building_id TEXT NOT NULL REFERENCES buildings(id), floor TEXT,
+    relation TEXT NOT NULL DEFAULT 'serves' CHECK (relation IN ('serves')),
+    valid_from TEXT NOT NULL DEFAULT '1900-01-01', valid_to TEXT, created_by TEXT, created_at TEXT NOT NULL
+  );
+  CREATE INDEX asset_zones_asset ON asset_zones(asset_id);
+  CREATE INDEX asset_zones_bld ON asset_zones(building_id, floor);
+  `,
 ];
 
 let db = null;
