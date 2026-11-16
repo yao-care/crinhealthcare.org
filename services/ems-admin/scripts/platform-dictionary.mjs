@@ -20,8 +20,8 @@ out.push('## 狀態軸', '', '**資料工作進度**：' + Object.values(WORK_ST
 out.push('## 計算規則（指標）', '', row('代碼', '名稱', '定義', '說明'), row('---', '---', '---', '---'), ...RULES.map((r) => row(r.code, r.name, JSON.stringify(r.definition), r.description)), '');
 out.push('## 報告模板', '', row('代碼', '版本', '名稱', '準則', '版次', '適用期間', '欄位數'), row('---', '---', '---', '---', '---', '---', '---'),
   ...TEMPLATES.map((t) => row(t.code, t.version || 1, t.name, t.standard, t.standard_version, `${t.applies_from || ''}～${t.applies_to || ''}`, t.sections.reduce((s, x) => s + x.fields.length, 0))), '');
-out.push('## 預設係數（種子，待核准後發布）', '', row('代碼', '名稱', '值', '單位', '生效', '來源', '說明'), row('---', '---', '---', '---', '---', '---', '---'),
-  ...allSeedFactors().map((f) => row(f.code, f.name, f.value, f.unit, `${f.valid_from}～${f.valid_to || ''}`, f.source, f.note)), '');
+out.push('## 預設係數（種子，待核准後發布）', '', row('代碼', '版本', '名稱', '值', '單位', '生效', '95% 信賴區間', '係數種類', '來源', '說明'), row('---', '---', '---', '---', '---', '---', '---', '---', '---', '---'),
+  ...allSeedFactors().map((f) => row(f.code, f.version || 1, f.name, f.value, f.unit, `${f.valid_from}～${f.valid_to || ''}`, f.uncertainty_low === undefined || f.uncertainty_low === null ? '' : `${f.uncertainty_low}%／+${f.uncertainty_high}%`, f.factor_class || '', f.source, f.note)), '');
 out.push('## 預設設定', '', ...Object.entries(DEFAULT_CONFIG).flatMap(([k, v]) => [`### ${k}`, '', '```json', JSON.stringify(v, null, 2), '```', '']));
 out.push('## 角色', '', row('代碼', '名稱', '說明'), row('---', '---', '---'), ...Object.entries(ROLES).map(([k, v]) => row(k, v.name, v.desc)), '');
 out.push('## 權限動作', '', row('代碼', '名稱'), row('---', '---'), ...Object.entries(ACTION_LABELS).map(([k, v]) => row(k, v)), '');

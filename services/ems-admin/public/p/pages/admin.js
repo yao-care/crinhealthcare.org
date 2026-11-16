@@ -514,7 +514,8 @@ async function factorsPage(_, qy) {
     const L = sel.cur || sel.latest;
     detail = card(`${sel.code}　${L.name}`,
       isF ? dl([['類別', FACTOR_CAT[L.category] || L.category], ['氣體', L.gas], ['目前生效', sel.cur ? `${fmtNum(sel.cur.value, 8)} ${sel.cur.unit}（v${sel.cur.version}）` : chip('尚無已發布版本', 'warn')],
-        ['有效期間', `${L.valid_from || '—'} ～ ${L.valid_to || '迄今'}`], ['適用對象', L.applies_to], ['GWP 版本', L.gwp_set],
+        ['有效期間', `${L.valid_from || '—'} ～ ${L.valid_to || '迄今'}`], ['適用對象', L.applies_to], ['GWP 版本', L.gwp_set], ['係數種類', L.factor_class],
+        ['95% 信賴區間', L.uncertainty_low === null || L.uncertainty_low === undefined ? '—' : `${L.uncertainty_low}%／+${L.uncertainty_high}%`],
         ['來源', L.source], ['來源網址', L.source_url ? h('a', { href: L.source_url, target: '_blank', rel: 'noopener noreferrer' }, L.source_url) : '—'], ['備註', L.note]])
         : h('div', dl([['說明', L.description], ['目前生效', sel.cur ? `v${sel.cur.version}` : chip('尚無已發布版本', 'warn')], ['有效期間', `${L.valid_from || '—'} ～ ${L.valid_to || '迄今'}`]]), h('h3', '定義'), pretty(L.definition)),
       h('div', { class: 'pf-actions' },
