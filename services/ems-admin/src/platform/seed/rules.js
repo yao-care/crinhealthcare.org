@@ -192,6 +192,17 @@ export const TEMPLATES = [
     { id: 'month', title: '逐月用量（依帳單月份）', fields: [X('gov_monthly', '各電號、各水號、用油逐月用量')] },
     { id: 'cmp', title: '與前一年度比較', fields: [X('gov_compare', '用電、用水、用油、樓地板面積、EUI 增減', 0)] },
   ], { version: 2, applicability: { note: '各年度用電量及用油量為該年度各帳單月份登載之使用量總和；與能源用戶申報是不同制度' } }),
+  T('GOV-SAVING', '政府機關及學校節約能源填報資料準備', '經濟部能源署「政府機關及學校節約能源填報網站」（ea01.moeaea.gov.tw/e0402）', '網站 2026-11 版各填報頁', [
+    { id: 'basic', title: '基本資料', fields: [X('gov_basic', '基本資料（機關、首長、填報人、面積、人數）'), M('govSurvey', '問卷與節約能源推動小組', 0)] },
+    { id: 'elec', title: '用電資料填報', fields: [X('gov_meters', '電表資料（每個電號：總用電、分攤、扣除、評比用電度數、面積）'), X('gov_pv', '太陽光電系統資料', 0)] },
+    { id: 'oil', title: '用油資料填報', fields: [X('gov_oil', '油號資料（購油客戶編號、總用油量、實際用油量）')] },
+    { id: 'light', title: '照明設備填報', fields: [X('gov_lighting', '照明設備')] },
+    { id: 'ac', title: '空調設備填報', fields: [X('gov_ac', '空調設備')] },
+    { id: 'pub', title: '公用設備填報', fields: [X('gov_public', '公用設備'), X('gov_dataroom', '資訊／電腦機房', 0), X('gov_ems', '能源管理系統（EMS）與冰水主機效率', 0), X('gov_replace', '節電汰舊換新', 0), X('gov_hv', '高壓用電（場所與變壓器）', 0)] },
+    { id: 'car', title: '車輛填報', fields: [X('gov_vehicles', '公務車輛')] },
+    { id: 'year', title: '年度合計與比較', fields: [F('elec', '用電量（度）', 'energy.elec_kwh'), F('gasoline', '汽油（公升）', 'energy.gasoline_l', { required: 0 }), F('diesel', '柴油（公升）', 'energy.diesel_l', { required: 0 }),
+      F('area', '樓地板面積（m²）', 'act.floor_area_m2'), F('eui', 'EUI（度/m²）', 'energy.eui_kwh_m2'), X('gov_compare', '與前一年度比較', 0), M('govGrowthReason', '用電／用油正（負）成長原因', 0), X('gov_monthly', '逐月用量（參考）', 0)] },
+  ], { version: 3, applicability: { note: '各頁欄位依網站 2026-11 版；評比用電度數＝總用電度數 × 分攤比例 － 扣除用電度數' } }),
   T('HOSP-HPA', '醫院節能減碳網路填報資料準備', '衛生福利部國民健康署「醫院節能減碳網路填報系統」', '依當年度填報系統（項目參照 108 年操作手冊）', [
     { id: 'energy', title: '能源', fields: [F('elec', '電力（度）', 'energy.elec_kwh'), F('fuel_oil', '燃料油（公升）', 'energy.fuel_oil_l'), F('ng', '天然氣（立方公尺）', 'energy.ng_m3'), F('lpg', '液化石油氣（公斤）', 'energy.lpg_kg'),
       F('gasoline', '汽油（公升）', 'energy.gasoline_l', { required: 0 }), F('diesel', '柴油（公升）', 'energy.diesel_l', { required: 0 })] },

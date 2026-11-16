@@ -357,3 +357,38 @@ test('[114 年新制] 前期超額節電量（需量反應分開）、國軍部�
   assert.match(b.text, /18-31-0800-22-0 列入國防部國軍部隊用戶清冊/);
   assert.match(b.tables[0].info[0][1], /度/);
 });
+
+test('[GOV v3] 節約能源填報網站各填報頁：電表、油號、照明、空調、公用設備、高壓用電、車輛', async () => {
+  const id = (name) => q.get('SELECT id FROM assets WHERE org_id = ? AND name = ?', org, name).id;
+  const setAttrs = (aid, patch, extra = {}) => A.updateAsset(col, aid, { attrs: { ...JSON.parse(q.get('SELECT attrs FROM assets WHERE id = ?', aid).attrs), ...patch }, reason: '補節能填報欄位', ...extra });
+  setAttrs(acctA, { govSharePct: 100, govDeductKwh: 20000, buildingName: '醫療大樓', supplyVoltageV: 11400 });
+  setAttrs(id('公務車'), { fuelCustomerNo: 'AA9341002', displacementCc: 1968, carType: '小型汽車(油車)', licenseType: '小客車', year: 2019 });
+  setAttrs(id('LED 燈具'), { lampName: 'LED', lampForm: 'T8/T5(LED燈管)', lampType: '雙支(山形、格柵等)', lampSize: '4尺', installYm: '2021-01', investTwd: 121500 });
+  setAttrs(id('分離式冷氣（行政）'), { coolingKw: 7.1, energyLabel: '1', installYear: 2024, setTempC: 26 });
+  setAttrs(id('TR-1'), {}, { parentAssetId: acctA });
+  P.saveProfile(rep, org, { ...P.getProfile(org), govAgencyCode: 'A12345678', govStaffRegular: '680' });
+  const { rd } = await run('GOV-SAVING');
+  assert.equal(q.get("SELECT version FROM report_templates t JOIN report_cases c ON c.template_id = t.id ORDER BY c.created_at DESC LIMIT 1").version, 3);
+  const b = (k) => blockOf(rd, k);
+  const m = b('gov_meters').tables[0];
+  const rowA = m.rows.find((r) => r[1] === '18-31-1100-11-0');
+  const sumA = MONTHLY_A.reduce((s, x) => s + x, 0);
+  assert.equal(rowA[5], sumA); assert.equal(rowA[9], sumA - 20000); assert.equal(rowA[2], '醫療大樓'); assert.equal(rowA[10], 32000);
+  const oil = b('gov_oil').tables[0];
+  assert.equal(oil.rows.find((r) => r[2] === 'AA9341002')[5], 1440);
+  assert.match(b('gov_oil').text, /緊急發電機 未填購油客戶編號/);
+  const lt = b('gov_lighting').tables[0].rows[0];
+  assert.deepEqual(lt.slice(1, 5), ['LED', 'T8/T5(LED燈管)', '雙支(山形、格柵等)', '4尺']); assert.equal(lt[7], 1200);
+  const ac = b('gov_ac').tables[0];
+  const split = ac.rows.find((r) => r[1] === '分離式冷氣機');
+  assert.equal(split[5], 7.1); assert.equal(split[4], '1 級'); assert.equal(split[8], 35);
+  assert.ok(ac.rows.some((r) => r[1] === '中央空調主機'));
+  const hv = b('gov_hv');
+  const site = hv.tables[0].rows.find((r) => r[0] === '18-31-1100-11-0');
+  assert.equal(site[3], 11400); assert.equal(site[7], 1100); assert.equal(site[8], 980); assert.equal(site[10], 1500); assert.equal(site[12], '有');
+  assert.equal(hv.tables[1].rows.find((r) => r[2] === 'TR-1')[5], 2006);
+  const car = b('gov_vehicles').tables[0].rows[0];
+  assert.deepEqual([car[5], car[6], car[8], car[9]], ['ABC-1234', 'AA9341002', 1968, '汽油']);
+  assert.equal(b('gov_basic').tables[0].rows.find((r) => r[0] === '機關代碼')[1], 'A12345678');
+  assert.equal(b('gov_ems').tables.length, 2);
+});

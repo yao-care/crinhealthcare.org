@@ -20,7 +20,7 @@ export const UNITS = [
   ['kg', '公斤', 'mass', 'kg', 1], ['t', '公噸', 'mass', 'kg', 1000], ['g', '公克', 'mass', 'kg', 0.001],
   ['TWD', '新臺幣元', 'currency', 'TWD', 1], ['kTWD', '千元', 'currency', 'TWD', 1000],
   ['h', '小時', 'time', 'h', 1], ['km', '公里', 'distance', 'km', 1],
-  ['pct', '%', 'ratio', 'pct', 1], ['count', '個／次', 'count', 'count', 1], ['cylinder', '瓶', 'count_cyl', 'cylinder', 1],
+  ['pct', '%', 'ratio', 'pct', 1], ['RTh', '冷凍噸時', 'cooling_load', 'RTh', 1], ['count', '個／次', 'count', 'count', 1], ['cylinder', '瓶', 'count_cyl', 'cylinder', 1],
   ['person', '人', 'people', 'person', 1], ['person_h', '人時', 'people_time', 'person_h', 1], ['person_day', '人日', 'people_day', 'person_day', 1],
   ['visit', '人次', 'visits', 'visit', 1], ['bed', '床', 'beds', 'bed', 1], ['bed_day', '床日', 'bed_days', 'bed_day', 1],
   ['m2', '平方公尺', 'area', 'm2', 1], ['ping', '坪', 'area', 'm2', 3.305785],
@@ -66,6 +66,7 @@ export const METRICS = [
   ['equip_runtime_h', 'electricity', '設備運轉時數', 'runtime', 'interval', 'h', ''],
   ['equip_rated_kw', 'electricity', '設備額定功率', 'capacity', 'stock', 'kW', '設備特徵，不是用電量'],
   ['equip_estimated_kwh', 'electricity', '設備推估用電', 'estimate', 'estimate', 'kWh', '功率×時數推估，品質等級低於表計'],
+  ['chiller_load_rth', 'electricity', '冰水主機總負荷', 'load', 'interval', 'RTh', '冰水主機月總負荷（冷凍噸時）；效率＝耗電量 ÷ 總負荷'],
   // 油
   ['oil_purchase_l', 'oil', '燃油採購／入庫量', 'purchase', 'transaction', 'L', '採購量不等於消耗量'],
   ['oil_issue_l', 'oil', '燃油領用量', 'issue', 'transaction', 'L', ''],
@@ -202,11 +203,11 @@ export const ITEMS = [
     special_rules: ['充電與放電不可逕行互抵成組織用電'] }),
   I('ELE-EQUIP', 'electricity', 'high_load', '高耗能設備（空調、冰機、資訊機房）', {
     asset_types: ['chiller', 'cooling_tower', 'pump', 'ahu', 'fan', 'lighting', 'elevator', 'heat_pump', 'air_compressor', 'refrigeration', 'office_equipment', 'data_room', 'equipment'],
-    metrics: ['equip_runtime_h', 'equip_rated_kw', 'equip_estimated_kwh', 'elec_metered_kwh'],
+    metrics: ['equip_runtime_h', 'equip_rated_kw', 'equip_estimated_kwh', 'elec_metered_kwh', 'chiller_load_rth'],
     required_data: ['系統別', '容量與單位', '額定電功率', '數量', '年運轉時數', '製造年份'],
     usage_candidates: ['能源查核申報（表九 使用能源設備統計）', 'ISO 50001', '設備汰換', '節能診斷'] }),
   I('ELE-SYS', 'electricity', 'power_system', '變壓器與電能系統', {
-    asset_types: ['transformer', 'capacitor'], metrics: [],
+    asset_types: ['transformer', 'capacitor', 'ems'], metrics: [],
     required_data: ['廠牌', '製造年份', '容量（kVA）', '型式（乾式／油式／非晶質式）', '一次／二次側電壓', '功因調整器、電容器'],
     source_hints: ['電氣設備清冊', '變壓器銘牌', '電力技術人員巡檢紀錄'], usage_candidates: ['能源查核申報（表八 電能系統資料）'] }),
   // 氣
@@ -294,7 +295,7 @@ export const ASSET_TYPES = {
   generation_meter: '發電計量表', ess: '儲能櫃', chiller: '冰水主機', ahu: '空調箱', data_room: '資訊機房', equipment: '設備',
   gas_account: '瓦斯帳號', gas_meter: '氣表', lpg_cylinder: 'LPG 鋼瓶', lpg_tank: 'LPG 儲槽', split_ac: '分離式冷氣',
   window_ac: '窗型冷氣', water_dispenser: '飲水機', refrigerator: '冷藏設備', dryer: '乾燥機', vehicle_ac: '公務車冷氣',
-  gcb: '氣體斷路器（GCB）', panel: '分電盤', transformer: '變壓器', capacitor: '進相電容器', cooling_tower: '冷卻水塔', pump: '泵浦', fan: '送排風機',
+  gcb: '氣體斷路器（GCB）', ems: '能源管理系統（EMS）', panel: '分電盤', transformer: '變壓器', capacitor: '進相電容器', cooling_tower: '冷卻水塔', pump: '泵浦', fan: '送排風機',
   lighting: '照明', elevator: '電梯', heat_pump: '熱泵', air_compressor: '空壓機', refrigeration: '冷凍冷藏設備', office_equipment: '事務設備', gas_cylinder: '氣體鋼瓶', gas_supply: '氣體供應', fire_extinguisher: '滅火器', org_activity: '院所營運活動',
 };
 
@@ -348,3 +349,35 @@ for (const t of ['gas_meter', 'lpg_cylinder', 'lpg_tank', 'forklift', 'machinery
 ASSET_ATTRS.gas_meter = ASSET_ATTRS.gas_account;
 // chiller 同時是冷媒設備（GAS-REF）與高耗能設備（ELE-EQUIP）：兩邊都問設備規格與環境部欄位
 ASSET_ATTRS.chiller = [...EQUIP_FULL, ...MOENV_ADV];
+
+// 政府機關及學校節約能源填報網站（ea01.moeaea.gov.tw/e0402）各填報頁的欄位：照明、空調、公用設備、資訊機房、EMS、高壓用電、公務車輛、用油
+const GOV = (key, label, type = 'text', options = null, def = '') => [key, label, type, options, def, true];
+const YEAR_ADV = GOV('installYear', '設置年份（西元年）', 'number');
+const INVEST = GOV('investTwd', '投資金額（元，整批）', 'number');
+const USAGE = GOV('usagePct', '使用率（%，例：100 盞平時開 80 盞填 80）', 'number');
+const AC_NAMES = ['分離式冷氣機', '箱型冷氣機', '窗型冷氣機', '中央空調主機', '區域馬達', '冷卻水塔風扇馬達', '其他'].map((x) => [x, x]);
+const AC_GOV = [GOV('govAcName', '空調名稱（節能填報網站）', 'select', AC_NAMES), GOV('acForm', '空調型式（例：分離式、箱型）'), GOV('coolingKw', '每台冷房能力（kW）', 'number'),
+  GOV('energyLabel', '能源效率分級（1～5 級）', 'select', [1, 2, 3, 4, 5].map((n) => [String(n), `${n} 級`])), GOV('setTempC', '室內冷氣設定溫度（℃）', 'number'), USAGE, YEAR_ADV, INVEST,
+  GOV('supplyTempC', '中央空調主機出水溫度（℃）', 'number'), GOV('returnTempC', '中央空調主機回水溫度（℃）', 'number')];
+const PUBLIC_CATS = ['電冰箱', '影印機', '飲水機', '開飲機', '電腦', '咖啡機', '水泵', '空壓機', '電梯', '熱泵', '其他'].map((x) => [x, x]);
+const PUBLIC_GOV = [GOV('govPublicCat', '公用設備類別（節能填報網站）', 'select', PUBLIC_CATS), YEAR_ADV, INVEST, GOV('elevatorFloors', '電梯使用樓層')];
+const add = (types, extra) => { for (const t of types) { const cur = ASSET_ATTRS[t] || []; ASSET_ATTRS[t] = [...cur, ...extra.filter((e) => !cur.some((c) => c[0] === e[0]))]; } };
+add(['split_ac', 'window_ac', 'chiller', 'ahu', 'cooling_tower', 'fan'], AC_GOV);
+add(['pump', 'air_compressor', 'elevator', 'heat_pump', 'office_equipment', 'refrigeration', 'water_dispenser', 'refrigerator', 'equipment'], PUBLIC_GOV);
+add(['lighting'], [GOV('lampName', '燈具名稱', 'select', ['LED', '燈管', '平板燈', '燈泡', '水銀燈泡', '白熾燈泡', '省電燈泡', '鹵素燈泡', '複金屬燈', '圓形燈管', '其他'].map((x) => [x, x])),
+  GOV('lampForm', '燈具型式（例：T8/T5(LED燈管)）'), GOV('lampType', '燈具類型', 'select', ['單支(山形、格柵等)', '雙支(山形、格柵等)', '三支', '四支'].map((x) => [x, x])),
+  GOV('lampSize', '燈具尺寸（例：2尺、4尺）'), GOV('installYm', '設置年月（YYYY-MM）'), USAGE, INVEST]);
+add(['data_room'], [GOV('roomAreaM2', '主機所在空間面積（m²）', 'number'), GOV('auxAreaM2', '附屬設施所在空間面積（m²）', 'number'), GOV('racks', '機櫃數量', 'number'),
+  GOV('roomAc', '主要空調', 'select', ['中央空調', '箱型冷氣', '分離式冷氣', '窗型冷氣', '無使用空調'].map((x) => [x, x])), GOV('ownMeter', '獨立電表記錄機房總用電', 'checkbox', null, false)]);
+add(['ems'], [['emsLocation', '系統主機設置地點', 'select', [['機關學校內', '機關學校內'], ['雲端採租賃制', '雲端採租賃制']], '', false], ['installYear', '建置年份（西元年）', 'number', null, '', false],
+  ['emsFunctions', '系統功能（用能可視化、自動記錄用能歷史、遠端啟停、遠端設定溫度、設備排程、契約容量管理、參與需量反應）', 'text', null, '', false],
+  ['emsTargets', '主要記錄標的（主電表、分棟分表、空調、冰水主機、照明）', 'text', null, '', false], GOV('maintainer', '維護廠商'), GOV('investTwd', '投資金額（元）', 'number')]);
+add(['transformer'], [GOV('efficiencyPct', '變壓器效率（%）', 'number'), GOV('tempC', '變壓器溫度（℃）', 'number'),
+  GOV('condition', '評判結果', 'select', ['良好', '劣化', '待修檢查', '不良'].map((x) => [x, x])), GOV('maintainer', '維護或保養廠商')]);
+add(['power_account'], [GOV('buildingName', '電號所在建物名稱'), GOV('holding', '持有情形', 'select', ['自有', '合署', '租賃', '由其他單位申報'].map((x) => [x, x]), '自有'),
+  GOV('govSharePct', '分攤比例（%，與其他單位共用時）', 'number', null, 100), GOV('govDeductKwh', '非機關學校業務用電扣除（度／年）', 'number'), GOV('govProjectDeductKwh', '專案扣除用電度數（度／年）', 'number'),
+  GOV('supplyVoltageV', '供電電壓（V，高壓用電場所）', 'number'), GOV('loadHp', '用電設備容量：動力（hp）', 'number'), GOV('loadHeatKw', '用電設備容量：電熱（kW）', 'number'), GOV('loadLightKw', '用電設備容量：電燈（kW）', 'number')]);
+add(['vehicle'], [GOV('govKind', '種類', 'select', ['公務用車', '醫療機構', '工程', '其他'].map((x) => [x, x]), '醫療機構'),
+  GOV('carType', '車種', 'select', ['小型汽車(油車)', '大型汽車(油車)', '特殊車輛(油車)', '機車(油車)', '電動車', '油電混合車'].map((x) => [x, x]), '小型汽車(油車)'),
+  GOV('licenseType', '行照車種（例：小客車、小(客)貨車、大客車）'), GOV('fuelCustomerNo', '購油客戶編號（2 碼英文＋7 碼數字）'), GOV('oilSupplier', '購油類型', 'select', ['台灣中油', '台塑石油', '自購油', '油摺'].map((x) => [x, x])), GOV('year', '出廠年份（西元年）', 'number'), GOV('displacementCc', '排氣量（c.c.）', 'number')]);
+add(['generator', 'forklift', 'machinery', 'fuel_tank', 'fuel_card'], [GOV('fuelCustomerNo', '購油客戶編號（2 碼英文＋7 碼數字）'), GOV('oilSupplier', '購油類型', 'select', ['台灣中油', '台塑石油', '自購油', '油摺'].map((x) => [x, x]))]);

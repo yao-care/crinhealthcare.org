@@ -60,7 +60,9 @@ function profileValue(profile, key) {
 
 function loader(datasetId, orgId) {
   const cx = datasetId ? makeContext(datasetId) : { facts: [], assets: q.all("SELECT a.*, i.code AS item_code FROM assets a LEFT JOIN inventory_items i ON i.id = a.item_id WHERE a.org_id = ? AND a.status <> 'archived'", orgId).map((a) => ({ ...a, attrs: j(a.attrs, {}) })), ds: null };
-  const assets = cx.assets.filter((a) => a.status !== 'archived');
+  // 定版快照的屬性優先（計算用的油種、冷媒等不變）；定版後才補填的申報欄位（設備規格、購油客戶編號、分攤比例…）從目前台帳補上
+  const cur = new Map(q.all('SELECT id, attrs FROM assets WHERE org_id = ?', orgId).map((r) => [r.id, j(r.attrs, {})]));
+  const assets = cx.assets.filter((a) => a.status !== 'archived').map((a) => ({ ...a, attrs: { ...(cur.get(a.id) || {}), ...a.attrs } }));
   // 定版後才封存的標的：資料集裡有它的採用值就照樣列出（屬性用定版快照），避免歷年報告少一個電號
   const have = new Set(assets.map((a) => a.id));
   const missing = [...new Set(cx.facts.map((f) => f.asset_id).filter((id) => !have.has(id)))];
@@ -70,7 +72,7 @@ function loader(datasetId, orgId) {
     assets.push({ ...a, attrs: j(s?.attrs ?? a.attrs, {}), applicability: s?.applicability ?? a.applicability, asset_type: s?.asset_type ?? a.asset_type, item_code: s?.item_code ?? a.item_code });
   }
   const byId = new Map(assets.map((a) => [a.id, a]));
-  const facts = cx.facts.map((f) => ({ ...f, asset: byId.get(f.asset_id) }));
+  const facts = cx.facts.map((f) => ({ ...f, attrs: { ...(cur.get(f.asset_id) || {}), ...f.attrs }, asset: byId.get(f.asset_id) }));
   return { cx, assets, byId, facts };
 }
 
@@ -568,6 +570,142 @@ function govCompare(L, ctx) {
     tables: [T('與前一年度比較', '年度比較', ['項目', `${roc(year - 1)} 年`, `${roc(year)} 年`, '增減（%）'], rows)] };
 }
 
+// ── 節約能源填報網站各填報頁（ea01.moeaea.gov.tw/e0402；欄位依網站 2026-11 版）──
+const yearFacts = (L, assetId, metric, year, unit) => sum(L.facts.filter((f) => f.asset_id === assetId && f.metric_code === metric && billMonth(f).y === year).map((f) => val(f, unit)));
+const bnameOf = (a) => (a.building_id ? q.get('SELECT name FROM buildings WHERE id = ?', a.building_id)?.name : '') || '';
+const yesNo = (v) => (v === true || v === 'true' ? '是' : v === false || v === 'false' ? '否' : '');
+function govBasic(L, ctx) {
+  const { profile, org, results } = ctx; const P = (k) => profileValue(profile, k);
+  const area = results?.['act.floor_area_m2']?.value ?? orgMetric(L, 'floor_area_m2', 'm2');
+  const rows = [['機關代碼', P('govAgencyCode')], ['機關全名', profile.hqName || org.name], ['機關統一編號', P('taxId')], ['機關地址', P('address')], ['機關首長', P('govHead') || P('representative')],
+    ['上級／主管機關（機關代碼）', P('govParentAgency')], ['填報人員', P('govReporter') || P('contactPerson')], ['督導人員', P('govSupervisor')],
+    ['建築物總樓地板面積（含室內停車場，m²）', cell(r2(area))], ['編制人員', P('govStaffRegular')], ['非編制人員', P('govStaffNonRegular')], ['洽公或參訪人次', P('govVisitors')],
+    ['工作天數', P('govWorkDays')], ['工作時間', P('govWorkHours')]];
+  const miss = rows.filter(([, v]) => v === '' || v === null || v === undefined).map(([k]) => k);
+  return { state: miss.length ? 'partial' : 'measured', text: miss.length ? `待補（院所基本資料 › 政府機關節能填報）：${miss.join('、')}。` : '', tables: [T('基本資料', '基本資料', ['欄位', '內容'], rows)] };
+}
+function govMeters(L, ctx) {
+  const { year } = ctx; const accts = accountsOf(L); const notes = [];
+  const rows = accts.map((a, i) => {
+    const total = yearFacts(L, a.id, 'elec_purchased_kwh', year, 'kWh');
+    const share = a.attrs.govSharePct === undefined || a.attrs.govSharePct === '' ? 100 : Number(a.attrs.govSharePct);
+    const ded = Number(a.attrs.govDeductKwh) || 0; const pded = Number(a.attrs.govProjectDeductKwh) || 0;
+    const evalKwh = total === null ? null : total * share / 100 - ded - pded;
+    if (total === null) notes.push(`${accountLabel(a)} 沒有 ${year} 年用電度數`);
+    if (!a.attrs.supplyFloorAreaM2 && accts.length > 1) notes.push(`${accountLabel(a)} 缺實際使用樓地板面積（電號進階欄位）`);
+    return [i + 1, a.external_key || '（未填）', a.attrs.buildingName || bnameOf(a), '醫療院所', a.attrs.holding || '自有', cell(r2(total, 0)), share, ded || '', pded || '', cell(r2(evalKwh, 0)),
+      cell(a.attrs.supplyFloorAreaM2 ?? (accts.length === 1 ? r2(orgMetric(L, 'floor_area_m2', 'm2')) : ''))];
+  });
+  return { state: !accts.length ? 'missing' : notes.length ? 'partial' : 'measured', text: `評比用電度數＝總用電度數 × 分攤比例 － 非機關學校業務用電扣除 － 專案扣除；以帳單月份合計全年。申請扣除須上傳佐證 PDF。${notes.length ? `待補：${notes.join('；')}。` : ''}`,
+    tables: [T('用電資料填報（電表資料）', '用電資料_電表', ['序號', '電號', '電號所在建物名稱', '建築使用類型', '持有情形', '總用電度數（kWh）', '分攤比例（%）', '非機關學校業務用電扣除（kWh）', '專案扣除用電度數（kWh）', '評比用電度數（kWh）', '實際使用樓地板面積（m²）'], rows)] };
+}
+function govPv(L, ctx) {
+  const pv = L.assets.filter((a) => a.item_code === 'ELE-PV' && a.applicability !== 'not_applicable');
+  const rows = pv.map((a, i) => [i + 1, a.name, cell(a.attrs.capacityKw), cell(r2(yearFacts(L, a.id, 'elec_generated_kwh', ctx.year, 'kWh'), 0)), cell(r2(yearFacts(L, a.id, 'elec_self_used_kwh', ctx.year, 'kWh'), 0)), cell(r2(yearFacts(L, a.id, 'elec_exported_kwh', ctx.year, 'kWh'), 0)), accountOf(L, a) ? accountLabel(accountOf(L, a)) : '']);
+  return { state: 'measured', text: pv.length ? '' : '沒有太陽光電系統標的（無則免填）。', tables: [T('太陽光電系統資料填報', '太陽光電', ['序號', '系統名稱', '裝置容量（kW）', '年發電量（度）', '自發自用（度）', '售電（度）', '併接電號'], rows)] };
+}
+function govOil(L, ctx) {
+  const { year } = ctx; const by = new Map(); const notes = [];
+  for (const f of L.facts.filter((x) => x.metric_code === 'oil_consumption_l' && billMonth(x).y === year)) {
+    const a = L.byId.get(f.asset_id); if (!a) continue;
+    const no = a.attrs.fuelCustomerNo || ''; if (!no) notes.push(`${a.name} 未填購油客戶編號`);
+    const k = no || `（未填）${a.name}`;
+    if (!by.has(k)) by.set(k, { no, supplier: a.attrs.oilSupplier || '', total: 0, fuels: new Set() });
+    const g = by.get(k); const v = val(f, 'L'); if (v !== null) g.total += v; g.fuels.add({ diesel: '柴油', gasoline: '汽油', fuel_oil: '燃料油' }[f.attrs.fuel || DEFAULT_FUEL[f.item_code]] || '');
+  }
+  const rows = [...by.values()].map((g, i) => [i + 1, g.supplier, g.no || '（未填）', [...g.fuels].join('、'), r2(g.total, 1), r2(g.total, 1)]);
+  const uniq = [...new Set(notes)];
+  return { state: uniq.length ? 'partial' : 'measured', text: `實際用油量（升）為評比依據；與其他單位共用油號時請改填分攤後用油量。${uniq.length ? `待補：${uniq.join('；')}。` : ''}`,
+    tables: [T('用油資料填報（油號資料）', '用油資料_油號', ['序號', '購油類型', '購油客戶編號', '油品', '總用油量（升）', '實際用油量（升）'], rows)] };
+}
+function govLighting(L) {
+  const lt = L.assets.filter((a) => a.asset_type === 'lighting' && a.applicability !== 'not_applicable');
+  const miss = lt.filter((a) => !a.attrs.lampName || !a.attrs.qty).map((a) => a.name);
+  const rows = lt.map((a, i) => [i + 1, a.attrs.lampName || a.attrs.equipName || '', a.attrs.lampForm || '', a.attrs.lampType || '', a.attrs.lampSize || '', a.attrs.lightingSpec || '', a.attrs.installYm || '',
+    cell(a.attrs.qty), [bnameOf(a), a.attrs.area || a.location].filter(Boolean).join(' '), cell(a.attrs.hoursPerYear), cell(a.attrs.usagePct), cell(a.attrs.investTwd)]);
+  return { state: !lt.length ? 'missing' : miss.length ? 'partial' : 'measured', text: `${!lt.length ? '尚未建立照明設備（高耗能設備 › 照明）。' : ''}${miss.length ? `缺燈具名稱或數量：${miss.join('、')}。` : ''}螢光燈具未汰換者，網站會列入建議汰換清單並要求填預計汰換數量與日期。`,
+    tables: [T('照明設備填報', '照明設備', ['序號', '燈具名稱', '燈具型式', '燈具類型', '燈具尺寸', '容量規格', '設置年月', '現有數量（盞）', '設置區域', '運轉時數（hr／年）', '使用率（%）', '投資金額（元）'], rows, { maskCols: [11] })] };
+}
+const AC_TYPES = ['split_ac', 'window_ac', 'chiller', 'ahu', 'cooling_tower', 'fan'];
+function govAc(L) {
+  // 同一台冷氣可能同時是冷媒設備（GAS-REF）與高耗能設備（ELE-EQUIP）：依名稱去重
+  const seen = new Set(); const ac = [];
+  for (const a of L.assets.filter((x) => AC_TYPES.includes(x.asset_type) && x.applicability !== 'not_applicable' && (x.item_code === 'ELE-EQUIP' || x.item_code === 'GAS-REF'))) { if (seen.has(a.name)) continue; seen.add(a.name); ac.push(a); }
+  const def = { split_ac: '分離式冷氣機', window_ac: '窗型冷氣機', chiller: '中央空調主機', cooling_tower: '冷卻水塔風扇馬達', ahu: '區域馬達', fan: '區域馬達' };
+  const motor = (n) => ['區域馬達', '冷卻水塔風扇馬達'].includes(n);
+  const miss = [];
+  const rows = ac.map((a, i) => {
+    const name = a.attrs.govAcName || def[a.asset_type] || '其他';
+    if (!motor(name) && !a.attrs.coolingKw) miss.push(a.name);
+    return [i + 1, name, a.attrs.acForm || ASSET_TYPES[a.asset_type] || '', yesNo(a.attrs.inverter) === '是' ? '變頻控制' : yesNo(a.attrs.inverter) === '否' ? '非變頻控制' : '', a.attrs.energyLabel ? `${a.attrs.energyLabel} 級` : '',
+      cell(a.attrs.coolingKw), cell(a.attrs.ratedKw), [bnameOf(a), a.location].filter(Boolean).join(' '), cell(a.attrs.qty || 1), cell(a.attrs.installYear), cell(a.attrs.hoursPerYear),
+      motor(name) ? '—' : cell(a.attrs.setTempC), cell(a.attrs.usagePct), cell(a.attrs.investTwd)];
+  });
+  return { state: !ac.length ? 'missing' : miss.length ? 'partial' : 'measured', text: `${miss.length ? `缺每台冷房能力（kW）：${miss.slice(0, 8).join('、')}${miss.length > 8 ? `…等 ${miss.length} 項` : ''}。` : ''}區域馬達、冷卻水塔風扇馬達免填冷房能力與設定溫度，使用率必填。`,
+    tables: [T('空調設備填報', '空調設備', ['序號', '空調名稱', '空調型式', '變頻', '能源效率分級', '每台冷房能力（kW）', '每台額定電功率（kW）', '設置區域', '現有數量（台）', '設置年份（西元年）', '每台年運轉時數', '室內冷氣設定溫度（℃）', '使用率（%）', '投資金額（元）'], rows, { maskCols: [13] })] };
+}
+function govPublic(L) {
+  const cat = { pump: '水泵', air_compressor: '空壓機', elevator: '電梯', heat_pump: '熱泵', water_dispenser: '飲水機', refrigerator: '電冰箱', refrigeration: '電冰箱', office_equipment: '其他', equipment: '其他' };
+  const list = L.assets.filter((a) => Object.keys(cat).includes(a.asset_type) && a.applicability !== 'not_applicable' && ['ELE-EQUIP', 'GAS-REF'].includes(a.item_code));
+  const rows = list.map((a, i) => [i + 1, a.attrs.govPublicCat || cat[a.asset_type], a.name, cell(a.attrs.ratedKw), cell(a.attrs.qty || 1), cell(a.attrs.installYear), [bnameOf(a), a.location].filter(Boolean).join(' '), cell(a.attrs.hoursPerYear), cell(a.attrs.investTwd), a.attrs.elevatorFloors || '']);
+  const miss = list.filter((a) => !a.attrs.ratedKw).map((a) => a.name);
+  return { state: miss.length ? 'partial' : 'measured', text: miss.length ? `缺規格 kW：${miss.slice(0, 8).join('、')}。` : list.length ? '' : '沒有公用設備標的。',
+    tables: [T('公用設備填報', '公用設備', ['序號', '設備類別', '本平台標的', '規格瓩（kW）', '數量（台）', '設置年份（西元年）', '使用地點', '運轉時數（hr／年）', '投資金額（元）', '電梯使用樓層'], rows, { maskCols: [8] })] };
+}
+function govDataRoom(L, ctx) {
+  const list = L.assets.filter((a) => a.asset_type === 'data_room' && a.applicability !== 'not_applicable');
+  const rows = list.map((a, i) => { const e = equipKwh(L, a, ctx.year); const acct = accountOf(L, a); return [i + 1, a.name, acct ? accountLabel(acct) : '', cell(a.attrs.roomAreaM2), cell(a.attrs.auxAreaM2), cell(a.attrs.racks), a.attrs.roomAc || '', yesNo(a.attrs.ownMeter), cell(r2(e.kwh, 0)), e.how]; });
+  return { state: 'measured', text: list.length ? '' : '沒有資訊／電腦機房標的（無則填原因）。', tables: [T('資訊／電腦機房填報', '資訊機房', ['序號', '機房名稱', '使用電號', '主機所在空間面積（m²）', '附屬設施空間面積（m²）', '機櫃數量', '主要空調', '獨立電表', '機房總用電（度／年）', '用電來源'], rows)] };
+}
+function govEms(L, ctx) {
+  const list = L.assets.filter((a) => a.asset_type === 'ems' && a.applicability !== 'not_applicable');
+  const rows = list.map((a, i) => [i + 1, a.name, accountOf(L, a) ? accountLabel(accountOf(L, a)) : (a.attrs.recordAccounts || ''), a.attrs.emsLocation || '', cell(a.attrs.installYear), a.attrs.emsFunctions || '', a.attrs.emsTargets || '', a.attrs.maintainer || '', cell(a.attrs.investTwd)]);
+  // 冰水主機效率：每月耗電量 ÷ 總負荷
+  const ch = L.assets.filter((a) => a.asset_type === 'chiller' && a.item_code === 'ELE-EQUIP');
+  const crow = [];
+  for (const m of MONTHS) {
+    const kwh = sum(ch.map((a) => sum(L.facts.filter((f) => f.asset_id === a.id && f.metric_code === 'elec_metered_kwh' && billMonth(f).y === ctx.year && billMonth(f).m === m).map((f) => val(f, 'kWh')))));
+    const rth = sum(ch.map((a) => sum(L.facts.filter((f) => f.asset_id === a.id && f.metric_code === 'chiller_load_rth' && billMonth(f).y === ctx.year && billMonth(f).m === m).map((f) => val(f, 'RTh')))));
+    if (kwh !== null || rth !== null) crow.push([`${m}月`, cell(r2(kwh, 0)), cell(r2(rth, 0)), kwh !== null && rth ? r2(kwh / rth, 3) : '']);
+  }
+  return { state: 'measured', text: list.length ? '' : '沒有能源管理系統標的（網站須說明未導入原因與規劃）。',
+    tables: [T('能源管理系統（EMS）填報', 'EMS', ['序號', '能源管理系統名稱', '紀錄電號', '系統主機設置地點', '建置年份', '系統功能', '主要記錄標的', '維護廠商', '投資金額（元）'], rows, { maskCols: [8] }),
+      T('能源管理系統冰水主機效率檢測情形', 'EMS冰水主機效率', ['月份', '冰水主機耗電量（kWh）', '冰水主機總負荷（RTh）', '效率值（kW/RT）'], crow)] };
+}
+function govReplace(L, ctx) {
+  const list = listMeasures(ctx.orgId, ctx.year, 'done').filter((m) => /06$/.test(m.code || '') || /汰換|換裝|更換/.test(m.name));
+  return { state: 'measured', text: list.length ? '' : '本年度沒有汰舊換新措施（措施代碼方法碼 06 或名稱含汰換／換裝）。',
+    tables: [T('公用設備填報－節電汰舊換新', '節電汰舊換新', ['序號', '設備名稱', '設備型式', '數量', '運轉時數', '投資金額（元）'], list.map((m, i) => [i + 1, m.name, m.target || '', '', '', cell(m.investment_twd)]), { maskCols: [5] })] };
+}
+function govHv(L, ctx) {
+  const { year } = ctx; const accts = accountsOf(L);
+  const sites = accts.map((a) => {
+    const pf = monthly(metricFacts(L, a.id, 'elec_power_factor_pct'), year, 'pct', 'last').values.filter((v) => v !== null);
+    const xf = L.assets.filter((t) => t.asset_type === 'transformer' && accountOf(L, t)?.id === a.id);
+    const kva = sum(xf.map((t) => Number(t.attrs.kva) || null));
+    const peak = monthly(metricFacts(L, a.id, 'elec_peak_demand_kw'), year, 'kW', 'max').values.filter((v) => v !== null);
+    const contract = latestFact(metricFacts(L, a.id, 'elec_contract_kw'), 'kW') ?? (a.attrs.contractKw ? Number(a.attrs.contractKw) : null);
+    const pk = peak.length ? Math.max(...peak) : null;
+    return [accountLabel(a), a.attrs.buildingName || a.name, a.attrs.supplyAddress || '', cell(a.attrs.supplyVoltageV), cell(a.attrs.loadHp), cell(a.attrs.loadHeatKw), cell(a.attrs.loadLightKw), cell(contract), cell(r2(pk, 0)),
+      pf.length ? r2(pf.reduce((x, y) => x + y, 0) / pf.length, 1) : '', cell(kva), kva && pk ? r2(pk / kva * 100, 1) : '', xf.some((t) => t.attrs.pfController === true || t.attrs.pfController === 'true') ? '有' : xf.length ? '無' : '', cell(sum(xf.map((t) => Number(t.attrs.capacitorKvar) || null)))];
+  });
+  const xfs = L.assets.filter((t) => t.asset_type === 'transformer');
+  const xrows = xfs.map((t) => [accountOf(L, t) ? accountLabel(accountOf(L, t)) : '', t.attrs.loadDesc || '', t.name, t.attrs.brand || '', t.attrs.xfmrType || '', t.attrs.year ? Number(t.attrs.year) + 1911 : '', cell(t.attrs.kva),
+    t.attrs.primaryKv ? r2(Number(t.attrs.primaryKv) * 1000, 0) : '', cell(t.attrs.secondaryV), cell(t.attrs.efficiencyPct), cell(t.attrs.tempC), t.attrs.condition || '', t.attrs.maintainer || '']);
+  const noAcct = xfs.filter((t) => !accountOf(L, t)).map((t) => t.name);
+  return { state: 'measured', text: `高壓（600V 以上）用電場所以電號為單位；變壓器負載率＝尖峰最高需量 ÷ 變壓器容量合計（概估）。${noAcct.length ? `變壓器未掛電號（進階 › 上層選電號）：${noAcct.join('、')}。` : ''}`,
+    tables: [T('高壓用電填報－高壓用電場所', '高壓用電場所', ['電號', '用電場所名稱', '用電地址', '供電電壓（V）', '動力（hp）', '電熱（kW）', '電燈（kW）', '經常契約容量（kW）', '尖峰最高需量（kW）', '功率因數（%）', '變壓器容量合計（kVA）', '變壓器負載率（%）', '功因自動調整器', '裝置電容器量（kVAR）'], sites),
+      T('高壓用電填報－變壓器', '高壓用電_變壓器', ['電號', '盤面（迴路）名稱', '設備名稱', '廠牌', '型式', '製造出廠年份（西元）', '容量（kVA）', '一次側（V）', '二次側（V）', '變壓器效率（%）', '變壓器溫度（℃）', '評判結果', '維護或保養廠商'], xrows)] };
+}
+function govVehicles(L, ctx) {
+  const vs = L.assets.filter((a) => a.asset_type === 'vehicle' && a.applicability !== 'not_applicable');
+  const fuelName = { gasoline: '汽油', diesel: '柴油' };
+  const miss = vs.filter((a) => !a.external_key || !a.attrs.fuelCustomerNo || !a.attrs.displacementCc).map((a) => a.name);
+  const rows = vs.map((a, i) => [i + 1, '公務車', a.attrs.govKind || '醫療機構', a.attrs.carType || '', a.attrs.licenseType || a.attrs.vehicleClass || '', a.external_key || '', a.attrs.fuelCustomerNo || '', cell(a.attrs.year), cell(a.attrs.displacementCc), fuelName[a.attrs.fuel] || a.attrs.fuel || '', a.attrs.note || a.name]);
+  return { state: !vs.length ? 'measured' : miss.length ? 'partial' : 'measured', text: `${miss.length ? `缺車號、購油客戶編號或排氣量：${miss.join('、')}。` : ''}${vs.length ? '' : '沒有公務車標的。'}`,
+    tables: [T('公務車輛填報', '公務車輛', ['序號', '類別', '種類', '車種', '行照車種', '車號', '購油客戶編號', '出廠年份（西元年）', '排氣量（c.c.）', '燃料', '備註'], rows)] };
+}
+
 // ════════════════ 油電水節能管制（通用逐月表）════════════════
 function oewMonthly(L, ctx) {
   const { year } = ctx; const accts = accountsOf(L);
@@ -583,6 +721,8 @@ function oewMonthly(L, ctx) {
 const BUILDERS = {
   eu_basic: euBasic, eu_heat: euHeat, eu_elec: euElec, eu_eui: euEui, eu_flow: euFlow, eu_buildings: euBuildings, eu_elec_system: euElecSystem, eu_equipment: euEquipment,
   eu_measures: euMeasures, eu_rate: euRate, eu_plan: euPlan, gov_monthly: govMonthly, gov_compare: govCompare, oew_monthly: oewMonthly,
+  gov_basic: govBasic, gov_meters: govMeters, gov_pv: govPv, gov_oil: govOil, gov_lighting: govLighting, gov_ac: govAc, gov_public: govPublic, gov_dataroom: govDataRoom,
+  gov_ems: govEms, gov_replace: govReplace, gov_hv: govHv, gov_vehicles: govVehicles,
 };
 export const OUTPUT_BLOCK_KEYS = [...Object.keys(BUILDERS), 'moenv_import', 'moenv_check'];
 

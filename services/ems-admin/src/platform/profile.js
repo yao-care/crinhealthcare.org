@@ -31,9 +31,15 @@ Object.assign(PROFILE_FIELDS, Object.fromEntries([
   P('moenvControlNo', '環境部管制編號（8 碼）', { group: 'moenv' }), P('moenvSiteNo', '分據點編號', { group: 'moenv', default: 'D00001' }),
   P('registration', '依法盤查登錄／自願性登錄', { group: 'moenv', default: '依法盤查登錄' }), P('registrationIndustry', '依法盤查登錄之行業別與納管條件代碼', { group: 'moenv' }),
   P('authority', '目的事業主管機關（代碼與名稱，見環境部代碼檔附表三）', { group: 'moenv' }), P('medicalCode', '醫事機構代碼', { group: 'moenv' }),
+  P('govAgencyCode', '機關代碼（節能填報網站）', { group: 'gov' }), P('govHead', '機關首長（姓名、職稱、電話、電子信箱）', { group: 'gov' }),
+  P('govReporter', '填報人員（姓名、職稱、電話、手機、電子信箱）', { group: 'gov' }), P('govSupervisor', '督導人員（姓名、部門、職稱、電話、電子信箱）', { group: 'gov' }),
+  P('govParentAgency', '上級機關／主管機關（機關代碼）', { group: 'gov' }), P('govStaffRegular', '編制人員數', { group: 'gov' }), P('govStaffNonRegular', '非編制人員數（常駐）', { group: 'gov' }),
+  P('govVisitors', '洽公或參訪人次（當年概估）', { group: 'gov' }), P('govWorkDays', '工作天數', { group: 'gov', default: '365' }), P('govWorkHours', '工作時間（例：24 小時）', { group: 'gov', default: '24 小時' }),
+  P('govSurvey', '問卷與節約能源推動小組（強化節電管理、資訊機房、空調、照明、EMS、公用設備、落實節電措施等題目的回答）', { group: 'gov', short: false }),
+  P('govGrowthReason', '用電／用油正（負）成長原因說明', { group: 'gov', short: false }),
   P('excludedEntities', '邊界內未納入計算之排放源（環境部表2-3；每行：名稱｜地址｜原因）', { group: 'moenv', short: false }),
 ]));
-export const PROFILE_GROUPS = { ghg: '盤查報告說明', basic: '機關基本資料（各申報共用）', energy: '能源查核申報', moenv: '環境部盤查登錄' };
+export const PROFILE_GROUPS = { ghg: '盤查報告說明', basic: '機關基本資料（各申報共用）', energy: '能源查核申報', moenv: '環境部盤查登錄', gov: '政府機關及學校節約能源填報網站' };
 
 export function getProfile(orgId) {
   return j(q.get('SELECT data FROM org_profiles WHERE org_id = ?', orgId)?.data, {});
