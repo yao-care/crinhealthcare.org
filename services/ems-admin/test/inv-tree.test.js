@@ -58,14 +58,14 @@ test('樓層文字展開：B1–9F 由上往下；頓號清單照原順序', () 
 test('看板資料轉入：建物樓層、周邊、台電受電總盤、發電機；重跑不重複', () => {
   const run = () => execFileSync(process.execPath, ['scripts/inv-from-board.mjs', '803', '--outdoor', '停車場,路燈'], { cwd: join(import.meta.dirname, '..'), env: process.env, encoding: 'utf8' });
   const out = run();
-  assert.match(out, /急重症總站（大坑變電所 22\.8kV）/);
+  assert.match(out, /大坑變電所 22\.8kV/);
   assert.match(out, /柴油發電機 G5/);
   assert.match(run(), /沒有要新增的/);
   const tr = T.tree(sa, org);
   const ele = tr.domains.find((d) => d.key === 'electricity');
   const tpc = ele.children.find((c) => c.kind === 'tpc');
   const zones = ele.children.find((c) => c.kind === 'zones');
-  assert.deepEqual(tpc.children.map((c) => c.name), ['急重症總站（大坑變電所 22.8kV）', '既有總站（太平變電所 11.4kV）']);
+  assert.deepEqual(tpc.children.map((c) => c.name), ['大坑變電所 22.8kV', '太平變電所 11.4kV']);
   assert.deepEqual(zones.children.map((b) => b.name), ['急重症大樓', '醫療大樓', '綜合大樓', '周邊'], '周邊排最後');
   assert.deepEqual(zones.children[0].children.map((f) => f.name), ['9F', '1F', 'B1']);
   assert.deepEqual(zones.children[3].children.map((f) => f.name), ['停車場', '路燈']);
@@ -96,7 +96,7 @@ test('台電樹走上層關係；分盤可供多層、一層可由多盤供電�
   assert.deepEqual(t2.children.map((c) => c.name).sort(), ['A1 分盤', 'A2 分盤']);
   const f1 = T.zoneNode(sa, org, `${bld}|1F`);
   assert.deepEqual(f1.servedBy.map((s) => s.name).sort(), ['A1 分盤', 'A2 分盤'], '1F 由兩個盤供電');
-  assert.equal(f1.servedBy[0].upstream, '急重症總站（大坑變電所 22.8kV）');
+  assert.equal(f1.servedBy[0].upstream, '大坑變電所 22.8kV');
   const fb1 = T.zoneNode(sa, org, `${bld}|B1`);
   assert.deepEqual(fb1.located.map((x) => x.name), ['A1 分盤'], 'B1 是 A1 的實體位置');
   const zid = f1.servedBy.find((s) => s.name === 'A2 分盤').zoneLinkId;

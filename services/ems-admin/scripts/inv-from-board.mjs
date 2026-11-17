@@ -4,7 +4,7 @@
 //
 // 建立：
 //   分區   env.peace.buildings 的建物與樓層（樓層由上往下）；--outdoor 指定的周邊區域
-//   台電   電力「受電」設備（例：大坑變電所 22.8KV → 急重症總站）各一個外購電力電號標的（受電總盤）
+//   台電   電力「受電」設備（例：大坑變電所 22.8KV）各一個外購電力電號標的（受電總盤），名稱只用變電所＋電壓
 //   油     「柴油發電機 Gn xxxKW」各一台緊急發電機（額定 kW、所在建物）
 // 重跑安全：每筆記 legacy_ref＝board:<hid>:<鍵>，已有就跳過。資料目錄取 AUDIT_DATA_DIR／PLATFORM_DB（沒設就讀 .env）。
 import { readFileSync, existsSync } from 'node:fs';
@@ -67,12 +67,11 @@ const mk = (key, row) => {
     audit({ actor: 'seed', actorName: '看板資料轉入', orgId: org.id, action: 'asset.create', targetType: 'asset', targetId: id, after: r });
   } });
 };
-// 台電：受電點各一個電號（受電總盤）。「大坑變電所 22.8KV」＋ loc「總院 → 急重症總站」→「急重症總站（大坑變電所 22.8kV）」
+// 台電：受電點各一個電號（受電總盤）。「大坑變電所 22.8KV」→「大坑變電所 22.8kV」；看板 loc 文字不拿來命名，原文留在 location
 for (const d of (power?.devices || []).filter((x) => x.system === '受電')) {
-  const station = String(d.loc || '').split('→').pop().trim();
   const kv = (d.name.match(/([\d.]+)\s*KV/i) || [])[1];
   const sub = d.name.replace(/\s*[\d.]+\s*KV/i, '').trim();
-  mk(`tpc:${d.name}`, { domain: 'electricity', item_id: item('ELE-GRID'), asset_type: 'power_account', name: station ? `${station}（${sub}${kv ? ` ${kv}kV` : ''}）` : d.name,
+  mk(`tpc:${d.name}`, { domain: 'electricity', item_id: item('ELE-GRID'), asset_type: 'power_account', name: `${sub}${kv ? ` ${kv}kV` : ''}`, location: d.loc || undefined,
     attrs: { supplyKv: kv ? Number(kv) : undefined, note: d.reading || undefined } });
 }
 // 油：柴油發電機
