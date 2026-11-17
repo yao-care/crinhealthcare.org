@@ -330,12 +330,13 @@ function scenSwitch(cur, onPick) {
 }
 
 function buildSections() {
-  const S = INV_ON ? window.EMSInventory.sections().map((s) => (TREE_ON ? { ...s, legacy: true } : s)) : [];
-  const legacy = INV_ON || TREE_ON;
+  // 有盤點樹時：舊的點位貼紙、初始建檔、異動登錄、申報與報告、電力健檢填報都已併進盤點樹（平台資料），左欄只剩盤點與治理兩大項
+  const S = INV_ON && !TREE_ON ? window.EMSInventory.sections() : [];
+  const legacy = INV_ON;
 
   // ── 電力健檢填報（公文附件一／三）──
   // 這些區塊的資料存在主機本地、不進公開 repo，由 audit.js 負責渲染與送出。
-  for (const b of window.EMSAudit?.spec()?.blocks || []) {
+  for (const b of TREE_ON ? [] : window.EMSAudit?.spec()?.blocks || []) {
     S.push({ id: `a-${b.id}`, task: b.task === 'contact' ? 'contact' : 'audit', group: '',
       label: `${b.icon} ${b.label}`, audit: b.id, legacy });
   }
@@ -376,7 +377,7 @@ function buildSections() {
   }
 
   // 附件二：流程與權責 ＋ 填報送出紀錄 ＋ 報告交付。放最後，因為它是「看進度」不是「填東西」。
-  if (window.EMSAudit?.spec()) S.push({ task: 'progress', id: 'a-progress', group: '', label: '📄 流程與權責', progress: true, legacy });
+  if (window.EMSAudit?.spec() && !TREE_ON) S.push({ task: 'progress', id: 'a-progress', group: '', label: '📄 流程與權責', progress: true, legacy });
   // 新版導覽：舊版健檢的三支任務排到最後，收在「舊版健檢填報」底下
   if (INV_ON || TREE_ON) return [...S.filter((s) => !s.legacy), ...S.filter((s) => s.legacy)];
   return S;

@@ -1895,3 +1895,24 @@ button.mb-cell:hover, button.mb-head:hover, button.mb-env:hover { background: va
 .mb-fold { color: var(--color-text-secondary); }
 /* 治理頁不顯示舊版健檢的九階段進度列 */
 .editor.task-gov #stagesBar { display: none; }
+
+/* 盤點樹：原「其他」併入後的元件（登錄數據、規格、QR、院所基本資料、申報與報告） */
+.editor.has-tree #stagesBar, .editor.has-tree #mapBtn { display: none; }
+.tv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-md); }
+.tv-actions .muted { font-size: var(--text-xs); }
+.tv-dl { display: grid; grid-template-columns: minmax(10rem, max-content) 1fr; gap: var(--space-2xs) var(--space-lg); margin: 0; font-size: var(--text-sm); }
+.tv-dl dt { color: var(--color-text-secondary); }
+.tv-dl dd { margin: 0; }
+.tv-qr { display: flex; gap: var(--space-lg); align-items: center; margin: var(--space-lg) 0; padding: var(--space-md); background: var(--color-paper); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.tv-qr img { flex: none; width: 7.5rem; height: 7.5rem; }
+.tv-qr p { margin: var(--space-2xs) 0; font-size: var(--text-xs); }
+.tv-pgroup { margin: var(--space-md) 0; padding: var(--space-sm) var(--space-lg); background: var(--color-paper); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.tv-pgroup summary { cursor: pointer; font-weight: 700; font-size: var(--text-lg); padding: var(--space-xs) 0; }
+.tv-f.wide { grid-column: 1 / -1; }
+.tv-f.tv-check { flex-direction: row-reverse; justify-content: flex-end; align-items: center; }
+.tv-f.tv-check input { width: auto; min-height: 0; }
+.tv-form details summary { cursor: pointer; margin: var(--space-xs) 0; color: var(--color-primary-dark); }
+.tv-t7 { flex: 1 1 100%; }
+.tv-click { cursor: pointer; }
+.tv-click:hover td, .tv-table tr.sel td { background: var(--color-primary-pale); }
+.tv-table.wrap td, .tv-table.wrap th { white-space: normal; }

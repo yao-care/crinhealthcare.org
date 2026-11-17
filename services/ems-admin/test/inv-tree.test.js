@@ -159,3 +159,24 @@ test('權限：別院帳號看不到這棵樹', () => {
   assert.throws(() => T.tree(ctx, org));
   assert.throws(() => T.assetNode(ctx, main, {}));
 });
+
+test('原「其他」併入盤點樹：營運數據、院所基本資料（含水足跡）報告對照、水的規格欄位、看得懂的異動歷程', async () => {
+  const tr = T.tree(sa, org);
+  assert.deepEqual(tr.domains.map((d) => d.key), ['oil', 'water', 'electricity', 'gas', 'activity']);
+  const P = await import('../src/platform/profile.js');
+  assert.equal(P.PROFILE_GROUPS.water, '水足跡範疇與基線（ISO 14046／46001）');
+  assert.ok(Object.values(P.PROFILE_FIELDS).some((f) => f.key === 'wfBaselineYear'));
+  const tax = T.profileFieldsFor('taxId');
+  assert.ok(tax.some((f) => f.templateCode === 'ENERGY-USER' && f.how === '列入此表'), '統一編號進能源查核表三');
+  const { ASSET_ATTRS } = await import('../src/platform/seed/dictionary.js');
+  for (const t of ['water_account', 'well', 'water_meter', 'outfall', 'wwtp']) assert.ok(ASSET_ATTRS[t]?.length, `${t} 有規格欄位`);
+  const gen = q.get("SELECT id FROM assets WHERE name = '柴油發電機 G5'").id;
+  const cur = JSON.parse(q.get('SELECT attrs FROM assets WHERE id = ?', gen).attrs);
+  A.updateAsset(sa, gen, { attrs: { ...cur, kva: 1875 }, buildingId: null, reason: '銘牌' });
+  const n = T.assetNode(sa, gen, { year: 2026 });
+  const ch = n.history[0].changes;
+  assert.ok(ch.some((c) => c.label === '容量（kVA）' && c.to === '1875'), JSON.stringify(ch));
+  assert.ok(ch.some((c) => c.label === '所在建物' && c.from === '急重症大樓' && c.to === '（空）'));
+  assert.ok(Array.isArray(n.recent));
+});
+

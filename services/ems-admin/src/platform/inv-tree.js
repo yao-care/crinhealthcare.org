@@ -11,9 +11,10 @@
 import { q, insert, update, newId, nowIso, audit, parseJson } from './db.js';
 import { assertCan } from './authz.js';
 import { bad, notFound, j } from './util.js';
-import { DOMAINS, ASSET_TYPES } from './seed/dictionary.js';
+import { DOMAINS, ASSET_TYPES, ASSET_ATTRS } from './seed/dictionary.js';
 import { DEFAULT_FUEL } from './calc.js';
 import { comparison } from './observations.js';
+import { PROFILE_FIELDS } from './profile.js';
 
 const today = () => new Date().toISOString().slice(0, 10);
 // 結束關係時 valid_to 記當天（assets.unlinkAssets 同規則），當天起就不算
@@ -41,7 +42,7 @@ export function parseFloors(text) {
 
 function orgAssets(orgId) {
   return q.all(`SELECT a.*, i.code AS item_code, i.name AS item_name FROM assets a LEFT JOIN inventory_items i ON i.id = a.item_id
-    WHERE a.org_id = ? AND a.status <> 'archived' AND a.domain <> 'activity' ORDER BY COALESCE(json_extract(a.attrs, '$.sort'), 9999), a.name`, orgId)
+    WHERE a.org_id = ? AND a.status <> 'archived' ORDER BY COALESCE(json_extract(a.attrs, '$.sort'), 9999), a.name`, orgId)
     .map((r) => parseJson(r, ['attrs', 'data_spec']));
 }
 function orgBuildings(orgId) {
@@ -71,12 +72,14 @@ export function tree(ctx, orgId) {
     return [...groups.values()];
   };
   const blds = orgBuildings(orgId);
-  const zoneNodes = blds.map((b) => ({ kind: 'building', id: b.id, name: b.name, outdoor: b.attrs?.zoneKind === 'outdoor',
+  const zoneNodes = blds.map((b) => ({ kind: 'building', id: b.id, name: b.name, outdoor: b.attrs?.zoneKind === 'outdoor', attrs: b.attrs || {}, floorAreaM2: b.floor_area_m2,
     children: b.floorList.map((f) => ({ kind: 'floor', id: `${b.id}|${f}`, name: f, children: [] })) }));
   // 周邊放最後
   zoneNodes.sort((x, y) => Number(x.outdoor) - Number(y.outdoor));
-  const domains = Object.entries(DOMAINS).filter(([k]) => ['oil', 'water', 'electricity', 'gas'].includes(k)).map(([key, d]) => {
+  // 油水電氣＋營運數據（員工工時、門急診住院、病床與樓地板面積、廢棄物：報告的分母與化糞池人時）
+  const domains = ['oil', 'water', 'electricity', 'gas', 'activity'].map((key) => [key, DOMAINS[key]]).map(([key, d]) => {
     const r = roots(key);
+    if (key === 'activity') return { key, label: '營運數據', icon: '📋', children: r.map((a) => node(a)), count: assets.filter((a) => a.domain === key).length };
     if (key !== 'electricity') return { key, label: d.name, icon: d.icon, children: byItem(r), count: assets.filter((a) => a.domain === key).length };
     const grid = r.filter((a) => a.item_code === 'ELE-GRID');
     const other = r.filter((a) => a.item_code !== 'ELE-GRID');
@@ -191,6 +194,27 @@ export function fieldsFor({ asset = null, metric = null, zone = false } = {}) {
   return out;
 }
 
+// 院所基本資料某一欄會進哪些報告：手動欄位（field_id＝基本資料欄位代碼）＋讀基本資料的整張表
+const PROFILE_BLOCKS = { basic: ['eu_basic', 'gov_basic', 'ghg_t1', 'moenv_import'], energy: ['eu_basic'], moenv: ['ghg_t1', 'ghg_t2', 'moenv_import'], gov: ['gov_basic'] };
+export function profileFieldsFor(profileKey) {
+  const ids = Object.entries(PROFILE_FIELDS).filter(([, f]) => f.key === profileKey).map(([id]) => id);
+  const group = Object.values(PROFILE_FIELDS).find((f) => f.key === profileKey)?.group;
+  const blocks = PROFILE_BLOCKS[group] || [];
+  const tpls = q.all("SELECT * FROM report_templates WHERE status = 'published' ORDER BY code, version DESC");
+  const latest = new Map(); for (const t of tpls) if (!latest.has(t.code)) latest.set(t.code, t);
+  const out = [];
+  for (const t of latest.values()) {
+    const sections = new Map(j(t.sections, []).map((x) => [x.id, x.title]));
+    for (const m of q.all('SELECT * FROM report_mappings WHERE template_id = ? ORDER BY sort', t.id)) {
+      let how = null;
+      if (m.source_kind === 'manual' && ids.includes(m.field_id)) how = '直接帶入';
+      else if (m.source_kind === 'text' && blocks.includes(m.source_ref)) how = '列入此表';
+      if (how) out.push({ templateCode: t.code, template: t.name, section: sections.get(m.section) || m.section, field: m.label, how });
+    }
+  }
+  return out;
+}
+
 // ── 中欄：節點內容 ──
 function latestBySource(assetId, metricCodes) {
   if (!metricCodes.length) return new Map();
@@ -202,6 +226,35 @@ function latestBySource(assetId, metricCodes) {
   return m;
 }
 const metricRows = (codes) => (codes.length ? q.all(`SELECT code, name, std_unit FROM metrics WHERE code IN (${codes.map(() => '?').join(',')})`, ...codes) : []);
+
+// 異動歷程的人看得懂版本：欄位代碼換成中文、建物與上層換成名稱、規格逐欄列出
+const COL_LABEL = { name: '名稱', external_key: '識別碼', meter_multiplier: '表計倍率', building_id: '所在建物', floor: '樓層', status: '狀態', parent_asset_id: '上層',
+  location: '位置', valid_to: '停用日', item_id: '盤點項目', asset_type: '類型', applicability: '適用性', owner_user_id: '保管者' };
+const STATUS_LABEL = { active: '使用中', disabled: '停用', draft: '草稿', archived: '封存' };
+function describeChanges(type, before, after) {
+  const show = (col, v) => {
+    if (v === null || v === undefined || v === '') return '（空）';
+    if (col === 'building_id') return q.get('SELECT name FROM buildings WHERE id = ?', v)?.name || v;
+    if (col === 'parent_asset_id') return q.get('SELECT name FROM assets WHERE id = ?', v)?.name || v;
+    if (col === 'status') return STATUS_LABEL[v] || v;
+    return typeof v === 'object' ? JSON.stringify(v) : String(v);
+  };
+  const out = [];
+  for (const col of Object.keys(after)) {
+    if (col === 'updated_at') continue;
+    if (col === 'attrs') {
+      const b = j(before.attrs, {}) || {}; const aa = j(after.attrs, {}) || {};
+      const labels = new Map((ASSET_ATTRS[type] || []).map(([k, l]) => [k, l]));
+      for (const k of new Set([...Object.keys(b), ...Object.keys(aa)])) {
+        if (JSON.stringify(b[k]) === JSON.stringify(aa[k])) continue;
+        out.push({ label: k === 'note' ? '備註' : labels.get(k) || k, from: show(k, b[k]), to: show(k, aa[k]) });
+      }
+      continue;
+    }
+    out.push({ label: COL_LABEL[col] || col, from: show(col, before[col]), to: show(col, after[col]) });
+  }
+  return out;
+}
 
 export function assetNode(ctx, id, { year, metric } = {}) {
   const a0 = q.get('SELECT a.*, i.code AS item_code, i.name AS item_name, i.metrics AS item_metrics FROM assets a LEFT JOIN inventory_items i ON i.id = a.item_id WHERE a.id = ?', id);
@@ -269,7 +322,14 @@ export function assetNode(ctx, id, { year, metric } = {}) {
       balance = [...months.entries()].sort().map(([m, v]) => ({ month: m, children: v, reporting: kids.filter((k) => k.m === m).length, total: children.length }));
     }
   }
+  // 異動歷程（原「異動登錄」）與最近登錄的數據（原「點位與進度」）
+  const history = q.all('SELECT h.change_type, h.before, h.after, h.reason, h.at, h.actor, u.display_name AS actor_name FROM asset_history h LEFT JOIN users u ON u.id = h.actor WHERE h.asset_id = ? ORDER BY h.at DESC LIMIT 30', a.id)
+    .map((h) => parseJson(h, ['before', 'after'])).map((h) => ({ ...h, changes: h.change_type === 'create' ? [] : describeChanges(a.asset_type, h.before || {}, h.after || {}) }));
+  const recent = q.all(`SELECT o.id, o.metric_code, m.name AS metric_name, o.period_start, o.period_end, o.raw_value, o.raw_unit, o.value_std, o.std_unit, o.value_state, o.method, o.submitted_at, s.name AS source_name, u.display_name AS who
+    FROM observations o LEFT JOIN metrics m ON m.code = o.metric_code LEFT JOIN data_sources s ON s.id = o.source_id LEFT JOIN users u ON u.id = o.submitted_by
+    WHERE o.asset_id = ? AND o.quality_status <> 'superseded' ORDER BY o.period_end DESC, o.submitted_at DESC LIMIT 24`, a.id);
   return {
+    history, recent,
     kind: 'asset', asset: { id: a.id, name: a.name, domain: a.domain, assetType: a.asset_type, typeLabel: typeLabel(a), itemCode: a.item_code, itemName: a.item_name,
       externalKey: a.external_key_sensitive ? null : a.external_key, multiplier: a.meter_multiplier, location: a.location || null, attrs: a.attrs, status: a.status, workStatus: a.work_status, parentId: a.parent_asset_id },
     path, children, links, located, serves, sources, metrics: metricRows(metricCodes), mainMetric, year: y, compare, balance,

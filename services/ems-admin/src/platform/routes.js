@@ -158,6 +158,7 @@ route('GET', '/api/v1/inv-node', '盤點節點內容（kind=asset｜building｜f
   throw bad('kind 須為 asset、building 或 floor');
 });
 route('GET', '/api/v1/inv-fields', '某標的（某指標）或建物會用在哪些報告欄位', (ctx, { query }) => {
+  if (query.profileKey) return T.profileFieldsFor(query.profileKey);
   if (query.assetId) { const a = A.getAsset(ctx, query.assetId); return T.fieldsFor({ asset: q.get('SELECT * FROM assets WHERE id = ?', a.id), metric: query.metric || null }); }
   return T.fieldsFor({ zone: true });
 });
@@ -304,6 +305,7 @@ function kindOf(k) { const v = KIND_TABLE[k]; if (!v) throw notFound('設定類�
 
 // ── 報告 ──
 route('GET', '/api/v1/report-templates', '可用的報告模板（依發布日期選版次）', (ctx, { query }) => R.listTemplates().filter((t) => t.status === 'published' && (!query.publishDate || ((!t.applies_from || t.applies_from <= query.publishDate) && (!t.applies_to || t.applies_to >= query.publishDate)))));
+route('GET', '/api/v1/report-templates/:id', '報告模板的各表與欄位（院所頁右欄用）', (ctx, { params }) => { if (!orgsFor(ctx, 'view.internal').length) throw new Forbidden('view.internal'); return R.templateDetail(params.id); });
 route('GET', '/api/v1/report-cases', '報告案件', (ctx, { query }) => R.listCases(ctx, query.orgId));
 route('POST', '/api/v1/report-cases', '建立報告案件', (ctx, { body }) => R.createCase(ctx, body));
 route('GET', '/api/v1/report-cases/:id', '報告案件詳細', (ctx, { params }) => R.getCase(ctx, params.id));

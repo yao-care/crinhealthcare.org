@@ -44,7 +44,20 @@ Object.assign(PROFILE_FIELDS, Object.fromEntries([
   P('offsiteAreas', '場址外涵蓋區域（例：院外宿舍、餐廳；盤查表單表二）', { group: 'moenv', short: false }), P('excludedAreas', '場址內扣除區域（盤查表單表二）', { group: 'moenv', short: false }),
   P('excludedEntities', '邊界內未納入計算之排放源（環境部表2-3；每行：名稱｜地址｜原因）', { group: 'moenv', short: false }),
 ]));
-export const PROFILE_GROUPS = { ghg: '盤查報告說明', basic: '機關基本資料（各申報共用）', energy: '能源查核申報', moenv: '環境部盤查登錄', gov: '政府機關及學校節約能源填報網站' };
+// 水足跡範疇與基線（ISO 14046 5.2／ISO 46001 6.2；原「初始建檔 › 水足跡盤查」併到這裡）。水源、用水單元、排放口改為水的盤點標的
+const WF = (key, label, o = {}) => [key, { key, label, group: 'water', short: true, ...o }];
+Object.assign(PROFILE_FIELDS, Object.fromEntries([
+  WF('wfGoal', '盤查目的', { hint: '例：掌握院區取水、用水、排水，作為節水改善依據' }), WF('wfBoundary', '系統邊界（院區內直接用水／含間接用水）'),
+  WF('wfBoundaryNote', '邊界說明（納入哪些建築、院區；外包廚房、洗衣是否納入）', { short: false }), WF('wfCutoff', '排除項目與截斷準則', { hint: '例：未設水表的零星用水（< 1%）不另計' }),
+  WF('wfReportingUnits', '報告單位（每床日、每人次、每平方公尺樓地板、每員工）', { default: '每床日、每人次（門急診＋住院）' }),
+  WF('wfBasin', '所在流域'), WF('wfSupplyArea', '供水系統（淨水場供水區）'), WF('wfTemporal', '時間代表性', { default: '逐月，依抄表期別（YYYY-MM）' }),
+  WF('wfDataQuality', '資料品質要求', { hint: '例：取水以水費單與總表為準；分表每月抄一次' }), WF('wfBaselineYear', '用水基線年'),
+  WF('wfBaselineNote', '基線選定理由與重設條件'), WF('wfTargetPct', '用水效率目標（較基線降低 %）'), WF('wfTargetYear', '目標年'),
+  WF('wfTargetIndicator', '目標所指的指標（總取水量、每床日…）'), WF('wfElecWaterFactor', '外購電力用水係數（自訂，L/kWh；空白用預設）'),
+  WF('wfElecWaterFactorNote', '自訂係數來源與年份'), WF('wfAwareRegion', '缺水特徵化因子地區（AWARE）'), WF('wfAwareUse', '特徵化因子用途別', { default: '非農業用水' }),
+  WF('wfUpstream', '間接用水·其他上游（每行：類別｜名稱｜年用量｜單位｜係數與來源）', { short: false }),
+]));
+export const PROFILE_GROUPS = { ghg: '盤查報告說明', basic: '機關基本資料（各申報共用）', energy: '能源查核申報', moenv: '環境部盤查登錄', gov: '政府機關及學校節約能源填報網站', water: '水足跡範疇與基線（ISO 14046／46001）' };
 
 export function getProfile(orgId) {
   return j(q.get('SELECT data FROM org_profiles WHERE org_id = ?', orgId)?.data, {});

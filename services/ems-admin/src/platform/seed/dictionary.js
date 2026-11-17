@@ -347,6 +347,30 @@ for (const t of ['chiller', 'cooling_tower', 'pump', 'ahu', 'fan', 'elevator', '
 for (const t of ['split_ac', 'window_ac', 'water_dispenser', 'refrigerator', 'dryer', 'vehicle_ac']) ASSET_ATTRS[t] = [...EQUIP_COMMON, ...MOENV_ADV];
 for (const t of ['gas_meter', 'lpg_cylinder', 'lpg_tank', 'forklift', 'machinery', 'gcb', 'gas_cylinder', 'gas_supply', 'fire_extinguisher', 'septic_tank', 'supply_contract']) ASSET_ATTRS[t] = ASSET_ATTRS[t] || MOENV_ADV;
 ASSET_ATTRS.gas_meter = ASSET_ATTRS.gas_account;
+// 水的標的（水足跡 ISO 14046／46001：水源、主要用水單元、排放口與水質檢測；原「初始建檔 › 水足跡盤查」併到這裡）
+{
+  const o = (xs) => xs.map((x) => [x, x]);
+  const W = (key, label, type = 'text', options = null, def = '', adv = false) => [key, label, type, options, def, adv];
+  const SOURCE = [W('sourceType', '水源類型', 'select', o(['自來水', '地下水', '雨水回收', '再生水（外購）', '院內回收水', '地表水', '外購水車', '其他']), '自來水'),
+    W('supplier', '供水單位'), W('freshness', '水質類別', 'select', o(['淡水', '半鹹水', '海水']), '淡水', true), W('waterBody', '取水水體／流域', 'text', null, '', true),
+    W('permitVolume', '許可水量（m³/年，地下水水權）', 'number', null, '', true)];
+  const UNIT = [W('unitKind', '用水單元', 'select', o(['冷卻水塔', '洗衣房', '廚房餐廳', '消毒供應（滅菌）', '血液透析', '空調加濕', '景觀灌溉', '病房與一般衛生', '純水（RO）製造', '鍋爐補水', '檢驗實驗室', '消防', '其他'])),
+    W('useForm', '用水型態（蒸發、併入產品＝消耗；排入污水＝非消耗）', 'select', o(['蒸發', '併入產品或廢棄物', '排到其他流域或海', '幾乎全數排入污水（非消耗）'])),
+    W('consumptionPct', '估計消耗比例（%）', 'number', null, '', true), W('significant', '主要用水（占比大或節水潛力大）', 'checkbox', null, false, true),
+    W('estimatedShare', '沒有分表時估計占總取水（%）', 'number', null, '', true)];
+  const QUALITY = ['pH', '水溫', 'BOD', 'COD', 'SS', '大腸桿菌群', '自由有效餘氯', '氨氮', '硝酸鹽氮', '正磷酸鹽', '總磷', '油脂', '氟鹽', '酚類', '陰離子界面活性劑', '導電度', '其他'];
+  const OUT = [W('destination', '去向', 'select', o(['公共污水下水道', '自設污水處理設施後放流', '回收再利用', '委外清運', '其他'])), W('receivingBody', '承受水體或下水道系統'),
+    W('permitNo', '排放許可或納管文號'), W('treatment', '處理方式', 'text', null, '', true),
+    W('qualityParams', `水質檢測項目（頓號分隔；醫院放流水：${QUALITY.slice(0, 7).join('、')}）`, 'text', null, '', true),
+    W('qualityFrequency', '檢測頻率', 'select', o(['每月', '每季', '每半年', '每年', '其他']), '', true), W('qualityLimits', '項目上下限（例：pH 6–9、BOD 30）', 'text', null, '', true),
+    W('qualityBasis', '依據（排放許可字號、納管標準）', 'text', null, '', true)];
+  ASSET_ATTRS.water_account = [...SOURCE, ...(ASSET_ATTRS.water_account || [])];
+  ASSET_ATTRS.well = SOURCE;
+  ASSET_ATTRS.water_meter = UNIT;
+  ASSET_ATTRS.outfall = OUT;
+  ASSET_ATTRS.wwtp = [...OUT, ...MOENV_ADV];
+  ASSET_ATTRS.recycling_system = [W('recycleUse', '回收水用途（沖廁、澆灌、冷卻水塔補水…）')];
+}
 // chiller 同時是冷媒設備（GAS-REF）與高耗能設備（ELE-EQUIP）：兩邊都問設備規格與環境部欄位
 ASSET_ATTRS.chiller = [...EQUIP_FULL, ...MOENV_ADV];
 

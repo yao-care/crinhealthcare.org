@@ -130,6 +130,13 @@
     ]);
     box.append(head);
     if (!READY) { box.append(el('p', { class: 'tv-empty', text: '盤點資料載入失敗，請重新整理。' })); return box; }
+    const flat = (id, text) => {
+      const r = el('div', { class: 'tv-dom' + (activeId === id ? ' active' : '') });
+      const b = el('button', { type: 'button', class: 'tv-domname' }, [el('span', { class: 'tv-dcaret', text: '' }), el('span', { text })]);
+      b.addEventListener('click', () => UI.goSection(id));
+      r.append(b); return r;
+    };
+    box.append(flat('tree:profile', '🏥 院所基本資料'));
     for (const d of TREE.domains) {
       const open = OPEN === d.key;
       const dh = el('div', { class: 'tv-dom' + (open ? ' open' : '') + (activeId === `tree:dom:${d.key}` ? ' active' : '') });
@@ -144,6 +151,7 @@
       if (!d.children.length) box.append(el('p', { class: 'tv-empty', text: '還沒有項目，按〔管理〕新增。' }));
       for (const c of d.children) box.append(...nodeRow(c, 1, activeId, d.key));
     }
+    box.append(flat('tree:reports', '📑 申報與報告'));
     return box;
   }
 
@@ -170,6 +178,8 @@
     if (render.last !== id) { METRIC = null; FOCUS = null; render.last = id; }
     if (kind === 'mng') return wrapErr(root, () => renderManage(sub, arg, root));
     if (sub === 'inv') return renderOverview(root);
+    if (sub === 'profile') return wrapErr(root, () => renderProfile(root));
+    if (sub === 'reports') return wrapErr(root, () => renderReports(root));
     if (sub === 'dom') return renderDomain(arg, root);
     if (sub === 'tpc') return renderTpc(root);
     if (sub === 'zones') return renderZones(root);
@@ -182,6 +192,8 @@
     const [kind, sub, ...rest] = id.split(':'); const arg = rest.join(':');
     const pre = kind === 'mng' ? '管理 › ' : '';
     if (sub === 'inv') return `${pre}盤點`;
+    if (sub === 'profile') return '盤點 › 院所基本資料';
+    if (sub === 'reports') return '盤點 › 申報與報告';
     if (sub === 'dom') return `${pre}盤點 › ${domainOf(arg)?.label || arg}`;
     if (sub === 'tpc') return `${pre}盤點 › 電 › 台電`;
     if (sub === 'zones') return `${pre}盤點 › 電 › 分區`;
@@ -202,7 +214,7 @@
     const seq = ++drawSeq;
     let fields = FOCUS.fields;
     try {
-      if (!fields) fields = await call(FOCUS.zone ? '/api/v1/inv-fields' : `/api/v1/inv-fields?assetId=${encodeURIComponent(FOCUS.assetId)}${FOCUS.metric ? `&metric=${encodeURIComponent(FOCUS.metric)}` : ''}`);
+      if (!fields) fields = await call(FOCUS.profileKey ? `/api/v1/inv-fields?profileKey=${encodeURIComponent(FOCUS.profileKey)}` : FOCUS.zone ? '/api/v1/inv-fields' : `/api/v1/inv-fields?assetId=${encodeURIComponent(FOCUS.assetId)}${FOCUS.metric ? `&metric=${encodeURIComponent(FOCUS.metric)}` : ''}`);
     } catch (e) { box.textContent = `載入失敗：${e.message}`; return; }
     if (seq !== drawSeq) return;
     box.textContent = '';
@@ -397,10 +409,11 @@
     } else if (d.mainMetric) {
       main.append(el('p', { class: 'note', text: `${YEAR - 1911} 年還沒有「${METRIC_NAME(d.mainMetric)}」的資料。` }));
     }
-    if (d.located || a.attrs?.note) {
-      main.append(el('h3', { class: 'i-h3', text: '備註' }));
-      if (a.attrs?.note) main.append(el('p', { text: a.attrs.note }));
-    }
+    main.append(entryForm(d, () => renderAsset(id, root)));
+    main.append(recentList(d));
+    main.append(specList(a));
+    main.append(qrBox(a));
+    main.append(historyList(d));
     FOCUS = FOCUS || { assetId: a.id, metric: null, label: `${a.name}（全部指標）`, fields: d.fields };
     if (!FOCUS.el) FOCUS.el = me;
     me.classList.add('sel');
@@ -408,6 +421,162 @@
   }
   const RELATION = { feeds: { out: '供電給', in: '受電自' }, supplies: { out: '供應給', in: '供應來源' }, submeter_of: { out: '子表', in: '母表' }, part_of: { out: '包含', in: '屬於' } };
   const METRIC_NAME = (code) => META?.metrics?.find((m) => m.code === code)?.name || code;
+
+  // ── 登錄數據（原「點位與進度」：每月抄表、帳單、紀錄都在這裡登，或掃 QR 到手機現場盤點頁）──
+  function entryForm(d, done) {
+    const a = d.asset;
+    const box = el('div', { class: 'tv-form' }, [el('h3', { class: 'i-h3', text: '登錄數據' })]);
+    if (!d.metrics.length) { box.append(el('p', { class: 'note', text: '這類項目沒有要定期登錄的數值，規格在〔管理〕維護。' })); return box; }
+    const msel = sel(d.metrics.map((m) => [m.code, `${m.name}（${m.std_unit}）`]), d.mainMetric);
+    const now = new Date(); const ymv = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const month = inp(ymv, { type: 'month' });
+    const val = inp('', { type: 'text', inputMode: 'decimal', placeholder: '數值（不知道就留空選「缺漏」）' });
+    const state = sel([['measured', '實測／帳單'], ['estimated', '估計'], ['zero', '實際為零'], ['missing', '缺漏']], 'measured');
+    const src = sel([['', '（不指定來源）'], ...d.sources.map((x) => [x.id, `${x.name}（${x.kindLabel}）`])], d.sources[0]?.id || '');
+    box.append(el('div', { class: 'tv-grid' }, [field('指標', msel), field('月份', month), field('數值', val), field('狀態', state), field('來源', src)]));
+    box.append(el('div', { class: 'tv-actions' }, [btn('登錄', async () => {
+      const [y, m] = month.value.split('-').map(Number); if (!y || !m) throw new Error('請選月份');
+      const ps = `${y}-${String(m).padStart(2, '0')}-01`; const pe = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+      if (state.value === 'measured' && !val.value.trim()) throw new Error('請填數值，或把狀態改成「缺漏」');
+      await post('/api/v1/observations', { assetId: a.id, sourceId: src.value || undefined, metricCode: msel.value, periodStart: ps, periodEnd: pe, rawValue: val.value.trim() || undefined, valueState: state.value });
+      toast('已登錄', 'ok'); done();
+    }, 'primary'), el('span', { class: 'muted', text: '累積讀值（表頭讀數）、跨月帳單、換表請到手機「現場盤點」頁或平台登錄。' })]));
+    return box;
+  }
+  function recentList(d) {
+    const box = el('div', {});
+    if (!d.recent.length) return box;
+    box.append(el('h3', { class: 'i-h3', text: '最近登錄' }));
+    box.append(listTable(d.recent.map((r) => ({ ...r })), [
+      { h: '期間', v: (r) => `${r.period_start.slice(0, 7)}${r.period_end && r.period_end.slice(0, 7) !== r.period_start.slice(0, 7) && !(r.period_end.endsWith('-01')) ? ` ～ ${r.period_end}` : ''}` },
+      { h: '指標', v: (r) => r.metric_name || r.metric_code },
+      { h: '數值', v: (r) => (r.value_state === 'missing' ? '缺漏' : `${fmt(r.raw_value ?? r.value_std, 3)} ${r.raw_unit || r.std_unit || ''}`), num: true },
+      { h: '來源', v: (r) => r.source_name || '' },
+      { h: '登錄', v: (r) => `${(r.submitted_at || '').slice(0, 10)} ${r.who || ''}` },
+    ]));
+    return box;
+  }
+  // 規格（原「初始建檔」的電號、變壓器、發電機、設備主檔欄位）：顯示；修改在〔管理〕
+  function specList(a) {
+    const box = el('div', {});
+    const defs = META?.assetAttrs?.[a.assetType] || [];
+    const rows = defs.map(([k, label]) => [label, a.attrs?.[k]]).filter(([, v]) => v !== undefined && v !== null && v !== '' && v !== false);
+    box.append(el('h3', { class: 'i-h3', text: '規格' }));
+    if (!defs.length && !a.attrs?.note) { box.append(el('p', { class: 'note', text: '這類項目沒有規格欄位。' })); return box; }
+    if (!rows.length && !a.attrs?.note) { box.append(el('p', { class: 'note', text: `還沒填規格（${defs.length} 個欄位），在〔管理〕填。` })); return box; }
+    const dl = el('dl', { class: 'tv-dl' });
+    for (const [l, v] of rows) dl.append(el('dt', { text: l }), el('dd', { text: v === true ? '是' : String(v) }));
+    if (a.attrs?.note) dl.append(el('dt', { text: '備註' }), el('dd', { text: a.attrs.note }));
+    box.append(dl);
+    return box;
+  }
+  function qrBox(a) {
+    return el('div', { class: 'tv-qr' }, [
+      el('img', { src: `/api/v1/assets/${a.id}/qr.png`, alt: `${a.name} 現場盤點 QR Code`, width: 120, height: 120, loading: 'lazy' }),
+      el('div', {}, [el('b', { text: '現場盤點 QR' }), el('p', { class: 'muted', text: '印出來貼在表或設備上，手機掃描直接登錄這一項（可拍照、斷網暫存）。' }),
+        el('a', { href: `/p/#/collect/${a.id}`, target: '_blank', rel: 'noopener', text: '開啟現場盤點頁 ↗' }), el('span', { text: '　' }),
+        el('a', { href: `/api/v1/assets/${a.id}/qr.png`, download: `${a.name}-QR.png`, text: '下載 QR 圖檔' })]),
+    ]);
+  }
+  // 異動歷程（原「異動登錄」：新增、修改、停用都會自動留紀錄，含原因與經手人）
+  const CHANGE = { create: '新增', update: '修改', disable: '停用', clone: '複製', move: '搬移' };
+  function historyList(d) {
+    const box = el('div', {});
+    box.append(el('h3', { class: 'i-h3', text: '異動歷程' }));
+    if (!d.history.length) { box.append(el('p', { class: 'note', text: '沒有紀錄。' })); return box; }
+    const ht = listTable(d.history, [
+      { h: '時間', v: (h) => (h.at || '').slice(0, 16).replace('T', ' ') },
+      { h: '異動', v: (h) => CHANGE[h.change_type] || h.change_type },
+      { h: '內容', v: (h) => (h.changes || []).map((c) => `${c.label}：${short(c.from)} → ${short(c.to)}`).join('；') },
+      { h: '原因', v: (h) => h.reason || '' },
+      { h: '經手', v: (h) => h.actor_name || (h.actor === 'seed' ? '看板資料轉入' : h.actor || '') },
+    ]);
+    ht.querySelector('table').classList.add('wrap');
+    box.append(ht);
+    return box;
+  }
+  const short = (v) => { if (v === null || v === undefined || v === '') return '（空）'; const t = typeof v === 'object' ? JSON.stringify(v) : String(v); return t.length > 40 ? `${t.slice(0, 40)}…` : t; };
+
+  // ── 院所基本資料（原「初始建檔 › 基本資料（附表三）」與「水足跡範疇與基線」；各申報共用）──
+  async function renderProfile(root) {
+    const { main, side } = layout(root);
+    const r = await call(`/api/v1/org-profile?orgId=${ORG.id}`);
+    const data = { ...r.data };
+    main.append(h2('院所基本資料', [ORG.name]));
+    main.append(el('p', { class: 'note', text: '各申報共用的基本資料只填一次。病床數、樓地板面積、員工人數與工時、門急診住院人次等數字在「📋 營運數據」逐年登錄。點欄位，右邊會列出它填進哪些報告。' }));
+    const inputs = {};
+    const groups = Object.entries(r.groups);
+    groups.forEach(([gk, gl], gi) => {
+      const fs = Object.values(r.fields).filter((f) => (f.group || 'ghg') === gk);
+      const seen = new Set();
+      const d = el('details', { class: 'tv-pgroup', open: gi < 2 });
+      d.append(el('summary', { text: `${gl}（${fs.filter((f) => data[f.key]).length}／${fs.length}）` }));
+      const grid = el('div', { class: 'tv-grid' });
+      for (const f of fs) {
+        if (seen.has(f.key)) continue; seen.add(f.key);
+        const long = f.short === false || !f.group;
+        const n = long ? el('textarea', { rows: 3, value: data[f.key] ?? '' }) : inp(data[f.key] ?? '', { placeholder: f.default ? `預設：${f.default}` : (f.hint || '') });
+        if (long) n.value = data[f.key] ?? '';
+        inputs[f.key] = n;
+        n.addEventListener('focus', () => { FOCUS = { label: `院所基本資料 › ${f.label}`, profileKey: f.key }; renderSide(side); });
+        const lab = field(f.label, n, f.hint && !long ? null : f.hint);
+        if (long) lab.classList.add('wide');
+        grid.append(lab);
+      }
+      d.append(grid);
+      main.append(d);
+    });
+    main.append(el('div', { class: 'tv-actions' }, [btn('儲存基本資料', async () => {
+      const out = { ...data }; for (const [k, n] of Object.entries(inputs)) out[k] = n.value;
+      await call('/api/v1/org-profile', { method: 'PUT', json: { orgId: ORG.id, data: out } });
+      toast('已儲存', 'ok'); renderProfile(root);
+    }, 'primary')]));
+    FOCUS = null; renderSide(side);
+  }
+
+  // ── 申報與報告（原「申報與報告」）：模板清單與本院報告案件；產出、送審、匯出在平台 ──
+  async function renderReports(root) {
+    const { main, side } = layout(root);
+    const [tpls, cases] = await Promise.all([call('/api/v1/report-templates'), call(`/api/v1/report-cases?orgId=${ORG.id}`).catch(() => [])]);
+    const latest = new Map(); for (const t of tpls) { const cur = latest.get(t.code); if (!cur || t.version > cur.version) latest.set(t.code, t); }
+    main.append(h2('申報與報告'));
+    main.append(el('p', { class: 'note', text: '盤點的數字會自動帶進這些報告。點一份報告，右邊列出它的各表與欄位；產出、送審、匯出 Excel／Word／PDF 在油水電氣平台。' }));
+    const rows = [...latest.values()].map((t) => ({ ...t, n: cases.filter((c) => c.template_code === t.code).length }));
+    const tbl = listTable(rows, [{ h: '報告', v: (t) => t.name }, { h: '依據', v: (t) => t.standard || '' }, { h: '本院案件', v: (t) => String(t.n), num: true }]);
+    tbl.querySelector('table').classList.add('wrap');
+    tbl.querySelectorAll('tbody tr').forEach((tr, i) => {
+      tr.classList.add('tv-click'); tr.tabIndex = 0;
+      const pick = () => { tbl.querySelectorAll('tr.sel').forEach((x) => x.classList.remove('sel')); tr.classList.add('sel'); showTemplate(rows[i], side); };
+      tr.addEventListener('click', pick); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(); });
+    });
+    main.append(tbl);
+    main.append(el('p', {}, [el('a', { href: '/p/#/reports', target: '_blank', rel: 'noopener', text: '到平台建立報告案件、產出與匯出 ↗' }), el('span', { text: '　' }),
+      el('a', { href: '/p/#/measures', target: '_blank', rel: 'noopener', text: '節約能源措施與計畫 ↗' })]));
+    if (cases.length) {
+      main.append(el('h3', { class: 'i-h3', text: '本院報告案件' }));
+      main.append(listTable(cases, [{ h: '報告', v: (c) => c.template_name || '' }, { h: '年度', v: (c) => String(c.year || '') }, { h: '狀態', v: (c) => c.last_run_status || c.status || '' }]));
+    }
+    side.textContent = '';
+    side.append(el('h3', { class: 'tv-sideh', text: '報告欄位' }), el('p', { class: 'muted', text: '點左邊任一份報告，這裡列出它的各表與欄位。' }));
+  }
+  async function showTemplate(t, side) {
+    side.textContent = '';
+    side.append(el('h3', { class: 'tv-sideh', text: '報告欄位' }), el('p', { class: 'tv-focus', text: t.name }));
+    const box = el('div', { class: 'tv-fields', text: '載入中…' }); side.append(box);
+    let full = t;
+    if (!t.mappings) { try { full = await call(`/api/v1/report-templates/${t.id}`); } catch { full = t; } }
+    box.textContent = '';
+    const secs = j(full.sections); const maps = full.mappings || [];
+    if (!maps.length) { for (const sct of secs) box.append(el('p', { text: sct.title })); return; }
+    for (const sct of secs) {
+      const list = maps.filter((m) => m.section === sct.id); if (!list.length) continue;
+      const d = el('details', { class: 'tv-tpl', open: true });
+      d.append(el('summary', {}, [el('span', { text: sct.title }), el('i', { class: 'tv-n', text: String(list.length) })]));
+      const ul = el('ul'); for (const m of list) ul.append(el('li', {}, [el('b', { text: m.label })]));
+      d.append(ul); box.append(d);
+    }
+  }
+  const j = (v) => { if (Array.isArray(v)) return v; try { return JSON.parse(v || '[]'); } catch { return []; } };
 
   // ── 分區節點（建物／樓層）──
   async function renderZone(sub, id, root) {
@@ -607,7 +776,7 @@
       const line = el('div', { class: 'tv-eline' });
       line.style.setProperty('--d', String(r.depth || 0));
       line.append(el('span', { class: 'tv-ename', text: r.name }), el('span', { class: 'muted', text: r.typeLabel }));
-      line.append(btn('來源與範圍', async () => UI.goSection(`mng:asset:${r.id}`)));
+      line.append(btn('規格、來源與範圍', async () => UI.goSection(`mng:asset:${r.id}`)));
       line.append(btn('改名', async () => {
         const v = await askRename(r.name); if (!v) return;
         const { n, reason } = v;
@@ -670,6 +839,7 @@
       }, 'primary'),
     ]));
 
+    main.append(attrsEditor(a, back));
     main.append(sourcesEditor(a, d.sources, back));
     main.append(zonesEditor(a, d.serves, back));
 
@@ -686,7 +856,7 @@
       line.style.setProperty('--d', String(r.depth));
       line.append(el('span', { class: 'tv-ename', text: r.name }), el('span', { class: 'muted', text: r.typeLabel }));
       line.append(btn('＋下層', async () => { const f = addUnder(r.id, r.name); line.after(f); }));
-      line.append(btn('來源與供電範圍', async () => UI.goSection(`mng:asset:${r.id}`)));
+      line.append(btn('規格、來源與範圍', async () => UI.goSection(`mng:asset:${r.id}`)));
       line.append(btn('改名', async () => {
         const v = await askRename(r.name); if (!v) return;
         const { n, reason } = v;
@@ -701,6 +871,40 @@
     if (!rows.length) box.append(el('p', { class: 'note', text: '還沒有下游。' }));
     main.append(box);
     main.append(addUnder(id, a.name));
+  }
+  // 規格（原「初始建檔」電號、變壓器、緊急發電機、設備主檔、水源、排放口等欄位；欄位定義在平台資料字典）
+  function attrsEditor(a, back) {
+    const defs = META?.assetAttrs?.[a.assetType] || [];
+    const box = el('div', { class: 'tv-form' }, [el('h3', { class: 'i-h3', text: '規格' })]);
+    const cur = a.attrs || {};
+    const inputs = {};
+    const mk = ([k, label, type, options, def]) => {
+      let n;
+      const v = cur[k] ?? '';
+      if (type === 'select') { n = sel([['', '（未填）'], ...(options || []).map((o) => (Array.isArray(o) ? o : [o, o]))], String(v)); }
+      else if (type === 'checkbox') { n = el('input', { type: 'checkbox', checked: !!(cur[k] ?? def) }); }
+      else n = inp(v, { type: type === 'number' ? 'number' : 'text', step: 'any' });
+      inputs[k] = [n, type];
+      const f = field(label, n);
+      if (type === 'checkbox') f.classList.add('tv-check');
+      return f;
+    };
+    const main = defs.filter((x) => !x[5]); const adv = defs.filter((x) => x[5]);
+    if (main.length) box.append(el('div', { class: 'tv-grid' }, main.map(mk)));
+    if (adv.length) { const dd = el('details', { open: adv.some(([k]) => cur[k] !== undefined && cur[k] !== '') }); dd.append(el('summary', { text: `更多欄位（${adv.length}）：申報用細項` }), el('div', { class: 'tv-grid' }, adv.map(mk))); box.append(dd); }
+    const note = el('textarea', { rows: 2 }); note.value = cur.note || '';
+    box.append(field('備註', note));
+    box.append(btn('儲存規格', async () => {
+      const next = { ...cur };
+      for (const [k, [n, type]] of Object.entries(inputs)) {
+        const v = type === 'checkbox' ? n.checked : n.value.trim();
+        if (v === '' || v === false) delete next[k]; else next[k] = type === 'number' ? Number(v) : v;
+      }
+      if (note.value.trim()) next.note = note.value.trim(); else delete next.note;
+      const reason = await askReason(`修改「${a.name}」規格`); if (!reason) return;
+      await post(`/api/v1/assets/${a.id}`, { attrs: next, reason }, 'PATCH'); toast('已儲存規格', 'ok'); await refreshAfter(back);
+    }, 'primary'));
+    return box;
   }
   function sourcesEditor(a, sources, back) {
     const box = el('div', { class: 'tv-form' }, [el('h3', { class: 'i-h3', text: a.domain === 'electricity' ? '數值來源（同一顆表的帳單、智慧電表、手抄表）' : '數值來源（帳單、自動讀值、手抄、紀錄）' })]);
@@ -762,7 +966,18 @@
     for (const b of buildings()) {
       const name = inp(b.name); const floors = inp(b.children.map((f) => f.name).join('、'));
       const line = el('div', { class: 'tv-eline tv-bline' }, [field(b.outdoor ? '周邊名稱' : '建物名稱', name), field(b.outdoor ? '區域（頓號分隔）' : '樓層（例：B1–9F，或頓號分隔）', floors)]);
-      line.append(btn('儲存', async () => { await save(b, { name: name.value.trim(), floors: floors.value.trim(), attrs: b.outdoor ? { zoneKind: 'outdoor' } : undefined }); toast('已儲存', 'ok'); }, 'primary'));
+      // 表七建築資料（原「初始建檔 › 建築資料」）
+      const ba = b.attrs || {}; const t7 = {};
+      const T7 = [['use', '用途（例：醫療大樓）'], ['builtYear', '建造年份（民國年）', 'number'], ['floorsBelow', '地下樓層數', 'number'], ['floorsAbove', '地上樓層數', 'number'],
+        ['roof', '屋頂構造'], ['entrance', '建築入口大門方位']];
+      const area = inp(b.floorAreaM2 ?? '', { type: 'number', step: 'any' });
+      const t7box = el('details', { class: 'tv-t7' }, [el('summary', { text: '表七 建築資料（能源查核申報）' }), el('div', { class: 'tv-grid' }, [
+        field('樓地板面積（m²）', area), ...T7.map(([k, l, t]) => { t7[k] = inp(ba[k] ?? '', { type: t || 'text' }); return field(l, t7[k]); })])]);
+      if (!b.outdoor) line.append(t7box);
+      line.append(btn('儲存', async () => {
+        const attrs = b.outdoor ? { zoneKind: 'outdoor' } : Object.fromEntries(Object.entries(t7).map(([k, n]) => [k, n.type === 'number' && n.value !== '' ? Number(n.value) : n.value.trim()]));
+        await save(b, { name: name.value.trim(), floors: floors.value.trim(), floorAreaM2: !b.outdoor && area.value !== '' ? Number(area.value) : undefined, attrs }); toast('已儲存', 'ok');
+      }, 'primary'));
       line.append(btn('移除', async () => {
         if (!(await confirmModal({ title: `移除「${b.name}」？`, body: '標記為不再使用（資料保留），已設定的供電範圍跟著失效。', okText: '移除', danger: true }))) return;
         await save(b, { name: b.name, validTo: new Date().toISOString().slice(0, 10) }); toast('已移除', 'ok');
