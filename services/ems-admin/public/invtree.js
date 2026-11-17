@@ -842,7 +842,7 @@
   function manageTpc(main) {
     main.append(h2('管理 › 台電'));
     main.append(el('p', { class: 'note', text: '每個台電電號一個受電總盤。帳單、智慧電表、手抄表都掛在總盤上互相比對；分盤在總盤的〔管理〕新增。' }));
-    const name = inp('', { placeholder: '例：大坑變電所 22.8kV' });
+    const name = inp('', { placeholder: '例：受電點 22.8kV' });
     const no = inp('', { placeholder: '例：01-2345-67-890-1' });
     const kw = inp('', { type: 'number', placeholder: '經常契約容量 kW' });
     main.append(el('div', { class: 'tv-form' }, [

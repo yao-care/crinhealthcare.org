@@ -337,7 +337,7 @@ export function assetNode(ctx, id, { year, metric } = {}) {
   };
 }
 
-// 沿 parent_asset_id 找最上層（台電電號）名稱，樓層頁顯示「A1 分盤 ← 大坑變電所 22.8kV」
+// 沿 parent_asset_id 找最上層（台電電號）名稱，樓層頁顯示「A1 分盤 ← 受電點 22.8kV」
 function rootName(a) {
   let cur = a; const seen = new Set(); let top = null;
   while (cur?.parent_asset_id && !seen.has(cur.parent_asset_id)) { seen.add(cur.parent_asset_id); cur = q.get('SELECT id, name, parent_asset_id FROM assets WHERE id = ?', cur.parent_asset_id); if (cur) top = cur; }
