@@ -409,8 +409,10 @@
     } else if (d.mainMetric) {
       main.append(el('p', { class: 'note', text: `${YEAR - 1911} 年還沒有「${METRIC_NAME(d.mainMetric)}」的資料。` }));
     }
-    main.append(entryForm(d, () => renderAsset(id, root)));
-    main.append(recentList(d));
+    // 版面：上面是要填的數值，下面是補充說明（關聯圖、逐月比對、規格、QR、異動歷程）
+    const head = main.querySelector('.i-head');
+    const fill = [entryForm(d, () => renderAsset(id, root), side), recentList(d)];
+    head.after(...fill, el('h3', { class: 'tv-more', text: '補充說明' }));
     main.append(specList(a));
     main.append(qrBox(a));
     main.append(historyList(d));
@@ -423,24 +425,60 @@
   const METRIC_NAME = (code) => META?.metrics?.find((m) => m.code === code)?.name || code;
 
   // ── 登錄數據（原「點位與進度」：每月抄表、帳單、紀錄都在這裡登，或掃 QR 到手機現場盤點頁）──
-  function entryForm(d, done) {
+  // 登錄數據：選月份與來源，這個項目要填的數值一次列出來（主要用量排第一）；已登過的值直接帶出，改了會建立更正版本（原值保留）
+  function entryForm(d, done, side) {
     const a = d.asset;
-    const box = el('div', { class: 'tv-form' }, [el('h3', { class: 'i-h3', text: '登錄數據' })]);
-    if (!d.metrics.length) { box.append(el('p', { class: 'note', text: '這類項目沒有要定期登錄的數值，規格在〔管理〕維護。' })); return box; }
-    const msel = sel(d.metrics.map((m) => [m.code, `${m.name}（${m.std_unit}）`]), d.mainMetric);
-    const now = new Date(); const ymv = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const month = inp(ymv, { type: 'month' });
-    const val = inp('', { type: 'text', inputMode: 'decimal', placeholder: '數值（不知道就留空選「缺漏」）' });
-    const state = sel([['measured', '實測／帳單'], ['estimated', '估計'], ['zero', '實際為零'], ['missing', '缺漏']], 'measured');
-    const src = sel([['', '（不指定來源）'], ...d.sources.map((x) => [x.id, `${x.name}（${x.kindLabel}）`])], d.sources[0]?.id || '');
-    box.append(el('div', { class: 'tv-grid' }, [field('指標', msel), field('月份', month), field('數值', val), field('狀態', state), field('來源', src)]));
-    box.append(el('div', { class: 'tv-actions' }, [btn('登錄', async () => {
-      const [y, m] = month.value.split('-').map(Number); if (!y || !m) throw new Error('請選月份');
-      const ps = `${y}-${String(m).padStart(2, '0')}-01`; const pe = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-      if (state.value === 'measured' && !val.value.trim()) throw new Error('請填數值，或把狀態改成「缺漏」');
-      await post('/api/v1/observations', { assetId: a.id, sourceId: src.value || undefined, metricCode: msel.value, periodStart: ps, periodEnd: pe, rawValue: val.value.trim() || undefined, valueState: state.value });
-      toast('已登錄', 'ok'); done();
-    }, 'primary'), el('span', { class: 'muted', text: '累積讀值（表頭讀數）、跨月帳單、換表請到手機「現場盤點」頁或平台登錄。' })]));
+    const box = el('div', { class: 'tv-form tv-entry' }, [el('h3', { class: 'i-h3', text: '填報數值' })]);
+    const kind = (code) => META?.metrics?.find((m) => m.code === code)?.value_kind;
+    const ms = d.metrics.filter((m) => kind(m.code) !== 'cumulative');
+    // 照帳單順序：主要用量、費用、各時段度數、需量、功因、其他，契約容量（很少變）最後
+    const rank = (c) => (c === d.mainMetric ? 0 : /_cost_/.test(c) ? 1 : /contract/.test(c) ? 9 : /(peak|offpeak|semipeak)_kwh$/.test(c) ? 2 : /demand/.test(c) ? 3 : /power_factor/.test(c) ? 4 : 5);
+    ms.sort((x, y) => rank(x.code) - rank(y.code));
+    if (!ms.length) { box.append(el('p', { class: 'note', text: '這類項目沒有要定期填報的數值；規格在〔管理〕維護。' })); return box; }
+    const now = new Date(); now.setMonth(now.getMonth() - 1);
+    const month = inp(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, { type: 'month' });
+    const src = sel([['', '（不指定來源）'], ...d.sources.map((x) => [x.id, `${x.name}（${x.kindLabel}）`])], d.sources.find((x) => x.sourceType === 'bill')?.id || d.sources[0]?.id || '');
+    box.append(el('div', { class: 'tv-grid tv-entry-head' }, [field('月份', month), field('來源', src)]));
+    const grid = el('div', { class: 'tv-grid tv-entry-grid' });
+    const rows = ms.map((m) => {
+      const n = inp('', { type: 'text', inputMode: 'decimal', placeholder: '未填' });
+      const had = el('small', { class: 'muted' });
+      grid.append(el('label', { class: 'tv-f' + (m.code === d.mainMetric ? ' main' : '') }, [el('span', { text: `${m.name}（${m.std_unit}）` }), n, had]));
+      // 點進輸入格：右欄換成這個數值會填進的報告欄位
+      n.addEventListener('focus', () => { if (side) focus({ assetId: a.id, metric: m.code, label: `${a.name} › ${m.name}` }, side); });
+      return { m, n, had, prev: null };
+    });
+    box.append(grid);
+    const period = () => {
+      const [y, mo] = month.value.split('-').map(Number); if (!y || !mo) return null;
+      return [`${y}-${String(mo).padStart(2, '0')}-01`, mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`];
+    };
+    const load = async () => {
+      const pr = period(); if (!pr) return;
+      const list = await call(`/api/v1/observations?assetId=${a.id}&from=${pr[0]}&to=${pr[1]}`).catch(() => []);
+      for (const r of rows) {
+        const hits = list.filter((o) => o.metric_code === r.m.code && o.period_start === pr[0] && o.period_end === pr[1]);
+        const o = hits.find((x) => x.source_id === src.value) || (src.value ? null : hits[0]) || null;
+        r.prev = o;
+        r.n.value = o && o.raw_value !== null && o.raw_value !== undefined ? String(o.raw_value) : '';
+        r.had.textContent = o ? `已填（${o.source_name || ''}${o.submitted_at ? `，${o.submitted_at.slice(0, 10)}` : ''}）` : '';
+      }
+    };
+    month.addEventListener('change', load); src.addEventListener('change', load);
+    load();
+    box.append(el('div', { class: 'tv-actions' }, [btn('儲存這個月', async () => {
+      const pr = period(); if (!pr) throw new Error('請選月份');
+      let n = 0;
+      for (const r of rows) {
+        const v = r.n.value.trim();
+        if (!v) continue;
+        if (r.prev && String(r.prev.raw_value) === v) continue;
+        if (r.prev) await post(`/api/v1/observations/${r.prev.id}/correct`, { rawValue: v, reason: '院所頁更正' });
+        else await post('/api/v1/observations', { assetId: a.id, sourceId: src.value || undefined, metricCode: r.m.code, periodStart: pr[0], periodEnd: pr[1], rawValue: v });
+        n++;
+      }
+      toast(n ? `已儲存 ${n} 個數值` : '沒有變更', n ? 'ok' : ''); if (n) done();
+    }, 'primary'), el('span', { class: 'muted', text: '沒有數值就留空。表頭累積讀數、跨月帳單、換表請用手機「現場盤點」。' })]));
     return box;
   }
   function recentList(d) {
@@ -503,29 +541,40 @@
     const r = await call(`/api/v1/org-profile?orgId=${ORG.id}`);
     const data = { ...r.data };
     main.append(h2('院所基本資料', [ORG.name]));
-    main.append(el('p', { class: 'note', text: '各申報共用的基本資料只填一次。病床數、樓地板面積、員工人數與工時、門急診住院人次等數字在「📋 營運數據」逐年登錄。點欄位，右邊會列出它填進哪些報告。' }));
     const inputs = {};
-    const groups = Object.entries(r.groups);
-    groups.forEach(([gk, gl], gi) => {
+    // 先放要填的欄位（各申報的機關資料、能源查核、環境部、節能填報），說明性的長文（盤查報告說明、水足跡範疇）放下面
+    const NOTE_GROUPS = ['ghg', 'water'];
+    const groupBox = (gk, gl, open) => {
       const fs = Object.values(r.fields).filter((f) => (f.group || 'ghg') === gk);
-      const seen = new Set();
-      const d = el('details', { class: 'tv-pgroup', open: gi < 2 });
-      d.append(el('summary', { text: `${gl}（${fs.filter((f) => data[f.key]).length}／${fs.length}）` }));
+      const uniq = []; const seen = new Set(); for (const f of fs) if (!seen.has(f.key)) { seen.add(f.key); uniq.push(f); }
+      const isLong = (f) => f.short === false || !f.group;
+      const ordered = [...uniq.filter((f) => !isLong(f)), ...uniq.filter(isLong)];
+      const d = el('details', { class: 'tv-pgroup', open });
+      d.append(el('summary', { text: `${gl}（已填 ${uniq.filter((f) => data[f.key]).length}／${uniq.length}）` }));
       const grid = el('div', { class: 'tv-grid' });
-      for (const f of fs) {
-        if (seen.has(f.key)) continue; seen.add(f.key);
-        const long = f.short === false || !f.group;
-        const n = long ? el('textarea', { rows: 3, value: data[f.key] ?? '' }) : inp(data[f.key] ?? '', { placeholder: f.default ? `預設：${f.default}` : (f.hint || '') });
+      for (const f of ordered) {
+        const long = isLong(f);
+        const n = long ? el('textarea', { rows: 3 }) : inp(data[f.key] ?? '', { placeholder: f.default ? `預設：${f.default}` : '' });
         if (long) n.value = data[f.key] ?? '';
         inputs[f.key] = n;
         n.addEventListener('focus', () => { FOCUS = { label: `院所基本資料 › ${f.label}`, profileKey: f.key }; renderSide(side); });
-        const lab = field(f.label, n, f.hint && !long ? null : f.hint);
+        const lab = field(f.label, n, f.hint || null);
         if (long) lab.classList.add('wide');
         grid.append(lab);
       }
       d.append(grid);
-      main.append(d);
-    });
+      return d;
+    };
+    const groups = Object.entries(r.groups);
+    groups.filter(([gk]) => !NOTE_GROUPS.includes(gk)).forEach(([gk, gl], i) => main.append(groupBox(gk, gl, i < 2)));
+    main.append(el('div', { class: 'tv-actions' }, [btn('儲存基本資料', async () => {
+      const out = { ...data }; for (const [k, n] of Object.entries(inputs)) out[k] = n.value;
+      await call('/api/v1/org-profile', { method: 'PUT', json: { orgId: ORG.id, data: out } });
+      toast('已儲存', 'ok'); renderProfile(root);
+    }, 'primary')]));
+    main.append(el('h3', { class: 'tv-more', text: '補充說明' }));
+    groups.filter(([gk]) => NOTE_GROUPS.includes(gk)).forEach(([gk, gl]) => main.append(groupBox(gk, gl, false)));
+    main.append(el('p', { class: 'note', text: '各申報共用的基本資料只填一次。病床數、樓地板面積、員工人數與工時、門急診住院人次等數字在「📋 營運數據」逐年填報。點欄位，右邊會列出它填進哪些報告。' }));
     main.append(el('div', { class: 'tv-actions' }, [btn('儲存基本資料', async () => {
       const out = { ...data }; for (const [k, n] of Object.entries(inputs)) out[k] = n.value;
       await call('/api/v1/org-profile', { method: 'PUT', json: { orgId: ORG.id, data: out } });

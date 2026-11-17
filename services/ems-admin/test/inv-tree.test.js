@@ -139,10 +139,15 @@ test('右欄報告欄位：帳單電量進盤查與申報；智慧電表表計�
   const costF = T.fieldsFor({ asset: a, metric: 'elec_cost_twd' });
   assert.ok(has(costF, 'HOSP-OPS', '電費'));
   assert.ok(!has(costF, 'GHG-FORM', '範疇二'), '電費不進排放量');
+  assert.ok(!costF.some((f) => f.templateCode === 'GHG-FORM'), '電費不進盤查表單任何一表（表九只要度數）');
   const gen = q.get("SELECT * FROM assets WHERE name = '柴油發電機 G5'");
   const genF = T.fieldsFor({ asset: gen, metric: 'oil_consumption_l' });
   assert.ok(has(genF, 'GHG-FORM', '範疇一'));
   assert.ok(has(genF, 'ENERGY-USER', '柴油') || has(genF, 'ENERGY-USER', '熱能'));
+  const xfItem = q.get("SELECT id FROM inventory_items WHERE code = 'ELE-SYS'").id;
+  const xf = A.createAsset(sa, { orgId: org, itemId: xfItem, assetType: 'transformer', name: '1 號變壓器', parentAssetId: main }).id;
+  const xfF = T.fieldsFor({ asset: q.get('SELECT * FROM assets WHERE id = ?', xf) });
+  assert.ok(has(xfF, 'GOV-SAVING', '高壓用電') && has(xfF, 'ENERGY-USER', '變壓器'), '沒有定期數值的設備仍列出它的表');
   const zf = T.fieldsFor({ zone: true });
   assert.ok(has(zf, 'ENERGY-USER', '建築資料'));
   // 表七不列周邊

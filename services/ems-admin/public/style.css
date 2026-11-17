@@ -1916,3 +1916,10 @@ button.mb-cell:hover, button.mb-head:hover, button.mb-env:hover { background: va
 .tv-click { cursor: pointer; }
 .tv-click:hover td, .tv-table tr.sel td { background: var(--color-primary-pale); }
 .tv-table.wrap td, .tv-table.wrap th { white-space: normal; }
+
+/* 先填報、後補充說明 */
+.tv-more { margin: var(--space-2xl) 0 var(--space-sm); padding-top: var(--space-md); border-top: 2px solid var(--color-border); font-size: var(--text-lg); color: var(--color-text-secondary); }
+.tv-entry { border: 2px solid var(--color-primary); }
+.tv-entry-head { grid-template-columns: repeat(auto-fill, minmax(14rem, 18rem)); }
+.tv-entry-grid .tv-f.main span { font-weight: 700; color: var(--color-primary-dark); }
+.tv-entry-grid small { min-height: 1.4em; font-size: var(--text-xs); }

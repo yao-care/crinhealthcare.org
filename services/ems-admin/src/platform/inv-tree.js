@@ -102,7 +102,7 @@ const BLOCK_INPUTS = {
   eu_heat: { items: ['OIL-GEN', 'OIL-BOILER', 'OIL-VEH', 'OIL-FORK', 'GAS-NG', 'GAS-LPG'], metrics: FUEL_METRICS },
   eu_elec: { items: ['ELE-GRID'] },
   eu_eui: { items: ['ELE-GRID', 'ACT-CAP'], metrics: ['elec_purchased_kwh', 'floor_area_m2'] },
-  eu_flow: { items: ['ELE-GRID', 'ELE-SUB', 'ELE-EQUIP', 'ELE-PV', 'OIL-GEN', 'OIL-VEH', 'OIL-FORK'] },
+  eu_flow: { items: ['ELE-GRID', 'ELE-SUB', 'ELE-EQUIP', 'ELE-PV', 'OIL-GEN', 'OIL-VEH', 'OIL-FORK'], metrics: ['elec_purchased_kwh', 'elec_metered_kwh', 'equip_estimated_kwh', 'elec_generated_kwh', 'elec_self_used_kwh', 'elec_exported_kwh', 'oil_consumption_l'] },
   eu_buildings: { zone: true },
   eu_elec_system: { types: ['transformer', 'capacitor', 'generator'] },
   eu_equipment: { items: ['ELE-EQUIP', 'GAS-REF'], types: ['boiler'] },
@@ -118,10 +118,10 @@ const BLOCK_INPUTS = {
   gov_public: { items: ['ELE-EQUIP', 'GAS-REF'] },
   gov_dataroom: { types: ['data_room'] },
   gov_ems: { types: ['ems', 'chiller'] },
-  gov_hv: { types: ['transformer', 'power_account'] },
+  gov_hv: { types: ['transformer', 'power_account'], metrics: ['elec_contract_kw', 'elec_peak_demand_kw', 'elec_power_factor_pct'] },
   gov_vehicles: { types: ['vehicle'] },
   ghg_t2: { zone: true },
-  ghg_t9: { items: ['ELE-GRID', 'ELE-PV', 'ELE-HEAT'] },
+  ghg_t9: { items: ['ELE-GRID', 'ELE-PV', 'ELE-HEAT'], metrics: ['elec_purchased_kwh', 'elec_wheeled_kwh', 'elec_generated_kwh', 'elec_self_used_kwh', 'elec_exported_kwh', 'imported_energy_gj'] },
   // 盤查各表：讀的就是排放量計算用到的（項目 × 指標），直接用計算規則判斷
   ...Object.fromEntries(['ghg_t3', 'ghg_t4', 'ghg_t5', 'ghg_t6', 'ghg_t7', 'ghg_t8', 'source_inventory', 'uncertainty_table', 'data_quality', 'moenv_import', 'moenv_check', 'factors', 'methods']
     .map((k) => [k, { rules: ['ghg.total', 'ghg.biogenic_co2'] }])),
@@ -186,7 +186,7 @@ export function fieldsFor({ asset = null, metric = null, zone = false } = {}) {
         if (zone && b.zone) how = '列為一筆建物資料';
         else if (asset && b.rules) { if (b.rules.some((r) => consumes(r).some((c) => hit(c, who)))) how = '列入此表'; }
         else if (asset && ((b.items && b.items.includes(itemCode)) || (b.types && b.types.includes(asset.asset_type)))
-          && (!b.metrics || !metric || b.metrics.includes(metric)) && (!b.metrics || metric || b.metrics.some((x) => metrics.includes(x)))) how = '列入此表';
+          && (!b.metrics || !metric || b.metrics.includes(metric)) && (!b.metrics || metric || !metrics.length || b.metrics.some((x) => metrics.includes(x)))) how = '列入此表';
       }
       if (how) out.push({ templateCode: t.code, template: t.name, section: sections.get(m.section) || m.section, field: m.label, how });
     }
