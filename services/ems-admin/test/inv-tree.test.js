@@ -185,3 +185,21 @@ test('原「其他」併入盤點樹：營運數據、院所基本資料（含�
   assert.ok(Array.isArray(n.recent));
 });
 
+
+test('公開資料先補基本資料：只補空欄、標待確認；院方改值或按確認就移除標記；院方已填的不覆蓋', async () => {
+  const P = await import('../src/platform/profile.js');
+  P.saveProfile(sa, org, { hqName: '院方填的全銜' });
+  const src = (v) => ({ value: v, url: 'https://example.gov.tw/x', quote: '原文', asOf: '2026-11-17' });
+  const filled = P.fillProfileFromPublic(org, { hqName: src('公開全銜'), taxId: src('12345678'), address: src('臺中市太平區中山路二段348號'), zip: { value: '411' } });
+  assert.deepEqual(filled.sort(), ['address', 'taxId'], '院方已填、沒有來源的都不補');
+  let p = P.getProfile(org);
+  assert.equal(p.hqName, '院方填的全銜');
+  assert.deepEqual(Object.keys(p._pub).sort(), ['address', 'taxId']);
+  P.saveProfile(sa, org, { ...p, taxId: '87654321' });
+  p = P.getProfile(org);
+  assert.deepEqual(Object.keys(p._pub), ['address'], '改了值就是院方確認過');
+  P.saveProfile(sa, org, p, { confirm: ['address'] });
+  p = P.getProfile(org);
+  assert.equal(p._pub, undefined);
+  assert.equal(p.address, '臺中市太平區中山路二段348號');
+});

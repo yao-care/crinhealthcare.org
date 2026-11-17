@@ -66,14 +66,37 @@ export function readProfile(ctx, orgId) {
   assertCan(ctx, 'view.internal', orgId);
   return { data: getProfile(orgId), fields: PROFILE_FIELDS, groups: PROFILE_GROUPS };
 }
-export function saveProfile(ctx, orgId, data) {
+// 公開資料先補的欄位記在 data._pub[key] = { url, quote, asOf }：畫面標「公開資料・待院方確認」。
+// 院方改了該欄或按「確認」就移除標記；院方已有值的欄位，公開資料不覆蓋。
+export function saveProfile(ctx, orgId, data, { confirm = [] } = {}) {
   assertCan(ctx, 'report.write', orgId);
   const allowed = new Set(Object.values(PROFILE_FIELDS).map((f) => f.key));
   const clean = Object.fromEntries(Object.entries(data || {}).filter(([k, v]) => allowed.has(k) && typeof v === 'string').map(([k, v]) => [k, v.trim()]));
   const before = getProfile(orgId);
-  if (q.get('SELECT 1 FROM org_profiles WHERE org_id = ?', orgId)) update('org_profiles', orgId, { data: clean, updated_by: ctx.userId, updated_at: nowIso() }, 'org_id');
-  else insert('org_profiles', { org_id: orgId, data: clean, updated_by: ctx.userId, updated_at: nowIso() });
+  const pub = Object.fromEntries(Object.entries(before._pub || {}).filter(([k]) => !confirm.includes(k) && clean[k] === (before[k] ?? '') && clean[k] !== ''));
+  if (Object.keys(pub).length) clean._pub = pub;
+  writeProfile(ctx.userId, orgId, clean);
   audit({ actor: ctx.userId, actorName: ctx.name, orgId, action: 'org.profile', targetType: 'organization', targetId: orgId, before, after: clean });
+}
+function writeProfile(by, orgId, data) {
+  if (q.get('SELECT 1 FROM org_profiles WHERE org_id = ?', orgId)) update('org_profiles', orgId, { data, updated_by: by, updated_at: nowIso() }, 'org_id');
+  else insert('org_profiles', { org_id: orgId, data, updated_by: by, updated_at: nowIso() });
+}
+// 公開資料補空欄：entries = { key: { value, url, quote, asOf } }；只填空的欄位，回實際填了哪些
+export function fillProfileFromPublic(orgId, entries) {
+  const allowed = new Set(Object.values(PROFILE_FIELDS).map((f) => f.key));
+  const before = getProfile(orgId);
+  const next = { ...before, _pub: { ...(before._pub || {}) } };
+  const filled = [];
+  for (const [k, e] of Object.entries(entries || {})) {
+    const v = String(e?.value ?? '').trim();
+    if (!allowed.has(k) || !v || !e.url || (before[k] && !before._pub?.[k])) continue;
+    next[k] = v; next._pub[k] = { url: e.url, quote: e.quote || '', asOf: e.asOf || '' }; filled.push(k);
+  }
+  if (!filled.length) return [];
+  writeProfile('public-data', orgId, next);
+  audit({ actor: 'public-data', actorName: '公開資料補登', orgId, action: 'org.profile', targetType: 'organization', targetId: orgId, before, after: next });
+  return filled;
 }
 // 報告手動欄位的值：案件填的 > 院所基本資料 > 預設文字
 export function manualValue(fieldId, caseManual, profile) {
