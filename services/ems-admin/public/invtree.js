@@ -325,7 +325,7 @@
     const srcCards = d.sources.map((s) => {
       const df = diffTo(s);
       const c = card({ tag: `${KIND_ICON[s.sourceType] || '•'} ${s.kindLabel}`, title: s.name, sub: s.frequency ? `${s.frequency}${s.acquisition === 'api' ? '・自動介接' : ''}` : '',
-        value: s.latest ? `${ym(s.latest.periodStart)}　${fmt(s.latest.value)} ${s.latest.unit}` : '尚無資料',
+        value: s.latest ? `${ym(s.latest.periodStart)}　${s.latest.label ? `${s.latest.label} ` : ''}${fmt(s.latest.value)} ${s.latest.unit}` : '尚無資料',
         note: df === null ? (s === ref && d.sources.length > 1 ? '比對基準' : '') : `與${ref.kindLabel}差 ${pct(df)}`,
         cls: 'src' + (df !== null && Math.abs(df) > 2 ? ' warn' : ''),
         onClick: () => focus({ assetId: a.id, metric: s.latest?.metric || d.mainMetric, label: `${a.name} › ${s.name}${s.latest ? `（${METRIC_NAME(s.latest.metric)}）` : ''}`, el: c,
@@ -747,7 +747,13 @@
     const f = findNode('group', id);
     if (!f) { main.append(el('p', { class: 'note', text: '找不到這個分類。' })); return; }
     main.append(h2(f.n.name));
-    main.append(listTable(flatAssets(f.n.children).map((r) => ({ ...r, sec: `tree:asset:${r.id}` })), assetCols));
+    const subs = f.n.children.filter((c) => c.kind === 'group');
+    const direct = f.n.children.filter((c) => c.kind !== 'group');
+    if (direct.length) main.append(listTable(flatAssets(direct).map((r) => ({ ...r, sec: `tree:asset:${r.id}` })), assetCols));
+    for (const g of subs) {
+      main.append(el('h4', { class: 'i-h4', text: `${g.name}（${flatAssets(g.children).length}）` }));
+      main.append(listTable(flatAssets(g.children).map((r) => ({ ...r, sec: `tree:asset:${r.id}` })), assetCols));
+    }
     renderSide(side);
   }
 

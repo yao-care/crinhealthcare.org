@@ -297,16 +297,19 @@ export function assetNode(ctx, id, { year, metric } = {}) {
   const peers = mainMetric ? q.all('SELECT code FROM metrics WHERE semantics = (SELECT semantics FROM metrics WHERE code = ?) AND std_unit = (SELECT std_unit FROM metrics WHERE code = ?) AND domain = (SELECT domain FROM metrics WHERE code = ?)', mainMetric, mainMetric, mainMetric).map((r) => r.code) : [];
   const latest = latestBySource(a.id, peers.length ? peers : mainMetric ? [mainMetric] : []);
   const childLatest = (cid) => {
-    if (!peers.length) return null;
-    const r = q.get(`SELECT period_start, period_end, value_std, std_unit FROM observations WHERE asset_id = ? AND quality_status NOT IN ('superseded','invalid')
-      AND metric_code IN (${peers.map(() => '?').join(',')}) ORDER BY period_end DESC LIMIT 1`, cid, ...peers);
+    const r = (peers.length ? q.get(`SELECT period_start, period_end, value_std, std_unit FROM observations WHERE asset_id = ? AND quality_status NOT IN ('superseded','invalid')
+      AND metric_code IN (${peers.map(() => '?').join(',')}) ORDER BY period_end DESC LIMIT 1`, cid, ...peers) : null)
+      || q.get(`SELECT period_start, period_end, value_std, std_unit FROM observations WHERE asset_id = ? AND quality_status NOT IN ('superseded','invalid') ORDER BY period_end DESC LIMIT 1`, cid);
     return r ? { periodStart: r.period_start, periodEnd: r.period_end, value: r.value_std, unit: r.std_unit } : null;
   };
   for (const c of children) c.latest = childLatest(c.id);
+  // 用量還算不出來（例：只有一次表頭讀值）時，來源卡片改顯示這個來源最近一筆任何指標，不寫「尚無資料」
+  const anyLatest = (sid) => q.get(`SELECT o.metric_code, o.period_start, o.period_end, o.value_std, o.std_unit, m.name AS label FROM observations o LEFT JOIN metrics m ON m.code = o.metric_code
+    WHERE o.asset_id = ? AND o.source_id = ? AND o.quality_status NOT IN ('superseded','invalid') ORDER BY o.period_end DESC LIMIT 1`, a.id, sid);
   const sources = srcs.map((s) => {
-    const l = latest.get(s.id);
+    const l = latest.get(s.id) || anyLatest(s.id);
     return { id: s.id, name: s.name, sourceType: s.source_type, kindLabel: SOURCE_KIND[s.source_type] || s.source_type, acquisition: s.acquisition, frequency: s.frequency, note: s.note,
-      latest: l ? { periodStart: l.period_start, periodEnd: l.period_end, value: l.value_std, unit: l.std_unit, metric: l.metric_code } : null };
+      latest: l ? { periodStart: l.period_start, periodEnd: l.period_end, value: l.value_std, unit: l.std_unit, metric: l.metric_code, label: l.label || null } : null };
   });
   // 多源逐月比對（同語意指標一起比）
   let compare = null;
