@@ -676,7 +676,10 @@
       const tr = el('tr', {});
       cols.forEach((c, i) => {
         const v = c.v(r);
-        if (i === 0 && r.sec) { const b = el('button', { type: 'button', class: 'link', text: v }); b.addEventListener('click', () => UI.goSection(r.sec)); tr.append(el('td', {}, b)); }
+        if (i === 0 && r.sec) {
+          const b = el('button', { type: 'button', class: 'link', text: v }); b.addEventListener('click', () => UI.goSection(r.sec));
+          const td = el('td', {}, b); if (r.depth) td.style.paddingInlineStart = `${0.75 + r.depth * 1.25}rem`; tr.append(td);
+        }
         else tr.append(el('td', { class: c.num ? 'num' : '', text: v ?? '' }));
       });
       tb.append(tr);
@@ -689,7 +692,7 @@
     return out;
   }
   const assetCols = [
-    { h: '名稱', v: (r) => `${'　'.repeat(r.depth || 0)}${r.name}` },
+    { h: '名稱', v: (r) => r.name },
     { h: '類型', v: (r) => r.typeLabel },
     { h: '數值來源', v: (r) => String(r.sources || 0), num: true },
   ];
@@ -711,7 +714,13 @@
       main.append(el('h3', { class: 'i-h3', text: '分區' }));
       main.append(z.children.length ? listTable(z.children.map((b) => ({ name: b.name, floors: b.children.map((f) => f.name).join('、'), sec: `tree:building:${b.id}` })), [{ h: '建物／區域', v: (r) => r.name }, { h: '樓層／區域', v: (r) => r.floors }]) : el('p', { class: 'note', text: '還沒有建物。' }));
       const other = d.children.find((c) => c.id === 'ele-other');
-      if (other) { main.append(el('h3', { class: 'i-h3', text: other.name })); main.append(listTable(flatAssets(other.children).map((r) => ({ ...r, sec: `tree:asset:${r.id}` })), assetCols)); }
+      if (other) {
+        main.append(el('h3', { class: 'i-h3', text: other.name }));
+        for (const g of other.children) {
+          main.append(el('h4', { class: 'i-h4', text: `${g.name}（${flatAssets(g.children).length}）` }));
+          main.append(listTable(flatAssets(g.children).map((r) => ({ ...r, sec: `tree:asset:${r.id}` })), assetCols));
+        }
+      }
     } else {
       const rows = flatAssets(d.children).map((r) => ({ ...r, sec: `tree:asset:${r.id}` }));
       main.append(rows.length ? listTable(rows, assetCols) : el('p', { class: 'note', text: '還沒有項目，按左邊的〔管理〕新增。' }));

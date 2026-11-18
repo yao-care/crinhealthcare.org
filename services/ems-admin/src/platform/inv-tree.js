@@ -87,7 +87,18 @@ export function tree(ctx, orgId) {
       { kind: 'tpc', id: 'tpc', name: '台電', manage: true, children: grid.map((a) => ({ ...node(a), manage: true })) },
       { kind: 'zones', id: 'zones', name: '分區', manage: true, children: zoneNodes },
     ];
-    if (other.length) children.push({ kind: 'group', id: 'ele-other', name: '其他（未接到台電總盤）', children: byItem(other) });
+    // 沒接上台電的分表依所在建物分組（各建物常有同名盤號，例：L1、EP3），沒填建物的放最後
+    if (other.length) {
+      const bname = new Map(blds.map((b) => [b.id, b.name]));
+      const groups = new Map();
+      for (const a of other) {
+        const k = bname.has(a.building_id) ? a.building_id : '_';
+        if (!groups.has(k)) groups.set(k, { kind: 'group', id: `ele-other:${k}`, name: bname.get(k) || '未填建物', children: [] });
+        groups.get(k).children.push(node(a));
+      }
+      const order = (g) => (g.id === 'ele-other:_' ? 1 : 0);
+      children.push({ kind: 'group', id: 'ele-other', name: '其他（未接到台電總盤）', children: [...groups.values()].sort((x, y) => order(x) - order(y)) });
+    }
     return { key, label: d.name, icon: d.icon, children, count: assets.filter((a) => a.domain === key).length };
   });
   const site = q.get('SELECT id, name FROM sites WHERE org_id = ? ORDER BY created_at LIMIT 1', orgId);
