@@ -332,7 +332,7 @@ route('GET', '/api/v1/ghg/significance/estimate', '顯著性自動估算（建�
 route('POST', '/api/v1/ghg/significance/rest-insignificant', '尚未評估的項目一鍵判定不顯著', (ctx, { body }) => G.markRestInsignificant(ctx, body.orgId, Number(body.year), body.reason));
 route('GET', '/api/v1/ghg/base-years/suggest', '建議基準年', (ctx, { query }) => { assertCan(ctx, 'view.internal', query.orgId); return G.suggestBaseYear(query.orgId); });
 route('GET', '/api/v1/org-profile', '院所基本資料', (ctx, { query }) => P.readProfile(ctx, query.orgId));
-route('PUT', '/api/v1/org-profile', '儲存院所基本資料', (ctx, { body }) => { P.saveProfile(ctx, body.orgId, body.data, { confirm: Array.isArray(body.confirm) ? body.confirm : [] }); return { ok: true }; });
+route('PUT', '/api/v1/org-profile', '儲存院所基本資料', (ctx, { body }) => { P.saveProfile(ctx, body.orgId, body.data); return { ok: true }; });
 route('GET', '/api/v1/ghg/base-years', '基準年與重新計算紀錄', (ctx, { query }) => G.listBaseYears(ctx, query.orgId));
 route('GET', '/api/v1/energy-measures', '節約能源措施（orgId、year、kind=done|plan）', (ctx, { query }) => EM.readMeasures(ctx, query));
 route('POST', '/api/v1/energy-measures', '新增或修改節約能源措施', (ctx, { body }) => EM.saveMeasure(ctx, body));

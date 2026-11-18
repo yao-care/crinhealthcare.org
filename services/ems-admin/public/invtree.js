@@ -542,7 +542,6 @@
     const data = { ...r.data };
     main.append(h2('院所基本資料', [ORG.name]));
     const inputs = {};
-    const collect = () => { const out = { ...data }; for (const [k, n] of Object.entries(inputs)) out[k] = n.value; return out; };
     // 先放要填的欄位（各申報的機關資料、能源查核、環境部、節能填報），說明性的長文（盤查報告說明、水足跡範疇）放下面
     const NOTE_GROUPS = ['ghg', 'water'];
     const groupBox = (gk, gl, open) => {
@@ -551,8 +550,7 @@
       const isLong = (f) => f.short === false || !f.group;
       const ordered = [...uniq.filter((f) => !isLong(f)), ...uniq.filter(isLong)];
       const d = el('details', { class: 'tv-pgroup', open });
-      const nPub = uniq.filter((f) => data._pub?.[f.key]).length;
-      d.append(el('summary', { text: `${gl}（已填 ${uniq.filter((f) => data[f.key]).length}／${uniq.length}${nPub ? `，其中 ${nPub} 項公開資料待確認` : ''}）` }));
+      d.append(el('summary', { text: `${gl}（已填 ${uniq.filter((f) => data[f.key]).length}／${uniq.length}）` }));
       const grid = el('div', { class: 'tv-grid' });
       for (const f of ordered) {
         const long = isLong(f);
@@ -562,13 +560,9 @@
         n.addEventListener('focus', () => { FOCUS = { label: `院所基本資料 › ${f.label}`, profileKey: f.key }; renderSide(side); });
         const lab = field(f.label, n, f.hint || null);
         if (long) lab.classList.add('wide');
+        // 公開資料先補的值：淡黃底，滑過顯示來源；院方儲存後就算確認過
         const pub = data._pub?.[f.key];
-        if (pub) {
-          lab.classList.add('tv-pubf');
-          const a = el('a', { href: pub.url, target: '_blank', rel: 'noopener', text: '來源' }); a.title = pub.quote || pub.url;
-          lab.append(el('span', { class: 'tv-pub' }, [el('span', { text: `公開資料・待院方確認${pub.asOf ? `（${pub.asOf}）` : ''}` }), a,
-            btn('確認無誤', async () => { await call('/api/v1/org-profile', { method: 'PUT', json: { orgId: ORG.id, data: collect(), confirm: [f.key] } }); toast('已確認', 'ok'); renderProfile(root); })]));
-        }
+        if (pub) { lab.classList.add('tv-pubf'); n.title = `公開資料：${pub.url}`; }
         grid.append(lab);
       }
       d.append(grid);

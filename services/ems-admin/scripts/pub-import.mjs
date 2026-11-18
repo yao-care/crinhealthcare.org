@@ -4,10 +4,10 @@
 //
 // JSON 格式：{ fields: { taxId: {value,url,quote,asOf}, ... }, buildings: [{name,floorsAbove,floorsBelow,floorAreaM2,note,url,quote}] }
 // 寫入：
-//   院所基本資料  對得上的欄位補進去，標「公開資料・待院方確認」（data._pub）
+//   院所基本資料  對得上的欄位補進去，畫面淡黃底（data._pub）
 //   院區地址      sites.address 空的才補
 //   建物          名稱不存在才建，note 記來源
-//   病床數        營運數據「病床與樓地板面積」，來源＝「公開資料（待院方確認）」，值狀態＝推估
+//   病床數        營運數據「病床與樓地板面積」，來源＝「公開資料」，值狀態＝推估
 // 公開資料檔放 scratchpad 或 /opt 底下，不進 repo。
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -106,12 +106,12 @@ if (addr) { update('sites', site.id, { address: addr, updated_at: t }); audit({ 
 for (const b of newB) {
   const id = newId('bld');
   insert('buildings', { id, site_id: site.id, name: b.name, floors: floorsOf(b) || null, floor_area_m2: Number(b.floorAreaM2) || null,
-    attrs: { pub: { url: b.url, quote: b.quote || '' } }, note: `公開資料・待院方確認：${b.url}${b.note ? `（${b.note}）` : ''}`, created_at: t, updated_at: t });
+    attrs: { pub: { url: b.url, quote: b.quote || '' } }, note: null, created_at: t, updated_at: t });
   audit({ actor: 'public-data', actorName: '公開資料補登', orgId: org.id, action: 'building.create', targetType: 'building', targetId: id, after: { name: b.name, source: b.url } });
 }
 const pubSrc = () => {
-  let src = q.get("SELECT * FROM data_sources WHERE asset_id = ? AND name = '公開資料（待院方確認）'", cap.id);
-  if (!src) { src = { id: newId('src'), org_id: org.id, asset_id: cap.id, item_id: cap.item_id, name: '公開資料（待院方確認）', source_type: 'document', acquisition: 'import', priority: 10, owner_status: 'unknown', note: '院方提供正式數字後以院方為準', created_by: 'public-data', created_at: t, updated_at: t }; insert('data_sources', src); }
+  let src = q.get("SELECT * FROM data_sources WHERE asset_id = ? AND name = '公開資料'", cap.id);
+  if (!src) { src = { id: newId('src'), org_id: org.id, asset_id: cap.id, item_id: cap.item_id, name: '公開資料', source_type: 'document', acquisition: 'import', priority: 10, owner_status: 'unknown', created_by: 'public-data', created_at: t, updated_at: t }; insert('data_sources', src); }
   return src;
 };
 if (whole && cap) {
@@ -120,7 +120,7 @@ if (whole && cap) {
 }
 for (const b of fillArea) {
   const cur = bldByName(b.name); const attrs = { ...JSON.parse(cur.attrs || '{}'), pub: { url: b.url, quote: b.quote || '' } };
-  update('buildings', cur.id, { floor_area_m2: Number(b.floorAreaM2), attrs, note: [cur.note, `樓地板面積為公開資料・待院方確認：${b.url}${b.note ? `（${b.note}）` : ''}`].filter(Boolean).join('；'), updated_at: t });
+  update('buildings', cur.id, { floor_area_m2: Number(b.floorAreaM2), attrs, updated_at: t });
   audit({ actor: 'public-data', actorName: '公開資料補登', orgId: org.id, action: 'building.update', targetType: 'building', targetId: cur.id, before: { floor_area_m2: null }, after: { floor_area_m2: Number(b.floorAreaM2), source: b.url } });
 }
 if (doBeds) {

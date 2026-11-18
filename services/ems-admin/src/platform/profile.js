@@ -66,15 +66,13 @@ export function readProfile(ctx, orgId) {
   assertCan(ctx, 'view.internal', orgId);
   return { data: getProfile(orgId), fields: PROFILE_FIELDS, groups: PROFILE_GROUPS };
 }
-// 公開資料先補的欄位記在 data._pub[key] = { url, quote, asOf }：畫面標「公開資料・待院方確認」。
-// 院方改了該欄或按「確認」就移除標記；院方已有值的欄位，公開資料不覆蓋。
-export function saveProfile(ctx, orgId, data, { confirm = [] } = {}) {
+// 公開資料先補的欄位記在 data._pub[key] = { url, quote, asOf }：畫面淡黃底。
+// 院方儲存一次就算看過、全部確認（標記清掉）；院方已有值的欄位，公開資料不覆蓋。
+export function saveProfile(ctx, orgId, data) {
   assertCan(ctx, 'report.write', orgId);
   const allowed = new Set(Object.values(PROFILE_FIELDS).map((f) => f.key));
   const clean = Object.fromEntries(Object.entries(data || {}).filter(([k, v]) => allowed.has(k) && typeof v === 'string').map(([k, v]) => [k, v.trim()]));
   const before = getProfile(orgId);
-  const pub = Object.fromEntries(Object.entries(before._pub || {}).filter(([k]) => !confirm.includes(k) && clean[k] === (before[k] ?? '') && clean[k] !== ''));
-  if (Object.keys(pub).length) clean._pub = pub;
   writeProfile(ctx.userId, orgId, clean);
   audit({ actor: ctx.userId, actorName: ctx.name, orgId, action: 'org.profile', targetType: 'organization', targetId: orgId, before, after: clean });
 }
