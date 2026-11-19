@@ -64,6 +64,16 @@ function loader(datasetId, orgId) {
   // 定版快照的屬性優先（計算用的油種、冷媒等不變）；定版後才補填的申報欄位（設備規格、購油客戶編號、分攤比例…）從目前台帳補上
   const cur = new Map(q.all('SELECT id, attrs FROM assets WHERE org_id = ?', orgId).map((r) => [r.id, j(r.attrs, {})]));
   const assets = cx.assets.filter((a) => a.status !== 'archived').map((a) => ({ ...a, attrs: { ...(cur.get(a.id) || {}), ...a.attrs } }));
+  // 報告年度之後才啟用的標的（attrs.inServiceFrom，YYYY-MM）不列入該年度報告；資料集裡有它的採用值時照列
+  const yearEnd = cx.ds ? `${cx.ds.year}-12` : null;
+  const withFacts = new Set(cx.facts.map((f) => f.asset_id));
+  const notYet = new Set(assets.filter((a) => { const from = String(a.attrs.inServiceFrom || '').slice(0, 7); return yearEnd && from && from > yearEnd; }).map((a) => a.id));
+  if (notYet.size) {
+    // 連同掛在它下面的盤與表一起不列（沿 parent_asset_id 往上找）
+    const all = new Map(assets.map((a) => [a.id, a]));
+    const under = (a) => { const seen = new Set(); let cur = a; while (cur && !seen.has(cur.id)) { if (notYet.has(cur.id)) return true; seen.add(cur.id); cur = cur.parent_asset_id ? all.get(cur.parent_asset_id) : null; } return false; };
+    for (let i = assets.length - 1; i >= 0; i--) if (under(assets[i]) && !withFacts.has(assets[i].id)) assets.splice(i, 1);
+  }
   // 定版後才封存的標的：資料集裡有它的採用值就照樣列出（屬性用定版快照），避免歷年報告少一個電號
   const have = new Set(assets.map((a) => a.id));
   const missing = [...new Set(cx.facts.map((f) => f.asset_id).filter((id) => !have.has(id)))];
@@ -192,7 +202,14 @@ function moenvImport(L, ctx) {
   const ghgAssets = L.assets.filter((a) => a.applicability !== 'not_applicable' && /^(OIL-(GEN|BOILER|VEH|FORK)|GAS-|WAT-SEPTIC|ELE-HEAT)/.test(a.item_code || ''));
   // 燃燒
   for (const a of ghgAssets.filter((x) => ['OIL-GEN', 'OIL-BOILER', 'OIL-VEH', 'OIL-FORK', 'GAS-NG', 'GAS-LPG'].includes(x.item_code))) {
-    if (a.asset_type === 'fuel_tank' || a.asset_type === 'fuel_card' || a.asset_type === 'supply_contract') continue;
+    // 共用油槽：油槽本身有消耗量時以油槽列一筆（設備代碼取它供油的設備），被它供油的設備不再各列缺漏
+    const fedBy = (x) => q.all("SELECT parent_id FROM asset_links WHERE child_id = ? AND relation IN ('feeds','supplies') AND valid_to IS NULL", x.id).map((r) => r.parent_id);
+    const tankHasFacts = (id) => L.facts.some((f) => f.asset_id === id && f.metric_code === FUEL_ACTIVITY[L.byId.get(id)?.attrs?.fuel || DEFAULT_FUEL[L.byId.get(id)?.item_code]]);
+    const fedChildren = (x) => q.all("SELECT child_id FROM asset_links WHERE parent_id = ? AND relation IN ('feeds','supplies') AND valid_to IS NULL", x.id).map((r) => L.byId.get(r.child_id)).filter(Boolean);
+    if (a.asset_type === 'fuel_tank' && !tankHasFacts(a.id)) continue;
+    if (a.asset_type === 'fuel_card' || a.asset_type === 'supply_contract') continue;
+    if (a.asset_type !== 'fuel_tank' && !L.facts.some((f) => f.asset_id === a.id) && fedBy(a).some(tankHasFacts)) continue;
+    const kids = a.asset_type === 'fuel_tank' ? fedChildren(a) : [];
     const fuel = a.attrs.fuel || DEFAULT_FUEL[a.item_code];
     if (!FUEL_ACTIVITY[fuel] || !MOENV_FUEL[fuel]) { notes.push(`${a.name}：油種「${fuel || '未填'}」不在可計算清單（柴油、汽油、燃料油、天然氣、液化石油氣），請修正標的油種`); continue; }
     const facts = L.facts.filter((f) => f.asset_id === a.id && f.metric_code === FUEL_ACTIVITY[fuel]);
@@ -201,7 +218,7 @@ function moenvImport(L, ctx) {
     const heat = fuel === 'ng' ? (a.attrs.ngType ? `預設-公告熱值(天然氣${a.attrs.ngType})` : '') : fuel === 'fuel_oil' ? '' : '預設-公告熱值';
     if (fuel === 'ng' && !a.attrs.ngType) notes.push(`${a.name}：請在標的專屬欄位選天然氣 NG1 或 NG2（燃料熱值來源）`);
     if (fuel === 'fuel_oil') notes.push(`${a.name}：燃料油沒有公告熱值，匯入前請填「自訂(其他)-非公告熱值」與低位熱值、資料來源`);
-    row(a, { no: no(mobile ? 'GV' : 'GS', a), equip: equip(a, fuel), fuel: MOENV_FUEL[fuel], biogenic: Number(a.attrs.biogenicShare) > 0, direct: true, type: mobile ? '移動燃燒' : '固定燃燒',
+    row(a, { no: no(mobile ? 'GV' : 'GS', a), equip: kids.length ? equip({ ...a, asset_type: kids[0].asset_type, attrs: { ...a.attrs, moenvEquipCode: a.attrs.moenvEquipCode || kids[0].attrs.moenvEquipCode } }, fuel) : equip(a, fuel), qty: kids.length || undefined, note: kids.length ? `共用油槽，供 ${kids.map((k) => k.name).join('、')}` : undefined, fuel: MOENV_FUEL[fuel], biogenic: Number(a.attrs.biogenicShare) > 0, direct: true, type: mobile ? '移動燃燒' : '固定燃燒',
       gases: ['CO2', 'CH4', 'N2O'], activity: act, unit: { L: '公升', Nm3: '立方公尺', kg: '公斤' }[FUEL_UNIT[fuel]], facts, heat, used: act === null && !facts.length ? undefined : act !== 0,
       factors: ['CO2', 'CH4', 'N2O'].map((g) => ({ gas: g })) });
   }
