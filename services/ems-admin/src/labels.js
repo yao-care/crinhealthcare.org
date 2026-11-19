@@ -47,6 +47,7 @@ const P = {
   version: { label: '版本標記', hint: '顯示在看板頁尾，例：v1' },
   hideMeta: { label: '隱藏版本與更新日', hint: '勾選後看板不顯示上面兩欄' },
   liveData: { label: '啟用即時資料', hint: '由 ems-bridge 供給即時值；未接實機請勿勾選' },
+  usageApi: { label: '電力頂列用電速覽', hint: '填平台院所代碼（例 803），電力區塊頂列顯示前日／上月／去年用電度數' },
   layout: { label: '看板版面', hint: 'v2 為現行版面' },
   show: { label: '顯示的資源區塊', hint: '不勾選＝看板不顯示該區塊' },
   peakShave: { label: '顯示削峰填谷區' },

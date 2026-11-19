@@ -26,6 +26,7 @@ import * as G from './ghg.js';
 import * as P from './profile.js';
 import * as EM from './measures.js';
 import * as T from './inv-tree.js';
+import * as U from './usage.js';
 import { computeAll, ALL_RULE_CODES, STATE_LABEL } from './calc.js';
 import { DOMAINS, ASSET_TYPES, WORK_STATUS, APPLICABILITY, USAGE_STATUS, ASSET_ATTRS } from './seed/dictionary.js';
 import { CASE_STATUS_LABEL } from './cases.js';
@@ -395,6 +396,20 @@ route('POST', '/api/v1/admin/backups/:name/drill', '還原演練（唯讀比對�
 route('GET', '/api/v1/admin/evidence-verify', '驗證全部佐證檔雜湊', async (ctx) => { assertCan(ctx, 'backup.run', null); return E.verifyAllEvidence(); });
 
 route('GET', '/api/v1/openapi.json', 'API 文件（OpenAPI 3）', (ctx, { res }) => { const b = JSON.stringify(openapi(), null, 2); res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(b); return RAW; }, { public: true });
+
+// 電號用電速覽（前日／上月／前年）與台電智慧電表檔案匯入
+route('GET', '/api/v1/assets/:id/usage', '電號用電速覽：前日、上月、前年度數', (ctx, { params }) => U.usageForAsset(ctx, params.id));
+route('POST', '/api/v1/assets/:id/ami', '匯入台電智慧電表（AMI）用電檔（multipart：file）', async (ctx, { params, req }) => {
+  const { file } = await multipart(req);
+  if (!file) throw bad('沒有檔案');
+  return U.importAmi(ctx, { assetId: params.id, filename: file.filename, data: file.data });
+}, { multipart: true });
+// 不需登入：看板顯示用的全院三個彙總數字（公開網站本來就顯示年度用電，這裡只多前日與上月合計）
+route('GET', '/api/v1/public/usage/:hid', '看板用：全院前日、上月、前年用電度數', (ctx, { params, res }) => {
+  const b = JSON.stringify({ ok: true, data: U.publicUsage(params.hid) });
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' });
+  res.end(b); return RAW;
+}, { public: true });
 
 // 不需登入：外部系統推送（Bearer 權杖）
 route('POST', '/api/v1/integrations/:id/push', '外部系統推送觀測（Authorization: Bearer 權杖；PRD §16.3 格式）', (ctx, { params, body, req }) =>

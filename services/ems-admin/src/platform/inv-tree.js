@@ -138,6 +138,8 @@ const BLOCK_INPUTS = {
     .map((k) => [k, { rules: ['ghg.total', 'ghg.biogenic_co2'] }])),
 };
 
+const COMPARE_ONLY = { 'ELE-GRID': ['elec_metered_kwh'] };
+
 let ruleCache = null;
 function rules() {
   if (ruleCache && ruleCache.at > Date.now() - 60_000) return ruleCache.map;
@@ -180,6 +182,8 @@ export function fieldsFor({ asset = null, metric = null, zone = false } = {}) {
   const who = { itemCode, metrics, fuel };
   // 指定的指標不在這個盤點項目的資料需求裡（例：電號上的智慧電表表計電量）：只拿來和同一顆表的其他來源比對，不進報告
   if (asset && metric && item?.metrics?.length && !item.metrics.includes(metric)) return [];
+  // 電號上的智慧電表每日度數只給用電速覽（前日／上月）與帳單比對，報告一律用帳單度數
+  if (asset && metric && COMPARE_ONLY[itemCode]?.includes(metric)) return [];
   // 每個模板只看最新已發布版本
   const tpls = q.all("SELECT * FROM report_templates WHERE status = 'published' ORDER BY code, version DESC");
   const latest = new Map(); for (const t of tpls) if (!latest.has(t.code)) latest.set(t.code, t);

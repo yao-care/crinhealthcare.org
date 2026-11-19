@@ -180,7 +180,7 @@ export const ITEMS = [
     applicability_rules: '確認院區用水是否接管', ghg_ref: { scope: 1, iso: '類別一', type: 'septic_ch4' } }),
   // 電
   I('ELE-GRID', 'electricity', 'grid', '外購電力', {
-    asset_types: ['power_account', 'billing_point'], metrics: ['elec_purchased_kwh', 'elec_cost_twd', 'elec_peak_demand_kw', 'elec_contract_kw',
+    asset_types: ['power_account', 'billing_point'], metrics: ['elec_purchased_kwh', 'elec_metered_kwh', 'elec_cost_twd', 'elec_peak_demand_kw', 'elec_contract_kw',
       'elec_peak_kwh', 'elec_semipeak_kwh', 'elec_satsemipeak_kwh', 'elec_offpeak_kwh', 'elec_demand_semipeak_kw', 'elec_demand_satsemipeak_kw', 'elec_demand_offpeak_kw',
       'elec_wheeled_kwh', 'elec_power_factor_pct', 'elec_contract_semipeak_kw', 'elec_contract_satsemipeak_kw', 'elec_contract_offpeak_kw'],
     required_data: ['kWh', '費用', '契約容量', '計費期間', '帳單'], source_hints: ['台電電費帳單', 'EMS', '電費繳費紀錄'],

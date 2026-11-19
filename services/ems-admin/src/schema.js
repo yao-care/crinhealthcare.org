@@ -197,6 +197,7 @@ export const hospitalSchema = z.object({
   version: z.string().default(''),
   hideMeta: z.boolean().default(false),
   liveData: z.boolean().default(false),
+  usageApi: z.string().optional(),
   layout: z.enum(['stack', 'split', 'v2']).default('stack'),
   show: z.array(z.enum(['power', 'water', 'oil', 'gas', 'env'])).optional(),
   peakShave: z.boolean().default(false),

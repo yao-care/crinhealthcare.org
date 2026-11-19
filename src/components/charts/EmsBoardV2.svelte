@@ -5,6 +5,7 @@
   // 「資料→呈現」規則集中在 @utils/ems（供給紅底/bar 前三高配色/環境分級底色）。
   import { isSupplyAbnormal, barFills, envSeverity, warPowerSummary, endurText } from '@utils/ems';
   import { createEssPoller, applyEssToScenario } from '@utils/essLive.svelte';
+  import { createUsagePoller, usageText } from '@utils/usageLive.svelte';
   import { url } from '@utils/url';
   import { carousel } from '@utils/carousel';
   import PeakShaveChart from './PeakShaveChart.svelte';
@@ -31,7 +32,7 @@
     criticalFloors?: string[];
     carbon?: { title: string; cols: string[]; rows: { label: string; cells: string[] }[] };
   }
-  interface Hospital { name: string; boardTitle?: string; location?: string; version?: string; updated?: string; liveData?: boolean; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; peakShave?: boolean; peakShaveHide?: string[]; report?: { esg?: ReportRow[]; benchmark?: ReportRow[] }; }
+  interface Hospital { name: string; boardTitle?: string; location?: string; version?: string; updated?: string; liveData?: boolean; usageApi?: string; scenarios: { id: string; label: string }[]; resources: Resource[]; env?: Env; show?: string[]; peakShave?: boolean; peakShaveHide?: string[]; report?: { esg?: ReportRow[]; benchmark?: ReportRow[] }; }
 
   let { hospital }: { hospital: Hospital } = $props();
   let scenario = $state('peace');
@@ -98,6 +99,15 @@
   $effect(() => { if (ess) return ess.start(); });
   const essScenario = (r: Resource): Scenario =>
     ess && r.id === 'power' ? applyEssToScenario(r[dk], ess.data, war) : r[dk];
+  // 電力頂列「前日／上月／去年」度數：usageApi 醫院才向平台取；平時（非戰時）取代 perf 文字，連不上維持原文字
+  const usage = hospital.usageApi ? createUsagePoller(hospital.usageApi) : null;
+  $effect(() => { if (usage) return usage.start(); });
+  // 原 perf 文字的「用電」段由三個度數取代，其餘段（碳排、SEU）照留
+  const perfOf = (r: Resource, d: Scenario) => {
+    if (!(usage?.status === 'live' && r.id === 'power')) return d.perf?.text || '';
+    const rest = (d.perf?.text || '').split('·').map((x) => x.trim()).filter((x) => x && !x.startsWith('用電'));
+    return [usageText(usage.data), ...rest].join(' · ');
+  };
   const other = $derived(hospital.scenarios.find((s) => s.id !== scenario) ?? hospital.scenarios[0]);
 
   // hospital.show：限定只顯示這些區塊（power/water/oil/gas/env）；未設則全顯示。隱藏其餘後，留下的區塊靠 flex 自動撐滿。
@@ -211,8 +221,8 @@
       {#if war}
         {@const days = d.endur.days || (r.id === 'power' && warPowerSum ? endurText(warPowerSum.hours) : '')}
         <span class="endur" class:low={parseFloat(d.endur.pct) < 30} class:vlive={d.endur.live === 'ess' && ess?.status === 'live'} class:vdemo={d.endur.live === 'ess' && ess?.status === 'demo'}>⏳ 撐 {days || '—'} · 餘 {d.endur.pct || '—'}</span>
-      {:else if d.perf?.text}
-        <span class="bperf">{d.perf.text}</span>
+      {:else if perfOf(r, d)}
+        <span class="bperf">{perfOf(r, d)}</span>
       {/if}
     </header>
     <div class="bbody">

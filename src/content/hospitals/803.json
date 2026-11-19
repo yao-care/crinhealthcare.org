@@ -9,6 +9,7 @@
     "今日省電費"
   ],
   "liveData": true,
+  "usageApi": "803",
   "layout": "v2",
   "peakShave": true,
   "show": [

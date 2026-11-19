@@ -411,7 +411,7 @@
     }
     // 版面：上面是要填的數值，下面是補充說明（關聯圖、逐月比對、規格、QR、異動歷程）
     const head = main.querySelector('.i-head');
-    const fill = [entryForm(d, () => renderAsset(id, root), side), recentList(d)];
+    const fill = [a.assetType === 'power_account' ? usageBox(a, () => renderAsset(id, root)) : null, entryForm(d, () => renderAsset(id, root), side), recentList(d)].filter(Boolean);
     head.after(...fill, el('h3', { class: 'tv-more', text: '補充說明' }));
     main.append(specList(a));
     main.append(qrBox(a));
@@ -479,6 +479,39 @@
       }
       toast(n ? `已儲存 ${n} 個數值` : '沒有變更', n ? 'ok' : ''); if (n) done();
     }, 'primary'), el('span', { class: 'muted', text: '沒有數值就留空。表頭累積讀數、跨月帳單、換表請用手機「現場盤點」。' })]));
+    return box;
+  }
+  // 電號用電速覽：前日、上月、前年。前日要台電智慧電表（AMI）每日資料，在這裡匯入下載檔
+  const SRC_LABEL = { ami: '智慧電表', bill: '電費單', 'ami+bill': '智慧電表＋電費單', 'bill+ami': '智慧電表＋電費單' };
+  function usageBox(a, done) {
+    const box = el('div', { class: 'tv-usage' }, [el('p', { class: 'muted', text: '用電速覽載入中…' })]);
+    const tile = (label, v, when, note) => el('div', { class: 'tv-ut' }, [
+      el('span', { class: 'tv-ul', text: label }),
+      el('b', { class: 'tv-uv', text: v ? `${fmt(v.kwh)} 度` : '—' }),
+      el('span', { class: 'tv-cs', text: v ? when(v) : note }),
+    ]);
+    call(`/api/v1/assets/${encodeURIComponent(a.id)}/usage`).then((u) => {
+      box.textContent = '';
+      const part = (v) => (v?.partialDays ? `，只有 ${v.partialDays}/${v.needDays} 天` : '');
+      box.append(el('div', { class: 'tv-uts' }, [
+        tile('前日用電', u?.day, (v) => `${v.date.slice(5).replace('-', '/')}${v.stale ? '（最近一天）' : ''}・${SRC_LABEL[v.source] || v.source}`, '匯入台電智慧電表資料後顯示'),
+        tile('上月用電', u?.month, (v) => `${ym(v.month + '-01')}・${SRC_LABEL[v.source] || v.source}${part(v)}`, '登錄電費單或智慧電表資料後顯示'),
+        tile('去年用電', u?.year, (v) => `${v.year - 1911} 年全年・${SRC_LABEL[v.source] || v.source}${part(v)}`, '登錄全年電費單後顯示'),
+      ]));
+      const inp = el('input', { type: 'file', accept: '.csv,.xlsx,.txt', hidden: true, 'aria-label': '台電智慧電表用電檔' });
+      inp.addEventListener('change', async () => {
+        const f = inp.files?.[0]; if (!f) return;
+        const fd = new FormData(); fd.append('file', f, f.name);
+        try {
+          const r = await call(`/api/v1/assets/${encodeURIComponent(a.id)}/ami`, { method: 'POST', body: fd });
+          toast(`匯入 ${r.created + r.updated} 天${r.from ? `（${r.from}～${r.to}）` : ''}${r.duplicate ? `，${r.duplicate} 天已有` : ''}${r.partial.length ? `，${r.partial.length} 天資料不完整未匯入` : ''}`, 'ok');
+          done();
+        } catch (e) { toast(`匯入失敗：${e.message}`, 'err'); }
+      });
+      const btn = el('button', { type: 'button', text: '匯入台電智慧電表資料' });
+      btn.addEventListener('click', () => inp.click());
+      box.append(el('div', { class: 'tv-uact' }, [btn, inp, el('span', { class: 'muted', text: '台電高壓用戶服務入口網站下載的用電檔（CSV 或 XLSX，每 15 分鐘或每日都可以）。' })]));
+    }).catch((e) => { box.textContent = `用電速覽載入失敗：${e.message}`; });
     return box;
   }
   function recentList(d) {

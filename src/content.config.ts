@@ -331,6 +331,8 @@ const hospitals = defineCollection({
     // v2 頂列隱藏「版本／更新」兩格（此院不顯示，其餘院所不受影響）
     hideMeta: z.boolean().default(false),
     liveData: z.boolean().default(false),
+    // v2 電力區塊頂列改顯示「前日／上月／去年」用電度數，向油水電氣平台公開彙總 API 取（值＝平台院所代碼，例 "803"）；連不上就維持 perf 文字
+    usageApi: z.string().optional(),
     // 版面：stack＝上半資源/下半面板；split＝左半資源/右半面板(50%)；v2＝五大區塊(電/環境/水/油/氣)新框架
     layout: z.enum(['stack', 'split', 'v2']).default('stack'),
     // v2 限定只顯示這些區塊（power/water/oil/gas/env）；未設＝全顯示。留下的區塊自動撐滿版面。
