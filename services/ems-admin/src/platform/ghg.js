@@ -2,7 +2,7 @@
 import { q, insert, update, newId, nowIso, audit, tx } from './db.js';
 import { assertCan, orgById } from './authz.js';
 import { bad, notFound, conflict, j, round } from './util.js';
-import { getConfig } from './config-store.js';
+import { getConfig, calcSettingsFor } from './config-store.js';
 import { computeAll, gasClass, STATE_LABEL, allSources, editionFor } from './calc.js';
 import { dataQualitySummary } from './ghg-form.js';
 import { SIGNIFICANCE_ITEMS, ISO_CATEGORIES, ASSET_TYPES } from './seed/dictionary.js';
@@ -226,7 +226,7 @@ export function buildBlocks(keys, { caseRow, datasetId, results, factorVersions,
     return { state: 'measured', text: '', table: tbl(['係數', '代碼與版本', '值', '單位', '有效期間', '來源'], rows) };
   });
   B('gwp', () => {
-    const cfgSet = (getConfig('calc.settings') || {}).gwpSet;
+    const cfgSet = calcSettingsFor(orgId).gwpSet;
     const set = cfgSet === 'AR6' || cfgSet === 'AR4' ? cfgSet : year >= 2023 ? 'AR5' : 'AR4';
     const rows = Object.entries(factorVersions || {}).filter(([c]) => c.startsWith('gwp.')).sort().map(([c, v]) => {
       const f = q.get('SELECT * FROM factors WHERE code = ? AND version = ?', c, v);

@@ -2,7 +2,7 @@
 // 每個結果都能「展開計算」：活動數據、係數（代碼／版本／來源）、公式、捨入。
 // 缺漏不當 0：沒有資料 → missing；部分標的沒資料 → partial；係數未發布 → blocked。
 import { q } from './db.js';
-import { factorAt, ruleCurrent, ruleVersion, getConfig } from './config-store.js';
+import { factorAt, ruleCurrent, ruleVersion, getConfig, calcSettingsFor } from './config-store.js';
 import { j, round, convert } from './util.js';
 import { MONTREAL, REFRIGERANT_ALIASES } from './seed/factors.js';
 
@@ -28,7 +28,7 @@ export function makeContext(datasetId, { pinnedRules = {}, pinnedFactors = {} } 
     for (let i = 0; i < facts.length; i++) facts[i] = fix(facts[i]);
     for (let i = 0; i < assets.length; i++) assets[i] = fix(assets[i]);
   }
-  const settings = getConfig('calc.settings') || { gwpSet: 'auto', precision: {} };
+  const settings = calcSettingsFor(ds.org_id);
   return { ds, facts, assets, settings, septic: getConfig('calc.septic') || {}, pinnedRules, pinnedFactors, usedFactors: {}, usedRules: {}, cache: new Map(), date: `${ds.year}-07-01` };
 }
 

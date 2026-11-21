@@ -12,7 +12,7 @@ import { q } from './db.js';
 import { orgById } from './authz.js';
 import { j, round, convert } from './util.js';
 import { makeContext, compute, DEFAULT_FUEL, FUEL_ACTIVITY, FUEL_UNIT, gasClass, allSources } from './calc.js';
-import { factorAt, getConfig } from './config-store.js';
+import { factorAt, getConfig, calcSettingsFor } from './config-store.js';
 import { getProfile, PROFILE_FIELDS } from './profile.js';
 import { ASSET_TYPES } from './seed/dictionary.js';
 import { GHG_FORM_BUILDERS } from './ghg-form.js';
@@ -750,7 +750,7 @@ export function buildOutputBlocks(keys, { caseRow, datasetId, results }) {
   const want = keys.filter((k) => OUTPUT_BLOCK_KEYS.includes(k));
   if (!want.length) return {};
   const orgId = caseRow.org_id;
-  calcSettings = getConfig('calc.settings') || {};
+  calcSettings = calcSettingsFor(orgId);
   const ctx = { org: orgById(orgId), orgId, year: caseRow.year, profile: getProfile(orgId), results, datasetId,
     gwpSet: calcSettings.gwpSet === 'AR6' || calcSettings.gwpSet === 'AR4' ? calcSettings.gwpSet : caseRow.year >= 2023 ? 'AR5' : 'AR4' };
   const L = loader(datasetId, orgId);

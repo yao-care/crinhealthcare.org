@@ -120,7 +120,7 @@ async function profileTab(orgId) {
     const list = Object.values(d.fields).filter((f) => (f.group || 'ghg') === g);
     if (!list.length) continue;
     fields.push({ type: 'heading', label: title });
-    for (const f of list) fields.push({ key: f.key, label: f.label, type: f.short ? 'text' : 'textarea', wide: !f.short, hint: [f.hint, f.default ? `沒填時使用：${f.default}` : ''].filter(Boolean).join('；'), readonly: !w });
+    for (const f of list) fields.push({ key: f.key, label: f.label, type: f.options ? 'select' : f.short ? 'text' : 'textarea', options: f.options, required: !!f.options, wide: !f.short, hint: [f.hint, f.default ? `沒填時使用：${f.default}` : ''].filter(Boolean).join('；'), readonly: !w });
   }
   const f = form(fields, d.data);
   return card('院所基本資料', note('盤查報告、能源查核申報、環境部盤查登錄每年都要寫的資料，填一次之後自動帶入；個別報告仍可另外改寫。'), f.el,

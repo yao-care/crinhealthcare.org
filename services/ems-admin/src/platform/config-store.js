@@ -8,6 +8,14 @@ const cache = new Map();
 export function invalidateConfig() { cache.clear(); }
 
 // 目前生效（已發布、最新版本）
+// 盤查計算方式：全平台設定為預設，各院在院所基本資料可另選 GWP 版本與冷媒計算方式（空白＝依平台預設）
+export const ORG_CALC_KEYS = ['gwpSet', 'refrigerantMethod'];
+export function calcSettingsFor(orgId) {
+  const base = getConfig('calc.settings') || { gwpSet: 'auto', precision: {} };
+  const p = orgId ? j(q.get('SELECT data FROM org_profiles WHERE org_id = ?', orgId)?.data, {}) : {};
+  const own = Object.fromEntries(ORG_CALC_KEYS.filter((k) => typeof p[k] === 'string' && p[k]).map((k) => [k, p[k]]));
+  return { ...base, ...own, orgOverrides: Object.keys(own) };
+}
 export function getConfig(key) {
   if (cache.has(key)) return cache.get(key);
   const r = q.get("SELECT value, version FROM configuration_versions WHERE key = ? AND status = 'published' ORDER BY version DESC LIMIT 1", key);

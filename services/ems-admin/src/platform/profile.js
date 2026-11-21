@@ -1,7 +1,7 @@
 // 院所基本資料：盤查報告每年都要寫的組織描述、負責人、查證狀態等，填一次之後自動帶入
 import { q, insert, update, nowIso, audit } from './db.js';
 import { assertCan } from './authz.js';
-import { j } from './util.js';
+import { j, bad } from './util.js';
 
 // 報告欄位代碼 → 基本資料鍵；沒有填時的預設文字
 export const PROFILE_FIELDS = {
@@ -57,7 +57,15 @@ Object.assign(PROFILE_FIELDS, Object.fromEntries([
   WF('wfElecWaterFactorNote', '自訂係數來源與年份'), WF('wfAwareRegion', '缺水特徵化因子地區（AWARE）'), WF('wfAwareUse', '特徵化因子用途別', { default: '非農業用水' }),
   WF('wfUpstream', '間接用水·其他上游（每行：類別｜名稱｜年用量｜單位｜係數與來源）', { short: false }),
 ]));
-export const PROFILE_GROUPS = { ghg: '盤查報告說明', basic: '機關基本資料（各申報共用）', energy: '能源查核申報', moenv: '環境部盤查登錄', gov: '政府機關及學校節約能源填報網站', water: '水足跡範疇與基線（ISO 14046／46001）' };
+// 本院盤查計算方式（空白＝依平台「門檻與設定 › 排放量計算方式」）
+const CALC = (key, label, options, hint) => [key, { key, label, group: 'calc', short: true, options, hint }];
+Object.assign(PROFILE_FIELDS, Object.fromEntries([
+  CALC('gwpSet', '全球暖化潛勢（GWP）版本', [['', '依平台預設'], ['AR5', 'AR5（環境部盤查登錄現行採用）'], ['AR6', 'AR6（ISO 14064-1 查證報告書常用）'], ['AR4', 'AR4'], ['auto', '依盤查年度自動選（111 年度以前 AR4，112 年度起 AR5）']],
+    '環境部盤查登錄規定用 AR5；本院第三方查證的盤查報告書若用 AR6，選 AR6 平台算出的數字才會和報告書一致'),
+  CALC('refrigerantMethod', '冷媒逸散量計算方式', [['', '依平台預設'], ['recharge', '補充量法：年度補充量即逸散量'], ['screening', '設備逸散率法：銘牌充填量 × 年逸散率']],
+    '設備逸散率法要在冷媒設備填銘牌充填量與年逸散率，結果標為推估值'),
+]));
+export const PROFILE_GROUPS = { ghg: '盤查報告說明', basic: '機關基本資料（各申報共用）', energy: '能源查核申報', moenv: '環境部盤查登錄', gov: '政府機關及學校節約能源填報網站', calc: '盤查計算方式（本院）', water: '水足跡範疇與基線（ISO 14046／46001）' };
 
 export function getProfile(orgId) {
   return j(q.get('SELECT data FROM org_profiles WHERE org_id = ?', orgId)?.data, {});
@@ -71,7 +79,9 @@ export function readProfile(ctx, orgId) {
 export function saveProfile(ctx, orgId, data) {
   assertCan(ctx, 'report.write', orgId);
   const allowed = new Set(Object.values(PROFILE_FIELDS).map((f) => f.key));
+  const opts = Object.fromEntries(Object.values(PROFILE_FIELDS).filter((f) => f.options).map((f) => [f.key, f.options.map(([o]) => o)]));
   const clean = Object.fromEntries(Object.entries(data || {}).filter(([k, v]) => allowed.has(k) && typeof v === 'string').map(([k, v]) => [k, v.trim()]));
+  for (const [k, v] of Object.entries(clean)) if (opts[k] && !opts[k].includes(v)) throw bad(`「${Object.values(PROFILE_FIELDS).find((f) => f.key === k).label}」只能選列出的選項`);
   const before = getProfile(orgId);
   writeProfile(ctx.userId, orgId, clean);
   audit({ actor: ctx.userId, actorName: ctx.name, orgId, action: 'org.profile', targetType: 'organization', targetId: orgId, before, after: clean });

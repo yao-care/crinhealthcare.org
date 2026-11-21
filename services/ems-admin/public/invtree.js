@@ -587,7 +587,8 @@
       const grid = el('div', { class: 'tv-grid' });
       for (const f of ordered) {
         const long = isLong(f);
-        const n = long ? el('textarea', { rows: 3 }) : inp(data[f.key] ?? '', { placeholder: f.default ? `預設：${f.default}` : '' });
+        const n = f.options ? el('select') : long ? el('textarea', { rows: 3 }) : inp(data[f.key] ?? '', { placeholder: f.default ? `預設：${f.default}` : '' });
+        if (f.options) { for (const [v, l] of f.options) { const o = el('option', { text: l }); o.value = v; n.append(o); } n.value = data[f.key] ?? ''; }
         if (long) n.value = data[f.key] ?? '';
         inputs[f.key] = n;
         n.addEventListener('focus', () => { FOCUS = { label: `院所基本資料 › ${f.label}`, profileKey: f.key }; renderSide(side); });
