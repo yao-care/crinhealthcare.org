@@ -137,6 +137,15 @@ export function septicFactors() {
   ];
 }
 
+// 類別四 能資源上游排放（生命週期係數）。數值取自北投分院 2025 盤查報告書（經第三方查證）引用的產品碳足跡資訊網係數，
+// 原始資料庫未能核對，種子以「待發布」寫入，管理員核對後才會用於顯著性估算
+export function upstreamFactors() {
+  const src = '環境部產品碳足跡資訊網（2022）；引自三軍總醫院北投分院 2025 年溫室氣體盤查報告書表 4.9';
+  return [['electricity', '外購電力上游（電力間接碳足跡）', 0.1108, 'kgCO2e/kWh'], ['gasoline', '車用汽油上游（未燃燒）', 0.6078, 'kgCO2e/L'], ['diesel', '柴油上游（未燃燒）', 0.677, 'kgCO2e/L']]
+    .map(([k, name, value, unit]) => ({ code: `ef.upstream.${k}`, version: 1, name, category: 'emission', gas: 'CO2e', value, unit, applies_to: `upstream:${k}`,
+      valid_from: '2022-01-01', source: src, factor_class: '6國際排放係數', note: '類別四 4.1 採購商品（能源上游）用；待核對產品碳足跡資訊網原始數值後發布' }));
+}
+
 // 能源署「能源產品單位熱值表」（113 年起適用、114 年修正）：能源查核、能源統計用（不是盤查用熱值）
 export function energyHeatFactors() {
   const src = '經濟部能源署「能源產品單位熱值表」（113 年起適用、114 年修正）';
@@ -145,5 +154,5 @@ export function energyHeatFactors() {
 }
 
 export function allSeedFactors() {
-  return [...fuelFactors(), ...gwpFactors(), ...electricityFactors(), ...septicFactors(), ...energyHeatFactors()];
+  return [...fuelFactors(), ...gwpFactors(), ...electricityFactors(), ...septicFactors(), ...energyHeatFactors(), ...upstreamFactors()];
 }

@@ -1684,6 +1684,7 @@ a.pf-tile:hover { border-color: var(--color-primary); }
 .pf-dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2xs) var(--space-lg); font-size: var(--text-sm); margin: 0; }
 .pf-dl dt { color: var(--color-text-secondary); }
 .pf-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.pf-cfg .pf-cfg-head { color: var(--color-text); font-weight: 600; padding-top: var(--space-xs); }
 .pf-tabs { display: flex; gap: var(--space-2xs); border-bottom: 2px solid var(--color-border); margin: var(--space-md) 0; overflow-x: auto; }
 .pf-tabs a { padding: var(--space-xs) var(--space-lg); text-decoration: none; color: var(--color-text-secondary); font-size: var(--text-sm); white-space: nowrap; border-bottom: 3px solid transparent; margin-bottom: -2px; }
 .pf-tabs a.on { color: var(--color-primary-dark); border-bottom-color: var(--color-primary); font-weight: 700; }

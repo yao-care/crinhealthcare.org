@@ -1,6 +1,7 @@
 // 系統管理（PRD §13.3、§14、§15、§17、§18、§19）：組織院區、帳號權限、資料字典、係數與規則、報告模板、
 // 門檻設定、介接、歷史資料移轉、稽核日誌、備份還原。
 // 版本化設定一律走「草稿 → 送審 → 另一位管理員核准發布 → 可回復」，畫面上不提供直接覆寫。
+import { configOpts, configView } from './cfgform.js';
 import { state, get, post, patch, del, upload, h, route, page, card, table, link, btn, action, toast, modal, confirmBox, formModal, form,
   chip, domainChip, fmtNum, fmtDate, fmtTime, fmtPeriod, inclEndToExcl, can, isGlobalAdmin, orgName, userOptions, tabs, dl, note, select,
   setQuery, render, needOrg, itemOf } from '../core.js';
@@ -623,13 +624,23 @@ async function templatesPage(_, qy) {
 }
 
 // ════════════════ 門檻與設定 ════════════════
+const CONFIG_TITLE = {
+  'calc.settings': '排放量計算方式', 'calc.septic': '化糞池人日折算', 'case.sla': '差異案件處理期限', 'compare.thresholds': '多來源比對門檻', 'dashboard.visibility': '公開看板顯示範圍',
+  'decision.policy': '採用值審核規則', 'export.retentionDays': '匯出保存期限', 'ghg.data_quality': '數據品質評分', 'ghg.significance': '間接排放顯著性門檻',
+  'ghg.significance_estimators': '顯著性自動估算', 'ghg.uncertainty': '不確定性預設值', 'notify.channels': '通知管道', 'security.session': '登入逾時',
+  'task.reminders': '待辦提醒', 'validation.rules': '數據檢核規則',
+};
 const CONFIG_DESC = {
   'compare.thresholds': '多來源比對的差異門檻：絕對差與相對差（%），可依指標語意（用量、費用、取水、消耗）分別設定；相對差的分母取優先序最高的來源。',
   'validation.rules': '各檢核規則是否啟用、嚴重程度與參數（歷史波動 %、油料平衡容許差、總分表損失上限、需佐證的登錄方式等）。',
   'decision.policy': '採用值裁決：哪些情況屬高影響需兩位審核（推算、估計、不適用、差異比例、數值門檻），選用來源是否須附佐證，審核者是否須與提出者不同。',
   'case.sla': '差異案件依嚴重程度的處理期限（天）。',
   'task.reminders': '待辦到期前幾天提醒、逾期後每隔幾天再提醒。',
-  'calc.settings': '計算設定：GWP 版本、各單位的顯示精度、冷媒計算方式。',
+  'calc.settings': '計算設定：GWP 版本（AR4／AR5／AR6）、冷媒逸散量計算方式（補充量法／設備逸散率法）、各單位的顯示精度。改 GWP 版本會改變所有醫院未封存報告的排放量。',
+  'ghg.uncertainty': '不確定性評估用的預設值：各登錄方式的活動數據不確定性、各類係數的不確定性與信賴區間。',
+  'ghg.significance': '間接排放（類別三～六）顯著性判定的門檻與準則。',
+  'ghg.data_quality': '數據品質評分（環境部盤查作業指引）：各分數的說明與分級。',
+  'ghg.significance_estimators': '顯著性自動估算：哪個活動量乘哪個係數。',
   'calc.septic': '化糞池甲烷計算用的人日折算參數（門診停留時數、每日工時）。',
   'dashboard.visibility': '公開看板可顯示的區塊，以及數量少於多少時隱藏（避免從彙總反推個別資料）。',
   'notify.channels': '通知管道：系統內通知、Email。',
@@ -640,20 +651,21 @@ async function configPage() {
   const rows = await get('admin/configuration-versions');
   const groups = groupBy(rows, (r) => r.key);
   const w = canAny('config.write');
-  const opts = { fields: [{ key: 'value', label: '設定值（JSON）', type: 'json', required: true, wide: true }], toPatch: (v) => ({ value: v.value }), values: (r) => ({ value: r.value }) };
+  const shown = (key, value) => configView(key, value) || pretty(value);
   return page('門檻與設定', { intro: '設定變更須建立草稿、預覽影響、由另一位管理員核准後才生效；已定版資料與已封存報告不會被回溯改變。' },
     [...groups.entries()].map(([key, vs]) => {
       const cur = currentOf(vs);
-      return card(key,
+      const opts = configOpts(key, vs[0]);
+      return card(CONFIG_TITLE[key] ? `${CONFIG_TITLE[key]}（${key}）` : key,
         h('p', { class: 'muted' }, CONFIG_DESC[key] || '（無說明）'),
-        cur ? h('div', h('p', { class: 'pf-small' }, `目前生效：第 ${cur.version} 版（${fmtTime(cur.effective_at || cur.approved_at)} 起，核准：${whoName(cur.approved_by)}）`), pretty(cur.value))
+        cur ? h('div', h('p', { class: 'pf-small' }, `目前生效：第 ${cur.version} 版（${fmtTime(cur.effective_at || cur.approved_at)} 起，核准：${whoName(cur.approved_by)}）`), shown(key, cur.value))
           : note('尚無已發布版本，系統使用內建預設值', 'warn'),
         h('div', { class: 'pf-actions' },
           w && !hasOpenDraft(vs) ? action('修改（建立新草稿）', () => draftFromLatest('configuration-versions', key, vs[0], opts), 'primary') : null,
           hasOpenDraft(vs) ? h('span', { class: 'pf-small muted' }, '已有草稿或待核准版本') : null),
         h('details', { open: hasOpenDraft(vs) || undefined }, h('summary', `版本紀錄（${vs.length}）`),
           versionTable('configuration-versions', vs, opts),
-          vs.filter((r) => ['draft', 'pending'].includes(r.status)).map((r) => h('div', h('p', { class: 'pf-small' }, `第 ${r.version} 版（${VS[r.status][0]}）內容：`), pretty(r.value)))));
+          vs.filter((r) => ['draft', 'pending'].includes(r.status)).map((r) => h('div', h('p', { class: 'pf-small' }, `第 ${r.version} 版（${VS[r.status][0]}）內容：`), shown(key, r.value)))));
     }));
 }
 
