@@ -252,7 +252,7 @@
         if (r.assetId) { const b = el('button', { type: 'button', class: 'link', text: r.assetName }); b.addEventListener('click', (e) => { e.stopPropagation(); UI.goSection(`tree:asset:${r.assetId}`); }); td.append(b); }
         else td.append(el('span', { class: 'muted', text: r.note || '不計入' }));
         tr.append(td);
-        for (const c of part.columns) { const v = r.cells[c.key]; tr.append(el('td', { class: c.type === 'num' ? 'num' : '', text: v === undefined ? '' : c.type === 'num' && typeof v === 'number' ? fmt(v, 4) : String(v) })); }
+        for (const c of part.columns) { const v = r.cells[c.key]; tr.append(el('td', { class: c.type === 'num' ? 'num' : '', text: v === undefined ? '' : c.type === 'num' && typeof v === 'number' ? fmt(v, 4) : rawCell(v) })); }
         const val = r.value ? `${fmt(r.value.value, 4)} ${unitZh(r.value.unit)}${STATE_ZH[r.value.state] ? `（${STATE_ZH[r.value.state]}）` : ''}${r.value.version > 1 ? '（已更正）' : ''}` : (r.assetId && r.note ? r.note : '');
         tr.append(el('td', { class: r.value ? 'num' : 'dim', text: val }));
         if (r.assetId) tr.addEventListener('click', () => focus({ assetId: r.assetId, metric: r.value?.metric, label: `${r.assetName}${r.value ? ` › ${r.value.metricName}` : ''}`, el: tr }, side));
@@ -280,6 +280,13 @@
       main.append(el('div', { class: 'tv-scroll' }, t));
     }
     renderSide(side);
+  }
+
+  // 原檔儲存格：Excel 浮點誤差（4.0999999999999996）收成 4.1
+  function rawCell(v) {
+    if (typeof v === 'number') return String(+v.toPrecision(12));
+    const s = String(v);
+    return /^-?\d+\.\d{8,}$/.test(s) ? String(+Number(s).toPrecision(12)) : s;
   }
 
   // ════════════════ 中欄＋右欄 ════════════════
