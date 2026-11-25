@@ -154,6 +154,8 @@ route('DELETE', '/api/v1/asset-links/:id', '結束上下層關係', (ctx, { para
 // ── 來源與追查 ──
 // ── 盤點樹（院所頁三欄：左樹、中節點內容、右報告欄位）──
 route('GET', '/api/v1/orgs/:id/inv-tree', '盤點樹：油水電氣；電分台電（電號→分盤→設備）與分區（建物→樓層）', (ctx, { params }) => T.tree(ctx, params.id));
+route('POST', '/api/v1/orgs/:id/ghg-sheet/rows', '盤查表單頁籤：修改或新增一列（row 空白＝新增）；存檔後依原匯入規則重算該頁觀測，改過的值成為新版本', (ctx, { params, body }) => GS.saveSheetRow(ctx, params.id, body));
+route('POST', '/api/v1/orgs/:id/ghg-sheet/rows/delete', '盤查表單頁籤：刪除一列（標記刪除；該列的觀測補一個歸零的新版本）', (ctx, { params, body }) => GS.deleteSheetRow(ctx, params.id, body));
 route('GET', '/api/v1/orgs/:id/ghg-sheet', '盤查表單頁籤檢視：某頁籤（tab）某年度（year 選填）的系統合計、原檔各列與觀測', (ctx, { params, query }) => GS.tabView(ctx, params.id, query.tab, query.year));
 route('GET', '/api/v1/inv-node', '盤點節點內容（kind=asset｜building｜floor；year、metric 選填）', (ctx, { query }) => {
   if (query.kind === 'asset') return T.assetNode(ctx, query.id, { year: query.year, metric: query.metric });

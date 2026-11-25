@@ -10,8 +10,8 @@
 // 表單範本內建的範例列（編號「範例」、冷煤頁「門市部」兩列）不匯入；隱藏頁籤（類別3～5、外購蒸氣、自來水、厭氧水處理）
 // 在範本裡是範例資料，院方沒填就不匯入。
 import { q, insert, newId, nowIso, audit, tx, parseJson } from './db.js';
-import { assertCan } from './authz.js';
-import { bad, j, round, addDays } from './util.js';
+import { assertCan, can } from './authz.js';
+import { bad, notFound, j, round, addDays } from './util.js';
 import { readWorkbook, parseRef } from '../xlsx.js';
 import { createAsset, updateAsset, setApplicability } from './assets.js';
 import { addObservation } from './observations.js';
@@ -112,17 +112,19 @@ const ureaCo2 = (l) => r4(l * UREA.density * UREA.conc * 44.01 / 60.06);
 // ── 解析：原檔 → 計畫（不寫入）──
 // 回 { year, rows: [{ tab, sheet, part, row, cells, target, obs: [...] , note }], skipped: [...], totals }
 // target：{ match: {...} 找既有標的的條件, create: {...} 找不到時建的標的 }
-export function planWorkbook(buf, { year } = {}) {
-  const wb = readWorkbook(buf);
+// sheets：Map<頁籤名, Map<列號, 儲存格>>，給院所頁編修後重算用（不讀 Excel）
+export function planWorkbook(buf, { year, sheets } = {}) {
+  const wb = sheets ? null : readWorkbook(buf);
+  const sheetOf = (name) => (sheets ? sheets.get(name) || null : sheetCells(wb, name));
   const out = []; const skipped = []; const totals = {};
-  const Y = year || detectYear(wb);
+  const Y = year || (wb && detectYear(wb));
   if (!Y) throw bad('看不出這份盤查表單是哪一年（用電量頁 A1 或冷煤頁標題），請指定年度');
   const yr = [`${Y}-01-01`, `${Y + 1}-01-01`];
   const ann = (metric, value, extra = {}) => ({ metric, start: yr[0], end: yr[1], value, ...extra });
   const push = (tab, sheet, part, row, cells, target, obs, note) => out.push({ tab, sheet, part, row, cells, target, obs, note });
 
   // 類別1(固定)
-  const fx = sheetCells(wb, '類別1(固定)');
+  const fx = sheetOf('類別1(固定)');
   if (fx) {
     totals.stationary = sumBlock(fx, 2, 20, ['A', 'B'], 'D');
     const tank = new Map();
@@ -152,7 +154,7 @@ export function planWorkbook(buf, { year } = {}) {
   }
 
   // 類別1(移動)
-  const mv = sheetCells(wb, '類別1(移動)');
+  const mv = sheetOf('類別1(移動)');
   if (mv) {
     totals.mobile = sumBlock(mv, 2, 6, ['A', 'B'], 'D');
     const data = [...mv].filter(([r, c]) => r >= 5 && s(c.F) !== '範例' && s(c.I) && s(c.K) && num(c.M) !== null);
@@ -191,7 +193,7 @@ export function planWorkbook(buf, { year } = {}) {
   }
 
   // 類別1(製程)
-  const pr = sheetCells(wb, '類別1(製程)');
+  const pr = sheetOf('類別1(製程)');
   if (pr) {
     totals.process = sumBlock(pr, 3, 12, ['A'], 'C');
     for (const [r, c] of pr) {
@@ -212,7 +214,7 @@ export function planWorkbook(buf, { year } = {}) {
   }
 
   // 類別1(冷煤)
-  const rf = sheetCells(wb, '類別1(冷煤)');
+  const rf = sheetOf('類別1(冷煤)');
   if (rf) {
     totals.refrigerant = sumBlock(rf, 4, 13, ['A'], 'C');
     // 同位置同名設備（例：宿舍兩種型號冷氣）名稱加型號區分
@@ -239,7 +241,7 @@ export function planWorkbook(buf, { year } = {}) {
   }
 
   // 類別1(其它)：左邊滅火器、右邊 GCB 斷路器
-  const ot = sheetCells(wb, '類別1(其它)');
+  const ot = sheetOf('類別1(其它)');
   if (ot) {
     totals.other = sumBlock(ot, 3, 9, ['A'], 'C');
     for (const [r, c] of ot) {
@@ -271,9 +273,9 @@ export function planWorkbook(buf, { year } = {}) {
   }
 
   // 類別1(化糞池調查表)：住院人日另記（計算時 × 24），其他在院人時（員工、外包、志工、門急診、宿舍）合計為工時
-  const sp = sheetCells(wb, '類別1(化糞池調查表)');
+  const sp = sheetOf('類別1(化糞池調查表)');
   if (sp) {
-    const rows = [...sp].filter(([r, c]) => r >= 5 && r < 28 && s(c.B) && num(c.O) !== null && num(c.O) > 0);
+    const rows = [...sp].filter(([r, c]) => r >= 5 && (sheets || r < 28) && s(c.B) && num(c.O) !== null && num(c.O) > 0);
     const inpat = rows.filter(([, c]) => /住院/.test(s(c.B)));
     const others = rows.filter(([, c]) => !/住院/.test(s(c.B)));
     const hours = others.reduce((t, [, c]) => t + num(c.O), 0);
@@ -294,7 +296,7 @@ export function planWorkbook(buf, { year } = {}) {
   }
 
   // 類別2(用電量)：電號-1…10 各一段，每段 12 個月；段名不是電號（例：外包廠商電度數）＝盤查要扣除的院內租用單位用電
-  const el = sheetCells(wb, '類別2(用電量)');
+  const el = sheetOf('類別2(用電量)');
   if (el) {
     const blocks = [];
     for (const [r, c] of el) {
@@ -345,6 +347,36 @@ function sumBlock(rows, from, to, labels, kv) {
 
 // ── 寫入 ──
 const itemId = (code) => q.get('SELECT id FROM inventory_items WHERE code = ?', code)?.id;
+// 計畫裡的 target → 標的（找不到就建）。編修重算時，原檔建的標的（legacyRef 相同）規格有改（冷媒種類、台數、油種）就一併更新
+function makeResolver(ctx, orgId, Y, created, { syncAttrs = false } = {}) {
+  const site = q.get('SELECT id FROM sites WHERE org_id = ? ORDER BY created_at LIMIT 1', orgId);
+  const cache = new Map();
+  return (t) => {
+    const k = JSON.stringify(t.match);
+    if (cache.has(k)) return cache.get(k);
+    let a = findAsset(orgId, t.match);
+    if (!a) {
+      const c = t.create;
+      const parent = c.parentKey ? findAsset(orgId, { itemCode: 'ELE-GRID', externalKey: c.parentKey }) : null;
+      const { id } = createAsset(ctx, { orgId, siteId: site?.id, itemId: itemId(c.itemCode), assetType: c.assetType, name: c.name, externalKey: c.externalKey || undefined,
+        location: c.location || undefined, floor: c.floor || undefined, parentAssetId: parent?.id, attrs: c.attrs || {}, legacyRef: undefined, reason: `${Y} 年盤查表單` }, { skipCheck: true });
+      if (c.legacyRef) q.run('UPDATE assets SET legacy_ref = ? WHERE id = ?', c.legacyRef, id);
+      setApplicability(ctx, id, { applicability: 'applicable', reason: `${Y} 年盤查表單列為排放源` });
+      a = { ...q.get('SELECT * FROM assets WHERE id = ?', id) };
+      created.push(c.name);
+    } else if (syncAttrs && t.create?.legacyRef && a.legacy_ref === t.create.legacyRef && t.create.attrs) {
+      const cur = typeof a.attrs === 'string' ? j(a.attrs, {}) : a.attrs || {};
+      const next = { ...cur, ...t.create.attrs };
+      if (JSON.stringify(next) !== JSON.stringify(cur)) {
+        q.run('UPDATE assets SET attrs = ?, updated_at = ? WHERE id = ?', JSON.stringify(next), nowIso(), a.id);
+        audit({ actor: ctx.userId, actorName: ctx.name, orgId, action: 'asset.update', targetType: 'asset', targetId: a.id, before: { attrs: cur }, after: { attrs: next, reason: `${Y} 年盤查表單編修` } });
+        a = { ...a, attrs: next };
+      }
+    }
+    cache.set(k, a);
+    return a;
+  };
+}
 function findAsset(orgId, m) {
   const rows = q.all(`SELECT a.*, i.code AS item_code FROM assets a LEFT JOIN inventory_items i ON i.id = a.item_id WHERE a.org_id = ? AND a.status <> 'archived' ORDER BY a.created_at`, orgId)
     .map((a) => ({ ...a, attrs: j(a.attrs, {}) }));
@@ -364,12 +396,13 @@ function sourceFor(ctx, asset, src) {
   return r;
 }
 
+const obsKey = (Y, r, o) => `ghgwb:${Y}:${r.sheet}!${r.row}${r.part && r.part !== 'meter' ? `:${r.part}` : ''}:${o.metric}`;
+
 // 匯入：回 { year, assetsCreated, observations: {created, duplicate, new_version}, rows, skipped, totals, check }
 export async function importWorkbook(ctx, { orgId, filename, data, year, apply = false }) {
   assertCan(ctx, 'import.write', orgId);
   const plan = planWorkbook(data, { year });
   const Y = plan.year;
-  const site = q.get('SELECT id FROM sites WHERE org_id = ? ORDER BY created_at LIMIT 1', orgId);
   const check = compareTotals(plan);
   const summary = { year: Y, rows: plan.rows.length, skipped: plan.skipped, totals: plan.totals, check, assetsCreated: [], observations: { created: 0, duplicate: 0, new_version: 0 } };
   if (!apply) {
@@ -381,24 +414,7 @@ export async function importWorkbook(ctx, { orgId, filename, data, year, apply =
   }
   const ev = await storeEvidence(ctx, { orgId, filename, data, kind: '溫室氣體盤查表單', confidentiality: 'internal', note: `${Y} 年度盤查表單` }, { skipCheck: true });
   tx(() => {
-    const cache = new Map();
-    const resolve = (t) => {
-      const k = JSON.stringify(t.match);
-      if (cache.has(k)) return cache.get(k);
-      let a = findAsset(orgId, t.match);
-      if (!a) {
-        const c = t.create;
-        const parent = c.parentKey ? findAsset(orgId, { itemCode: 'ELE-GRID', externalKey: c.parentKey }) : null;
-        const { id } = createAsset(ctx, { orgId, siteId: site?.id, itemId: itemId(c.itemCode), assetType: c.assetType, name: c.name, externalKey: c.externalKey || undefined,
-          location: c.location || undefined, floor: c.floor || undefined, parentAssetId: parent?.id, attrs: c.attrs || {}, legacyRef: undefined, reason: `匯入 ${Y} 年盤查表單` }, { skipCheck: true });
-        if (c.legacyRef) q.run('UPDATE assets SET legacy_ref = ? WHERE id = ?', c.legacyRef, id);
-        setApplicability(ctx, id, { applicability: 'applicable', reason: `${Y} 年盤查表單列為排放源` });
-        a = { ...q.get('SELECT * FROM assets WHERE id = ?', id) };
-        summary.assetsCreated.push(c.name);
-      }
-      cache.set(k, a);
-      return a;
-    };
+    const resolve = makeResolver(ctx, orgId, Y, summary.assetsCreated);
     const tabsDone = new Set();
     for (const r of plan.rows) {
       if (!tabsDone.has(r.sheet)) { q.run('DELETE FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND sheet = ?', orgId, Y, r.sheet); tabsDone.add(r.sheet); }
@@ -406,7 +422,7 @@ export async function importWorkbook(ctx, { orgId, filename, data, year, apply =
       const ids = [];
       if (a) for (const o of r.obs) {
         const src = sourceFor(ctx, a, o.source || {});
-        const key = `ghgwb:${Y}:${r.sheet}!${r.row}${r.part && r.part !== 'meter' ? `:${r.part}` : ''}:${o.metric}`;
+        const key = obsKey(Y, r, o);
         const res = addObservation(ctx, { assetId: a.id, metricCode: o.metric, periodStart: o.start, periodEnd: o.end, rawValue: o.value, rawUnit: o.unit, valueState: o.state || 'measured',
           sourceId: src.id, sourceRecordKey: key, note: o.note || null }, { method: 'import', skipCheck: true, evidenceIds: [ev.id] });
         summary.observations[res.status]++;
@@ -464,6 +480,181 @@ export function markAggregate(ctx, assetId, reason) {
   return true;
 }
 
+// ════════════════ 院所頁編修（依盤查表單頁籤）════════════════
+// 院方在頁籤表格上直接改一列、新增一列或刪一列：儲存格存回 ghg_sheet_rows，整頁依原匯入規則重算——
+// 值有變的觀測成為新版本（原值保留），不再成立的觀測（刪列、改了日期或改到別的車／設備）補一個「0」的新版本。
+
+// 每頁必填欄（缺了這一列不會計入，存檔時就擋）
+const REQUIRED = {
+  stationary: { '': ['J', 'M', 'O'] }, mobile: { '': ['I', 'K', 'M'] }, process: { '': ['F', 'H'] }, refrigerant: { '': ['H', 'L'] },
+  other: { fire: ['F', 'H'], gcb: ['AC', 'AE'] }, septic: { '': ['B', 'O'] }, electricity: { meter: ['B', 'C', 'L'] },
+};
+// 原檔的公式欄：輸入欄有改、公式欄沒動時照原檔公式重算（院方自己改了公式欄就用院方的值）
+const FORMULAS = {
+  process: { '': { U: { from: ['N', 'O', 'P', 'Q', 'R', 'S', 'T'], f: (c) => (num(c.N) ?? 0) * (num(c.R) ?? 0) * (num(c.O) ?? 0) * (s(c.S) === '是' ? 1 - (num(c.T) ?? 0) : 1) * (String(c.P ?? '') === 'L' ? num(c.Q) ?? 0 : 1) } } },
+  refrigerant: { '': { AA: { from: ['M', 'S', 'T', 'U'], f: (c) => (num(c.M) ? (num(c.S) ?? 0) + (num(c.T) ?? 0) * (num(c.U) ?? 0) : 0) } } },
+  other: { gcb: { AI: { from: ['AG', 'AH'], f: (c) => (num(c.AG) ?? 0) * (num(c.AH) ?? 0) } } },
+  septic: { '': { O: { from: ['E', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'], f: (c) => (num(c.E) === null ? null : ((num(c.G) ?? 0) * (num(c.K) ?? 0) + (num(c.H) ?? 0) * (num(c.L) ?? 0) + (num(c.I) ?? 0) * (num(c.M) ?? 0) + (num(c.J) ?? 0) * (num(c.N) ?? 0)) * num(c.E)) } } },
+  electricity: { meter: { D: { from: ['B', 'C'], f: (c) => { const b = readDate(c.B).date; const e = readDate(c.C).date; return b && e ? Math.round((Date.parse(e) - Date.parse(b)) / 86400000) + 1 : null; } } } },
+};
+// 下拉建議（仍可自填）
+const OPTIONS = {
+  stationary: { M: ['柴油', '燃料油', '液化石油氣', '天然氣'] },
+  mobile: { K: ['柴油', '超級柴油', '92汽油', '95汽油', '98汽油', '尿素'], G: ['公務車', '救護車', '工程車', 'X光體檢車'] },
+  process: { S: ['是', '否'], P: ['L', 'kg'] },
+  refrigerant: { L: ['R-134a', 'R-410A', 'R-32', 'R-22', 'R-404A', 'R-407C', 'R-600a'], I: ['住宅及商業建築冷氣機', '冰水機', '家用冷凍、冷藏裝備', '商用冷凍、冷藏裝備', '移動式空氣清淨機'] },
+  other: { H: ['CO2', 'FM200', '乾粉', '泡沫'], AE: ['GCB', 'VCB', 'ACB'] },
+  septic: { D: ['整棟自有', '部分租用'], F: ['是', '否'] },
+};
+const partCols = (tab, part) => (COLS[tab] || {})[part] || null;
+
+// 從 ghg_sheet_rows 還原一頁的儲存格（用電量頁補回電號段落的表頭列，讓解析器照原檔規則讀）
+function sheetFromDb(orgId, Y, sheet) {
+  const rows = q.all("SELECT part, row_no, cells FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND sheet = ? AND part <> 'total' AND deleted_at IS NULL ORDER BY row_no", orgId, Y, sheet)
+    .map((r) => ({ ...r, cells: j(r.cells, {}) }));
+  const m = new Map();
+  if (sheet === TAB.electricity.name) {
+    const groups = new Map();
+    for (const r of rows) { const k = r.cells._acct || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+    let n = 1;
+    for (const [acct, rs] of groups) {
+      const first = Math.min(...rs.map((r) => r.row_no));
+      m.set(first - 2, { A: `電號-${n++}`, B: acct }); m.set(first - 1, { A: '收據月份' });
+      for (const r of rs) { const { _acct, ...c } = r.cells; m.set(r.row_no, c); }
+    }
+    return m;
+  }
+  for (const r of rows) m.set(r.row_no, { ...(m.get(r.row_no) || {}), ...r.cells });
+  return m;
+}
+
+// 整頁重算：回 { observations: {created, duplicate, new_version, zeroed}, assetsCreated }
+function reapplySheet(ctx, orgId, Y, sheet, why) {
+  const plan = planWorkbook(null, { year: Y, sheets: new Map([[sheet, sheetFromDb(orgId, Y, sheet)]]) });
+  const out = { observations: { created: 0, duplicate: 0, new_version: 0, zeroed: 0 }, assetsCreated: [] };
+  const prefix = `ghgwb:${Y}:${sheet}!`;
+  const live = q.all("SELECT * FROM observations WHERE org_id = ? AND substr(source_record_key, 1, ?) = ? AND quality_status <> 'superseded'", orgId, prefix.length, prefix);
+  const byKey = new Map(); for (const o of live) { if (!byKey.has(o.source_record_key)) byKey.set(o.source_record_key, []); byKey.get(o.source_record_key).push(o); }
+  const zero = (o, note) => {
+    if (o.value_state === 'zero' || o.raw_value === 0) return;
+    addObservation(ctx, { assetId: o.asset_id, metricCode: o.metric_code, periodStart: o.period_start, periodEnd: o.period_end, rawValue: 0, rawUnit: o.raw_unit, valueState: 'zero',
+      sourceId: o.source_id, sourceRecordKey: o.source_record_key, note }, { method: o.method, skipCheck: true });
+    out.observations.zeroed++;
+  };
+  const resolve = makeResolver(ctx, orgId, Y, out.assetsCreated, { syncAttrs: true });
+  const rowInfo = new Map(); const seen = new Set();
+  for (const r of plan.rows) {
+    const a = r.target ? resolve(r.target) : null;
+    const ids = [];
+    if (a) for (const o of r.obs) {
+      const src = sourceFor(ctx, a, o.source || {});
+      const key = obsKey(Y, r, o); seen.add(key);
+      for (const old of byKey.get(key) || []) {
+        if (old.asset_id === a.id && old.period_start === o.start && old.period_end === o.end && old.source_id === src.id) continue;
+        zero(old, `${why}：這一列改到 ${a.name}／${o.start}，原紀錄歸零`);
+      }
+      const res = addObservation(ctx, { assetId: a.id, metricCode: o.metric, periodStart: o.start, periodEnd: o.end, rawValue: o.value, rawUnit: o.unit, valueState: o.state || 'measured',
+        sourceId: src.id, sourceRecordKey: key, note: [why, o.note].filter(Boolean).join('；') }, { method: 'import', skipCheck: true });
+      out.observations[res.status]++;
+      ids.push(res.id);
+    }
+    if (r.part !== 'sum') rowInfo.set(`${r.part || ''}|${r.row}`, { asset: a?.id || null, ids, note: r.note || null });
+  }
+  for (const [key, list] of byKey) if (!seen.has(key)) for (const o of list) zero(o, `${why}：原檔這一列已刪除或不再計入，紀錄歸零`);
+  const skippedWhy = new Map(plan.skipped.map((k) => [k.row, k.why]));
+  for (const r of q.all("SELECT id, part, row_no FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND sheet = ? AND part <> 'total' AND deleted_at IS NULL", orgId, Y, sheet)) {
+    const info = rowInfo.get(`${r.part}|${r.row_no}`);
+    q.run('UPDATE ghg_sheet_rows SET asset_id = ?, observation_ids = ?, note = ? WHERE id = ?', info?.asset || null, JSON.stringify(info?.ids || []),
+      info ? info.note : skippedWhy.get(r.row_no) || '這一列缺必要欄位，沒有計入', r.id);
+  }
+  return out;
+}
+
+function cleanCells(tab, part, input) {
+  const cols = partCols(tab, part); if (!cols) throw bad('這個頁籤沒有這一段');
+  const out = {};
+  for (const [c, , t] of cols) {
+    if (c === '_acct') continue;
+    let v = input?.[c]; if (v === undefined || v === null) continue;
+    v = String(v).trim(); if (v === '') continue;
+    if (t === 'num') { const n = num(v); if (n === null) throw bad(`「${cols.find((x) => x[0] === c)[1]}」要填數字`); v = String(n); }
+    if (t === 'date' && !readDate(v).date) throw bad(`「${cols.find((x) => x[0] === c)[1]}」日期看不懂，請填 2023-01-31`);
+    out[c] = v.slice(0, 200);
+  }
+  return out;
+}
+// 畫面送回的值和原儲存格「意思一樣」（193.879611 vs 193.87961100000001、2023-04-20 vs Excel 序號 45037）就保留原儲存格，不算有改
+function keepSame(cols, before, after) {
+  for (const [c, , t] of cols) {
+    if (before[c] === undefined || after[c] === undefined) continue;
+    const a = s(before[c]); const b = s(after[c]);
+    if (a === b) continue;
+    if (t === 'num' && num(a) !== null && num(b) !== null && Math.abs(num(a) - num(b)) <= 1e-9 * Math.max(1, Math.abs(num(a)))) after[c] = before[c];
+    else if (t === 'date' && readDate(a).date && readDate(a).date === readDate(b).date) after[c] = before[c];
+    else if (t !== 'num' && t !== 'date' && num(a) !== null && num(b) !== null && Math.abs(num(a) - num(b)) <= 1e-9 * Math.max(1, Math.abs(num(a)))) after[c] = before[c];
+  }
+  return after;
+}
+function applyFormulas(tab, part, before, after) {
+  const fs = (FORMULAS[tab] || {})[part] || {};
+  for (const [col, { from, f }] of Object.entries(fs)) {
+    const inputsChanged = from.some((k) => s(before[k]) !== s(after[k]));
+    const userSet = s(before[col]) !== s(after[col]);
+    if ((inputsChanged || !s(after[col])) && !userSet) { const v = f(after); if (v !== null && Number.isFinite(v)) after[col] = String(round(v, 6)); }
+  }
+  return after;
+}
+
+// 存一列：row 空白＝新增（用電量頁每個電號固定 12 個月，只能改不能加）
+export function saveSheetRow(ctx, orgId, { year, tab, part = '', row, cells, reason } = {}) {
+  assertCan(ctx, 'obs.write', orgId);
+  const t = TAB[tab]; if (!t) throw bad('不認得的頁籤');
+  const Y = Number(year); if (!Y) throw bad('缺年度');
+  const p = part || ''; const cols = partCols(tab, p); if (!cols) throw bad('這個頁籤沒有這一段');
+  const old = row ? q.get("SELECT * FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND sheet = ? AND part = ? AND row_no = ? AND deleted_at IS NULL", orgId, Y, t.name, p, Number(row)) : null;
+  if (row && !old) throw notFound('這一列');
+  if (!old && tab === 'electricity') throw bad('用電量頁每個電號固定 12 個月，請直接修改該月份');
+  const before = old ? j(old.cells, {}) : {};
+  const next = applyFormulas(tab, p, before, keepSame(cols, before, { ...cleanCells(tab, p, cells), ...(before._acct ? { _acct: before._acct } : {}) }));
+  if (old && JSON.stringify(next) === JSON.stringify(before)) return { row: old.row_no, unchanged: true, counted: j(old.observation_ids, []).length > 0, note: old.note, observations: { created: 0, duplicate: 0, new_version: 0, zeroed: 0 }, assetsCreated: [] };
+  const miss = ((REQUIRED[tab] || {})[p] || []).filter((c) => !s(next[c]));
+  if (miss.length) throw bad(`請填：${miss.map((c) => cols.find((x) => x[0] === c)?.[1] || c).join('、')}`);
+  const why = String(reason || '').trim() || (old ? `院所頁修改第 ${old.row_no} 列` : '院所頁新增一列');
+  let rowNo = old?.row_no;
+  const res = tx(() => {
+    if (old) q.run('UPDATE ghg_sheet_rows SET cells = ?, updated_by = ?, updated_at = ? WHERE id = ?', JSON.stringify(next), ctx.userId, nowIso(), old.id);
+    else {
+      rowNo = (q.get('SELECT MAX(row_no) AS m FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND sheet = ?', orgId, Y, t.name)?.m || 4) + 1;
+      const wbName = q.get("SELECT workbook FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND sheet = ? LIMIT 1", orgId, Y, t.name)?.workbook || '院所頁填報';
+      insert('ghg_sheet_rows', { id: newId('gsr'), org_id: orgId, year: Y, evidence_id: null, workbook: wbName, sheet: t.name, tab, part: p, row_no: rowNo,
+        cells: next, observation_ids: [], created_by: ctx.userId, created_at: nowIso(), updated_by: ctx.userId, updated_at: nowIso() });
+    }
+    const r = reapplySheet(ctx, orgId, Y, t.name, why);
+    audit({ actor: ctx.userId, actorName: ctx.name, orgId, action: old ? 'ghg_sheet.row_update' : 'ghg_sheet.row_create', targetType: 'ghg_sheet_row', targetId: `${Y}:${t.name}!${rowNo}${p ? ':' + p : ''}`,
+      before: old ? before : null, after: { cells: next, reason: why, observations: r.observations } });
+    return r;
+  });
+  const saved = q.get('SELECT note, observation_ids FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND sheet = ? AND part = ? AND row_no = ?', orgId, Y, t.name, p, rowNo);
+  return { row: rowNo, counted: j(saved?.observation_ids, []).length > 0, note: saved?.note || null, ...res };
+}
+
+export function deleteSheetRow(ctx, orgId, { year, tab, part = '', row, reason } = {}) {
+  assertCan(ctx, 'obs.write', orgId);
+  const t = TAB[tab]; if (!t) throw bad('不認得的頁籤');
+  const Y = Number(year); const p = part || '';
+  if (tab === 'electricity') throw bad('用電量頁的月份不能刪，沒有用電請把度數改成 0');
+  const old = q.get("SELECT * FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND sheet = ? AND part = ? AND row_no = ? AND deleted_at IS NULL", orgId, Y, t.name, p, Number(row));
+  if (!old) throw notFound('這一列');
+  const why = String(reason || '').trim() || `院所頁刪除第 ${old.row_no} 列`;
+  return tx(() => {
+    q.run('UPDATE ghg_sheet_rows SET deleted_at = ?, updated_by = ?, updated_at = ? WHERE id = ?', nowIso(), ctx.userId, nowIso(), old.id);
+    const r = reapplySheet(ctx, orgId, Y, t.name, why);
+    audit({ actor: ctx.userId, actorName: ctx.name, orgId, action: 'ghg_sheet.row_delete', targetType: 'ghg_sheet_row', targetId: `${Y}:${t.name}!${old.row_no}${p ? ':' + p : ''}`,
+      before: j(old.cells, {}), after: { reason: why, observations: r.observations } });
+    return { row: old.row_no, ...r };
+  });
+}
+
 // ════════════════ 頁籤檢視 ════════════════
 // 左欄：依頁籤列標的（沒有頁籤的放最後「其他盤點項目」）
 export function tabsTree(assets) {
@@ -513,7 +704,7 @@ export function tabView(ctx, orgId, key, year) {
   const summary = [...sums.values()].map((g) => ({ ...g, value: r4(g.value), assets: g.assets.size }));
 
   // 原檔列
-  const raw = q.all('SELECT * FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND tab = ? ORDER BY part, row_no', orgId, Y, key).map((r) => parseJson(r, ['cells', 'observation_ids']));
+  const raw = q.all('SELECT * FROM ghg_sheet_rows WHERE org_id = ? AND year = ? AND tab = ? AND deleted_at IS NULL ORDER BY part, row_no', orgId, Y, key).map((r) => parseJson(r, ['cells', 'observation_ids']));
   const totalRow = raw.find((r) => r.part === 'total');
   const obsById = new Map(obsAll.map((o) => [o.id, o]));
   const current = (id) => {
@@ -530,12 +721,14 @@ export function tabView(ctx, orgId, key, year) {
     for (const r of sheetRows) { if (!byPart.has(r.part)) byPart.set(r.part, []); byPart.get(r.part).push(r); }
     for (const [part, rows] of byPart) {
       const cols = (COLS[key] || {})[part] || (COLS[key] || {})[''] || [];
-      parts.push({ part, title: PART_TITLE[part] || null, columns: cols.map(([c, h, t]) => ({ key: c, label: h, type: t || null })),
+      const req = new Set(((REQUIRED[key] || {})[part]) || []); const fx = ((FORMULAS[key] || {})[part]) || {};
+      parts.push({ part, title: PART_TITLE[part] || null, canAdd: key !== 'electricity',
+        columns: cols.map(([c, h, t]) => ({ key: c, label: h, type: t || null, required: req.has(c), formula: !!fx[c], options: OPTIONS[key]?.[c] || null, readonly: c === '_acct' })),
         rows: rows.map((r) => {
           const os = r.observation_ids.map(current).filter(Boolean);
           const main = os.find((o) => TAB_METRICS[key].includes(o.metric_code)) || null;
           const a = r.asset_id ? byId.get(r.asset_id) : null;
-          return { row: r.row_no, cells: fmtCells(r.cells, cols), assetId: r.asset_id, assetName: a?.name || null, note: r.note,
+          return { row: r.row_no, cells: fmtCells(r.cells, cols), raw: editCells(r.cells, cols), edited: r.updated_at ? r.updated_at.slice(0, 10) : null, assetId: r.asset_id, assetName: a?.name || null, note: r.note,
             value: main ? { metric: main.metric_code, metricName: metrics.get(main.metric_code)?.name, value: main.value_std, unit: main.std_unit, state: main.value_state, version: main.version } : null };
         }) });
     }
@@ -546,10 +739,21 @@ export function tabView(ctx, orgId, key, year) {
     return { assetId: a.id, assetName: a.name, metric: o.metric_code, metricName: metrics.get(o.metric_code)?.name || o.metric_code, start: o.period_start, end: o.period_end,
       value: o.value_std, unit: o.std_unit, state: o.value_state, source: o.source_name, note: o.note };
   });
-  return { key, name: tab.name, title: tab.title, year: Y, years, summary, sheetTotal: totalRow?.cells || null,
+  return { key, name: tab.name, title: tab.title, year: Y, years, summary, sheetTotal: totalRow?.cells || null, editable: can(ctx, 'obs.write', orgId),
     workbook: raw[0]?.workbook || null, parts, list, assets: assets.map((a) => ({ id: a.id, name: a.name })) };
 }
 
+// 編輯表單用：數字去掉 Excel 浮點尾巴、日期轉 2023-01-31
+function editCells(cells, cols) {
+  const o = {};
+  for (const [c, , t] of cols) {
+    const v = cells[c]; if (v === undefined || v === '') continue;
+    if (t === 'date') o[c] = readDate(v).date || String(v);
+    else if (num(v) !== null && /\.\d{8,}$/.test(String(v))) o[c] = String(+num(v).toPrecision(12));
+    else o[c] = String(v);
+  }
+  return o;
+}
 function fmtCells(cells, cols) {
   const o = {};
   for (const [c, , t] of cols) {

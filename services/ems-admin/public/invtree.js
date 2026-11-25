@@ -241,12 +241,32 @@
 
     // 原檔各列
     for (const part of d.parts) {
-      main.append(el('h3', { class: 'i-h3', text: `${part.title || '原檔各列'}（${part.rows.length} 列）` }));
+      const ed = d.editable;
+      const addBtn = ed && part.canAdd ? el('button', { type: 'button', class: 'tv-add', text: '＋ 新增一列' }) : null;
+      main.append(el('div', { class: 'i-head tv-parthead' }, [el('h3', { class: 'i-h3', text: `${part.title || '原檔各列'}（${part.rows.length} 列）` }), addBtn]));
+      if (ed) main.append(el('p', { class: 'note', text: `按「修改」直接改這一列，存檔後系統依同樣規則重算；改過的值會保留原值、記為更正。${part.canAdd ? '' : '每個電號固定 12 個月，只能修改。'}` }));
       const t = el('table', { class: 'tv-table' });
-      t.append(el('thead', {}, el('tr', {}, [el('th', { text: '列' }), el('th', { text: '盤點項目' }), ...part.columns.map((c) => el('th', { text: c.label })), el('th', { text: '系統值' })])));
+      const ncol = part.columns.length + 3 + (ed ? 1 : 0);
+      t.append(el('thead', {}, el('tr', {}, [ed ? el('th', { text: '' }) : null, el('th', { text: '列' }), el('th', { text: '盤點項目' }), ...part.columns.map((c) => el('th', { text: c.label })), el('th', { text: '系統值' })].filter(Boolean))));
       const tb = el('tbody');
+      const reload = async (res) => {
+        if (res?.assetsCreated?.length) await reloadTree();
+        const sc = root.closest('.pane') || document.scrollingElement; const y = sc.scrollTop;
+        await renderSheet(key, root); sc.scrollTop = y;
+      };
+      if (addBtn) addBtn.addEventListener('click', () => { if (tb.querySelector('.tv-edit[data-new]')) return; const f = sheetEditor(d, part, null, ncol, reload); f.dataset.new = '1'; tb.prepend(f); fitEditor(f); f.querySelector('input,select')?.focus(); });
       for (const r of part.rows) {
         const tr = el('tr', { class: r.assetId ? 'tv-click' : '' });
+        if (ed) {
+          const b = el('button', { type: 'button', class: 'tv-editbtn', text: '修改', 'aria-label': `修改第 ${r.row} 列` });
+          b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = tr.nextElementSibling?.classList.contains('tv-edit') ? tr.nextElementSibling : null;
+            if (open) { open.remove(); return; }
+            const f = sheetEditor(d, part, r, ncol, reload); tr.after(f); fitEditor(f); f.querySelector('input,select')?.focus();
+          });
+          tr.append(el('td', {}, b));
+        }
         tr.append(el('td', { class: 'num dim', text: String(r.row) }));
         const td = el('td');
         if (r.assetId) { const b = el('button', { type: 'button', class: 'link', text: r.assetName }); b.addEventListener('click', (e) => { e.stopPropagation(); UI.goSection(`tree:asset:${r.assetId}`); }); td.append(b); }
@@ -254,7 +274,7 @@
         tr.append(td);
         for (const c of part.columns) { const v = r.cells[c.key]; tr.append(el('td', { class: c.type === 'num' ? 'num' : '', text: v === undefined ? '' : c.type === 'num' && typeof v === 'number' ? fmt(v, 4) : rawCell(v) })); }
         const val = r.value ? `${fmt(r.value.value, 4)} ${unitZh(r.value.unit)}${STATE_ZH[r.value.state] ? `（${STATE_ZH[r.value.state]}）` : ''}${r.value.version > 1 ? '（已更正）' : ''}` : (r.assetId && r.note ? r.note : '');
-        tr.append(el('td', { class: r.value ? 'num' : 'dim', text: val }));
+        tr.append(el('td', { class: r.value ? 'num' : 'dim', text: val + (r.edited ? `（${r.edited} 院所頁修改）` : '') }));
         if (r.assetId) tr.addEventListener('click', () => focus({ assetId: r.assetId, metric: r.value?.metric, label: `${r.assetName}${r.value ? ` › ${r.value.metricName}` : ''}`, el: tr }, side));
         tb.append(tr);
       }
@@ -280,6 +300,50 @@
       main.append(el('div', { class: 'tv-scroll' }, t));
     }
     renderSide(side);
+  }
+
+  // 表格很寬（冷媒頁 20 欄）時，表單固定在看得到的寬度，不跟著表格往右延伸
+  function fitEditor(tr) {
+    const sc = tr.closest('.tv-scroll'); const box = tr.querySelector('.tv-form');
+    if (sc && box) box.style.width = `${Math.max(sc.clientWidth - 2, 240)}px`;
+  }
+  // 盤查表單的一列：表格下方展開成表單（每欄一格，必填欄標＊，公式欄改了輸入欄會照原檔公式重算）
+  function sheetEditor(d, part, r, ncol, done) {
+    const tr = el('tr', { class: 'tv-edit' });
+    const box = el('div', { class: 'tv-form' }, [el('h3', { class: 'i-h3', text: r ? `修改第 ${r.row} 列` : `新增一列（${part.title || d.name}）` })]);
+    const grid = el('div', { class: 'tv-grid tv-sheet-grid' });
+    const inputs = {};
+    for (const c of part.columns) {
+      const v = r?.raw?.[c.key] ?? '';
+      if (c.readonly) { grid.append(field(c.label, el('input', { value: v, disabled: true }))); continue; }
+      const props = c.type === 'date' ? { type: 'date' } : c.type === 'num' ? { type: 'text', inputMode: 'decimal' } : { type: 'text' };
+      const n = inp(c.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(v) ? '' : v, props);
+      if (c.type === 'date' && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) { n.type = 'text'; n.value = v; } // 原檔寫「年用量」這類文字就照原樣
+      if (c.options) { const id = `dl-${d.key}-${part.part || 'p'}-${c.key}`; if (!document.getElementById(id)) document.body.append(el('datalist', { id }, c.options.map((o) => el('option', { value: o })))); n.setAttribute('list', id); }
+      inputs[c.key] = n;
+      grid.append(field(`${c.label}${c.required ? '＊' : ''}`, n, c.formula ? '原檔公式欄：改了相關欄位會自動重算' : null));
+    }
+    box.append(grid);
+    const why = inp('', { placeholder: r ? '例：發票金額打錯' : '例：補登 12 月加油單' });
+    box.append(el('div', { class: 'tv-grid' }, [field('修改原因（會記在異動歷程，可不填）', why)]));
+    const payload = () => ({ year: d.year, tab: d.key, part: part.part || '', row: r?.row || null, reason: why.value.trim() || undefined,
+      cells: Object.fromEntries(Object.entries(inputs).map(([k, n]) => [k, n.value.trim()])) });
+    const actions = [btn(r ? '儲存這一列' : '新增這一列', async () => {
+      const res = await post(`/api/v1/orgs/${ORG.id}/ghg-sheet/rows`, payload());
+      if (res.unchanged) { toast('沒有變更'); return; }
+      const o = res.observations || {};
+      const parts = [o.created && `新增 ${o.created} 筆`, o.new_version && `更正 ${o.new_version} 筆`, o.zeroed && `歸零 ${o.zeroed} 筆`, res.assetsCreated?.length && `新項目：${res.assetsCreated.join('、')}`].filter(Boolean);
+      toast(res.counted ? `已儲存第 ${res.row} 列${parts.length ? `（${parts.join('，')}）` : ''}` : `已儲存第 ${res.row} 列，但${res.note || '這一列沒有計入'}`, res.counted ? 'ok' : '');
+      await done(res);
+    }, 'primary'), btn('取消', async () => tr.remove())];
+    if (r && part.canAdd) actions.push(btn('刪除這一列', async () => {
+      if (!(await confirmModal({ title: `刪除第 ${r.row} 列？`, body: '這一列的紀錄會歸零（原值保留在異動歷程，可以查到）。', okText: '刪除', danger: true }))) return;
+      const res = await post(`/api/v1/orgs/${ORG.id}/ghg-sheet/rows/delete`, { year: d.year, tab: d.key, part: part.part || '', row: r.row, reason: why.value.trim() || undefined });
+      toast(`已刪除第 ${res.row} 列`, 'ok'); await done(res);
+    }, 'danger'));
+    box.append(el('div', { class: 'tv-actions' }, actions));
+    tr.append(el('td', { colSpan: ncol }, box));
+    return tr;
   }
 
   // 原檔儲存格：Excel 浮點誤差（4.0999999999999996）收成 4.1

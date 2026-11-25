@@ -1938,3 +1938,12 @@ button.mb-cell:hover, button.mb-head:hover, button.mb-env:hover { background: va
 .tv-entry-head { grid-template-columns: repeat(auto-fill, minmax(14rem, 18rem)); }
 .tv-entry-grid .tv-f.main span { font-weight: 700; color: var(--color-primary-dark); }
 .tv-entry-grid small { min-height: 1.4em; font-size: var(--text-xs); }
+
+/* 盤查表單頁籤：直接編修 */
+.tv-parthead { align-items: center; }
+.tv-parthead .i-h3 { margin: 0; }
+.tv-add { margin-left: auto; }
+.tv-editbtn { padding: var(--space-2xs) var(--space-sm); font-size: var(--text-xs); }
+.tv-table tr.tv-edit > td { padding: 0; background: var(--color-surface-3); white-space: normal; }
+.tv-edit .tv-form { position: sticky; left: 0; margin: var(--space-sm) 0; box-sizing: border-box; }
+.tv-sheet-grid { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }

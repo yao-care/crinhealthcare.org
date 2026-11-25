@@ -221,3 +221,65 @@ test('彙總標的（14 輛合計）與逐車標的：各年度不互相算「�
   assert.doesNotMatch(notes23, /合計/, notes23);
   assert.ok(r23['ghg.s1.mobile'].value > 0);
 });
+
+test('院所頁編修：改一列成為新版本、改日期舊紀錄歸零、新增一列、刪一列、公式欄重算、必填欄擋下', () => {
+  const live = (key) => q.all("SELECT * FROM observations WHERE source_record_key = ? AND quality_status <> 'superseded'", key);
+  const latest = (key) => { const o = live(key).sort((a, b) => b.version - a.version)[0]; return o && { ...o, raw_value: Number(o.raw_value) }; };
+  const k = (sheet, row, metric, part = '') => `ghgwb:2023:${sheet}!${row}${part ? ':' + part : ''}:${metric}`;
+  const before = q.get("SELECT COUNT(*) n FROM observations WHERE source_record_key LIKE 'ghgwb:2023:%'").n;
+
+  // 沒改任何值：不動觀測
+  const v0 = GS.tabView(hosp, org, 'mobile', 2023);
+  assert.equal(v0.editable, true);
+  const r5 = v0.parts[0].rows.find((r) => r.row === 5);
+  const same = GS.saveSheetRow(hosp, org, { year: 2023, tab: 'mobile', row: 5, cells: r5.raw });
+  assert.equal(same.unchanged, true);
+
+  // 改公升數 → 同一筆觀測的新版本
+  const s1 = GS.saveSheetRow(hosp, org, { year: 2023, tab: 'mobile', row: 5, cells: { ...r5.raw, M: '15' } });
+  assert.equal(s1.observations.new_version, 1);
+  const o5 = latest(k('類別1(移動)', 5, 'oil_consumption_l'));
+  assert.equal(o5.raw_value, 15); assert.equal(o5.version, 2);
+  assert.equal(GS.tabView(hosp, org, 'mobile', 2023).parts[0].rows.find((r) => r.row === 5).value.value, 15);
+
+  // 改日期 → 新期間一筆，舊期間歸零（同一個來源紀錄鍵）
+  GS.saveSheetRow(hosp, org, { year: 2023, tab: 'mobile', row: 5, cells: { ...r5.raw, M: '15', J: '2023-03-15' } });
+  const ls = live(k('類別1(移動)', 5, 'oil_consumption_l'));
+  assert.equal(Number(ls.find((o) => o.period_start === '2023-03-15').raw_value), 15);
+  assert.equal(ls.find((o) => o.period_start === '2023-01-03').value_state, 'zero');
+
+  // 新增一列：新車號 → 新標的、新觀測
+  const add = GS.saveSheetRow(hosp, org, { year: 2023, tab: 'mobile', cells: { G: '公務車', I: '軍Z-9', J: '2023-05-01', K: '柴油', L: '300', M: '10' } });
+  assert.ok(add.row > 10); assert.equal(add.counted, true);
+  assert.deepEqual(add.assetsCreated, ['公務車 軍Z-9']);
+  assert.equal(latest(k('類別1(移動)', add.row, 'oil_consumption_l')).raw_value, 10);
+
+  // 必填欄
+  assert.throws(() => GS.saveSheetRow(hosp, org, { year: 2023, tab: 'mobile', cells: { G: '公務車', I: '軍Z-9' } }), /請填：油品、公升/);
+  assert.throws(() => GS.saveSheetRow(hosp, org, { year: 2023, tab: 'mobile', cells: { I: '軍Z-9', K: '柴油', M: 'abc' } }), /公升」要填數字/);
+
+  // 刪一列 → 該列觀測歸零，畫面不再列
+  GS.deleteSheetRow(hosp, org, { year: 2023, tab: 'mobile', row: add.row });
+  assert.equal(latest(k('類別1(移動)', add.row, 'oil_consumption_l')).value_state, 'zero');
+  assert.ok(!GS.tabView(hosp, org, 'mobile', 2023).parts[0].rows.some((r) => r.row === add.row));
+
+  // 冷媒：改補充量 → 活動數據照原檔公式（S＋T×U）重算，觀測跟著改
+  const rv = GS.tabView(hosp, org, 'refrigerant', 2023).parts[0].rows.find((r) => r.row === 7);
+  GS.saveSheetRow(hosp, org, { year: 2023, tab: 'refrigerant', row: 7, cells: { ...rv.raw, S: '4' } });
+  assert.equal(latest(k('類別1(冷煤)', 7, 'ref_recharge_kg')).raw_value, 4);
+  // 改冷媒種類 → 標的規格跟著改
+  GS.saveSheetRow(hosp, org, { year: 2023, tab: 'refrigerant', row: 7, cells: { ...rv.raw, S: '4', L: 'R-410A' } });
+  const aid = latest(k('類別1(冷煤)', 7, 'ref_recharge_kg')).asset_id;
+  assert.equal(JSON.parse(q.get('SELECT attrs FROM assets WHERE id = ?', aid).attrs).refrigerant, 'R-410A');
+
+  // 用電量：不能新增或刪月份，改度數可以
+  assert.throws(() => GS.saveSheetRow(hosp, org, { year: 2023, tab: 'electricity', part: 'meter', cells: { B: '2023-01-01' } }), /固定 12 個月/);
+  const em = GS.tabView(hosp, org, 'electricity', 2023).parts[0].rows[0];
+  const before1 = latest(`ghgwb:2023:類別2(用電量)!${em.row}:elec_purchased_kwh`).raw_value;
+  GS.saveSheetRow(hosp, org, { year: 2023, tab: 'electricity', part: 'meter', row: em.row, cells: { ...em.raw, L: String(Number(em.raw.L) + 100) } });
+  assert.equal(latest(`ghgwb:2023:類別2(用電量)!${em.row}:elec_purchased_kwh`).raw_value, before1 + 100);
+
+  // 其他列沒被動到
+  assert.equal(latest(k('類別1(移動)', 9, 'oil_consumption_l')).version, 1);
+  assert.ok(q.get("SELECT COUNT(*) n FROM observations WHERE source_record_key LIKE 'ghgwb:2023:%'").n > before);
+});

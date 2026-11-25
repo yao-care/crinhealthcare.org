@@ -528,6 +528,12 @@ const MIGRATIONS = [
   );
   CREATE INDEX ghg_sheet_rows_tab ON ghg_sheet_rows(org_id, year, tab);
   `,
+  // 10：院所頁直接編修盤查表單的列（改儲存格→依原匯入規則重算該頁觀測，改過的值成為新版本）。刪除＝標記，不真刪
+  `
+  ALTER TABLE ghg_sheet_rows ADD COLUMN deleted_at TEXT;
+  ALTER TABLE ghg_sheet_rows ADD COLUMN updated_by TEXT;
+  ALTER TABLE ghg_sheet_rows ADD COLUMN updated_at TEXT;
+  `,
 ];
 
 let db = null;
