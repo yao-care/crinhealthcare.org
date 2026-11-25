@@ -1765,6 +1765,11 @@ a.pf-tile:hover { border-color: var(--color-primary); }
   border: 1px solid var(--color-primary-light); border-radius: var(--radius-pill);
 }
 .tv-mng.active { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary-dark); }
+/* 排法切換：盤點分類／盤查表單頁籤 */
+.tv-mode { display: flex; gap: var(--space-2xs); margin: var(--space-xs) 0; padding: var(--space-2xs); background: var(--color-surface-3); border-radius: var(--radius-sm); }
+.tv-mode button { flex: 1; min-height: var(--tap); border: 1px solid transparent; border-radius: var(--radius-sm); background: none; font-size: var(--text-xs); color: var(--color-text-secondary); }
+.tv-mode button[aria-pressed="true"] { background: var(--color-paper); border-color: var(--color-border); color: var(--color-primary-dark); font-weight: 700; }
+.tv-table td.dim { color: var(--color-text-secondary); }
 .tv-n { flex: none; font-style: normal; font-size: var(--text-xs); color: var(--color-text-secondary); background: var(--color-surface-3); border-radius: var(--radius-pill); padding: 0 var(--space-xs); }
 .tv-empty { margin: var(--space-2xs) var(--space-md) var(--space-sm); font-size: var(--text-xs); color: var(--color-text-secondary); }
 .navtask.tv-boardh { margin-top: var(--space-md); }

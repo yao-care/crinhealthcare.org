@@ -516,6 +516,18 @@ const MIGRATIONS = [
   CREATE INDEX asset_zones_asset ON asset_zones(asset_id);
   CREATE INDEX asset_zones_bld ON asset_zones(building_id, floor);
   `,
+  // 9：環境部盤查表單（院方原本的 Excel）匯入時保留每一列原始儲存格，盤點樹「依盤查表單頁籤」照原檔欄位排出；
+  // 數值本身仍是 observations（不可覆寫），這裡只記原檔長相與對到哪些觀測。同院同年重匯時整頁替換
+  `
+  CREATE TABLE ghg_sheet_rows (
+    id TEXT PRIMARY KEY, org_id TEXT NOT NULL REFERENCES organizations(id), year INTEGER NOT NULL,
+    evidence_id TEXT REFERENCES evidence_files(id), workbook TEXT NOT NULL, sheet TEXT NOT NULL, tab TEXT NOT NULL,
+    part TEXT NOT NULL DEFAULT '', row_no INTEGER NOT NULL, cells TEXT NOT NULL,
+    asset_id TEXT REFERENCES assets(id), observation_ids TEXT NOT NULL DEFAULT '[]', note TEXT,
+    created_by TEXT, created_at TEXT NOT NULL, UNIQUE (org_id, year, sheet, part, row_no)
+  );
+  CREATE INDEX ghg_sheet_rows_tab ON ghg_sheet_rows(org_id, year, tab);
+  `,
 ];
 
 let db = null;

@@ -26,6 +26,7 @@ import * as G from './ghg.js';
 import * as P from './profile.js';
 import * as EM from './measures.js';
 import * as T from './inv-tree.js';
+import * as GS from './ghg-sheets.js';
 import * as U from './usage.js';
 import { computeAll, ALL_RULE_CODES, STATE_LABEL } from './calc.js';
 import { DOMAINS, ASSET_TYPES, WORK_STATUS, APPLICABILITY, USAGE_STATUS, ASSET_ATTRS } from './seed/dictionary.js';
@@ -153,6 +154,7 @@ route('DELETE', '/api/v1/asset-links/:id', '結束上下層關係', (ctx, { para
 // ── 來源與追查 ──
 // ── 盤點樹（院所頁三欄：左樹、中節點內容、右報告欄位）──
 route('GET', '/api/v1/orgs/:id/inv-tree', '盤點樹：油水電氣；電分台電（電號→分盤→設備）與分區（建物→樓層）', (ctx, { params }) => T.tree(ctx, params.id));
+route('GET', '/api/v1/orgs/:id/ghg-sheet', '盤查表單頁籤檢視：某頁籤（tab）某年度（year 選填）的系統合計、原檔各列與觀測', (ctx, { params, query }) => GS.tabView(ctx, params.id, query.tab, query.year));
 route('GET', '/api/v1/inv-node', '盤點節點內容（kind=asset｜building｜floor；year、metric 選填）', (ctx, { query }) => {
   if (query.kind === 'asset') return T.assetNode(ctx, query.id, { year: query.year, metric: query.metric });
   if (query.kind === 'building' || query.kind === 'floor') return T.zoneNode(ctx, query.orgId, query.id);

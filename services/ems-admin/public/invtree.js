@@ -14,6 +14,10 @@
 
   let ORG = null, TREE = null, META = null, READY = false;
   let OPEN = lsGet('open') || 'electricity';
+  // 左欄排法：inv＝盤點分類（油水電氣）；sheet＝依院方原本的環境部盤查表單頁籤
+  let MODE = lsGet('mode') === 'sheet' ? 'sheet' : 'inv';
+  let OPEN_TAB = lsGet('tab') || 'mobile';
+  let SHEET_YEAR = null;          // 頁籤檢視的年度（null＝有資料的最新一年）
   const COLLAPSED = new Set(JSON.parse(lsGet('collapsed') || '[]'));
   let YEAR = new Date().getFullYear();
   let METRIC = null;              // 中欄選的指標（換節點時清掉）
@@ -116,6 +120,7 @@
   function domainForSection(id) {
     const [, sub, ...rest] = String(id || '').split(':'); const arg = rest.join(':');
     if (sub === 'dom') return arg;
+    if (sub === 'sheet') return null;
     if (['tpc', 'zones', 'building', 'floor'].includes(sub)) return 'electricity';
     if (sub === 'asset' || sub === 'group') return findNode(sub, arg)?.d.key || null;
     return null;
@@ -130,6 +135,13 @@
     ]);
     box.append(head);
     if (!READY) { box.append(el('p', { class: 'tv-empty', text: '盤點資料載入失敗，請重新整理。' })); return box; }
+    const modeBar = el('div', { class: 'tv-mode', role: 'group', 'aria-label': '左欄排法' });
+    for (const [m, t] of [['inv', '油水電氣分類'], ['sheet', '盤查表單頁籤']]) {
+      const b = el('button', { type: 'button', text: t, 'aria-pressed': String(MODE === m) });
+      b.addEventListener('click', () => { if (MODE === m) return; MODE = m; lsSet('mode', m); UI.goSection(m === 'sheet' ? `tree:sheet:${OPEN_TAB}` : `tree:dom:${OPEN}`); });
+      modeBar.append(b);
+    }
+    box.append(modeBar);
     const flat = (id, text) => {
       const r = el('div', { class: 'tv-dom' + (activeId === id ? ' active' : '') });
       const b = el('button', { type: 'button', class: 'tv-domname' }, [el('span', { class: 'tv-dcaret', text: '' }), el('span', { text })]);
@@ -137,6 +149,7 @@
       r.append(b); return r;
     };
     box.append(flat('tree:profile', '🏥 院所基本資料'));
+    if (MODE === 'sheet') { sheetNav(box, activeId); box.append(flat('tree:reports', '📑 申報與報告')); return box; }
     for (const d of TREE.domains) {
       const open = OPEN === d.key;
       const dh = el('div', { class: 'tv-dom' + (open ? ' open' : '') + (activeId === `tree:dom:${d.key}` ? ' active' : '') });
@@ -153,6 +166,120 @@
     }
     box.append(flat('tree:reports', '📑 申報與報告'));
     return box;
+  }
+
+  // 盤查表單頁籤排法：頁籤 › 標的；標的點下去仍是原本的項目頁
+  function sheetNav(box, activeId) {
+    const S = TREE.sheets || { tabs: [], rest: { count: 0, children: [] } };
+    const [, sub, ...rest] = String(activeId || '').split(':'); const arg = rest.join(':');
+    if (sub === 'sheet' && arg !== '_rest' && arg !== OPEN_TAB) { OPEN_TAB = arg; lsSet('tab', arg); }
+    if (sub === 'asset') { const t = S.tabs.find((x) => x.children.some((c) => c.id === arg)); if (t && t.key !== OPEN_TAB) { OPEN_TAB = t.key; lsSet('tab', t.key); } }
+    const groups = [...S.tabs, { key: '_rest', name: '其他盤點項目（盤查表單沒有這一頁）', count: S.rest.count, children: S.rest.children }];
+    for (const t of groups) {
+      if (t.key === '_rest' && !t.count) continue;
+      const open = OPEN_TAB === t.key;
+      const id = `tree:sheet:${t.key}`;
+      const dh = el('div', { class: 'tv-dom' + (open ? ' open' : '') + (activeId === id ? ' active' : '') });
+      const b = el('button', { type: 'button', class: 'tv-domname', 'aria-expanded': String(open), title: t.title || '' }, [
+        el('span', { class: 'tv-dcaret', text: open ? '▾' : '▸' }), el('span', { text: t.name }), t.count ? el('i', { class: 'tv-n', text: String(t.count) }) : null,
+      ]);
+      b.addEventListener('click', () => { OPEN_TAB = t.key; lsSet('tab', t.key); UI.goSection(id); });
+      dh.append(b);
+      box.append(dh);
+      if (!open) continue;
+      if (!t.children.length) box.append(el('p', { class: 'tv-empty', text: '這一頁還沒有盤點項目。' }));
+      for (const c of t.children) {
+        const sid = `tree:asset:${c.id}`;
+        const row = el('div', { class: 'tv-row' + (sid === activeId ? ' active' : '') });
+        row.style.setProperty('--d', '1');
+        const nb = el('button', { type: 'button', class: 'tv-name', 'data-sec': sid }, [el('span', { text: c.name })]);
+        nb.addEventListener('click', () => UI.goSection(sid));
+        row.append(el('span', { class: 'tv-caret' }), nb);
+        box.append(row);
+      }
+    }
+  }
+
+  const UNIT_ZH = { kWh: '度', L: '公升', kg: '公斤', person_h: '人時', bed_day: '人日', visit: '人次', m3: '立方公尺', Nm3: '立方公尺', TWD: '元', GJ: 'GJ' };
+  const unitZh = (u) => UNIT_ZH[u] || u || '';
+  const STATE_ZH = { estimated: '推估', missing: '缺漏', zero: '零', unknown: '未知', not_applicable: '不適用' };
+
+  async function renderSheet(key, root) {
+    const { main, side } = layout(root);
+    if (key === '_rest') {
+      const rest = TREE.sheets?.rest?.children || [];
+      main.append(h2('其他盤點項目', [`${rest.length} 項`]));
+      main.append(el('p', { class: 'note', text: '院方的盤查表單沒有對應頁籤的項目（例：院內分盤、分表、儲能）。切回「油水電氣分類」可依台電、分區查看。' }));
+      main.append(listTable(rest.map((r) => ({ ...r, sec: `tree:asset:${r.id}` })), assetCols));
+      renderSide(side);
+      return;
+    }
+    main.append(el('p', { class: 'muted', text: '載入中…' }));
+    const d = await call(`/api/v1/orgs/${ORG.id}/ghg-sheet?tab=${encodeURIComponent(key)}${SHEET_YEAR ? `&year=${SHEET_YEAR}` : ''}`);
+    main.textContent = '';
+    const ysel = el('select', { 'aria-label': '年度' });
+    const years = [...new Set([...(d.years || []), d.year])].sort((a, b) => b - a);
+    for (const y of years) ysel.append(el('option', { value: String(y), text: `${y - 1911} 年（${y}）`, selected: y === d.year }));
+    ysel.addEventListener('change', () => { SHEET_YEAR = Number(ysel.value); renderSheet(key, root); });
+    main.append(el('div', { class: 'i-head' }, [el('h2', { text: d.name }), el('span', { class: 'tv-chip', text: d.title }), ysel]));
+    main.append(el('p', { class: 'note', text: d.workbook
+      ? `依院方的溫室氣體盤查表單「${d.name}」頁籤排列。上面是系統裡 ${d.year - 1911} 年的合計；下面每一列對應原檔的一列，點標的名稱看該項目。`
+      : `依溫室氣體盤查表單「${d.name}」頁籤排列。${d.year - 1911} 年沒有匯入原檔，下面列的是系統裡的紀錄。` }));
+
+    // 系統合計
+    main.append(el('h3', { class: 'i-h3', text: `${d.year - 1911} 年合計（系統）` }));
+    if (d.summary.length) {
+      main.append(listTable(d.summary.map((g) => ({ ...g })), [
+        { h: '項目', v: (r) => r.group }, { h: '指標', v: (r) => r.metric },
+        { h: '年總量', v: (r) => fmt(r.value, 4), num: true }, { h: '單位', v: (r) => unitZh(r.unit) },
+        { h: '筆數', v: (r) => String(r.n), num: true }, { h: '說明', v: (r) => (r.estimated ? '含推估值' : '') },
+      ]));
+    } else main.append(el('p', { class: 'note', text: '這一年還沒有資料。' }));
+    if (d.sheetTotal && Object.keys(d.sheetTotal).length) {
+      main.append(el('p', { class: 'muted', text: `原檔左上角年總量：${Object.entries(d.sheetTotal).map(([k, v]) => `${k} ${fmt(v, 4)}`).join('、')}` }));
+    }
+
+    // 原檔各列
+    for (const part of d.parts) {
+      main.append(el('h3', { class: 'i-h3', text: `${part.title || '原檔各列'}（${part.rows.length} 列）` }));
+      const t = el('table', { class: 'tv-table' });
+      t.append(el('thead', {}, el('tr', {}, [el('th', { text: '列' }), el('th', { text: '盤點項目' }), ...part.columns.map((c) => el('th', { text: c.label })), el('th', { text: '系統值' })])));
+      const tb = el('tbody');
+      for (const r of part.rows) {
+        const tr = el('tr', { class: r.assetId ? 'tv-click' : '' });
+        tr.append(el('td', { class: 'num dim', text: String(r.row) }));
+        const td = el('td');
+        if (r.assetId) { const b = el('button', { type: 'button', class: 'link', text: r.assetName }); b.addEventListener('click', (e) => { e.stopPropagation(); UI.goSection(`tree:asset:${r.assetId}`); }); td.append(b); }
+        else td.append(el('span', { class: 'muted', text: r.note || '不計入' }));
+        tr.append(td);
+        for (const c of part.columns) { const v = r.cells[c.key]; tr.append(el('td', { class: c.type === 'num' ? 'num' : '', text: v === undefined ? '' : c.type === 'num' && typeof v === 'number' ? fmt(v, 4) : String(v) })); }
+        const val = r.value ? `${fmt(r.value.value, 4)} ${unitZh(r.value.unit)}${STATE_ZH[r.value.state] ? `（${STATE_ZH[r.value.state]}）` : ''}${r.value.version > 1 ? '（已更正）' : ''}` : (r.assetId && r.note ? r.note : '');
+        tr.append(el('td', { class: r.value ? 'num' : 'dim', text: val }));
+        if (r.assetId) tr.addEventListener('click', () => focus({ assetId: r.assetId, metric: r.value?.metric, label: `${r.assetName}${r.value ? ` › ${r.value.metricName}` : ''}`, el: tr }, side));
+        tb.append(tr);
+      }
+      t.append(tb);
+      main.append(el('div', { class: 'tv-scroll' }, t));
+    }
+    // 沒有原檔的年度：系統紀錄
+    if (!d.parts.length && d.list.length) {
+      main.append(el('h3', { class: 'i-h3', text: `系統紀錄（${d.list.length} 筆）` }));
+      const t = el('table', { class: 'tv-table' });
+      t.append(el('thead', {}, el('tr', {}, ['盤點項目', '期間', '指標', '數值', '單位', '來源', '備註'].map((h) => el('th', { text: h })))));
+      const tb = el('tbody');
+      for (const r of d.list) {
+        const tr = el('tr', { class: 'tv-click' });
+        const b = el('button', { type: 'button', class: 'link', text: r.assetName }); b.addEventListener('click', (e) => { e.stopPropagation(); UI.goSection(`tree:asset:${r.assetId}`); });
+        const end = r.end > r.start && r.end.endsWith('-01') ? new Date(Date.parse(`${r.end}T00:00:00Z`) - 86400000).toISOString().slice(0, 10) : r.end; // 迄日是下月 1 日＝不含
+        tr.append(el('td', {}, b), el('td', { text: r.start === end ? r.start : `${r.start}～${end}` }), el('td', { text: r.metricName }),
+          el('td', { class: 'num', text: fmt(r.value, 4) }), el('td', { text: `${unitZh(r.unit)}${STATE_ZH[r.state] ? `（${STATE_ZH[r.state]}）` : ''}` }), el('td', { text: r.source || '' }), el('td', { text: r.note || '' }));
+        tr.addEventListener('click', () => focus({ assetId: r.assetId, metric: r.metric, label: `${r.assetName} › ${r.metricName}`, el: tr }, side));
+        tb.append(tr);
+      }
+      t.append(tb);
+      main.append(el('div', { class: 'tv-scroll' }, t));
+    }
+    renderSide(side);
   }
 
   // ════════════════ 中欄＋右欄 ════════════════
@@ -181,6 +308,7 @@
     if (sub === 'profile') return wrapErr(root, () => renderProfile(root));
     if (sub === 'reports') return wrapErr(root, () => renderReports(root));
     if (sub === 'dom') return renderDomain(arg, root);
+    if (sub === 'sheet') return wrapErr(root, () => renderSheet(arg, root));
     if (sub === 'tpc') return renderTpc(root);
     if (sub === 'zones') return renderZones(root);
     if (sub === 'group') return renderGroup(arg, root);
@@ -195,6 +323,7 @@
     if (sub === 'profile') return '盤點 › 院所基本資料';
     if (sub === 'reports') return '盤點 › 申報與報告';
     if (sub === 'dom') return `${pre}盤點 › ${domainOf(arg)?.label || arg}`;
+    if (sub === 'sheet') return `盤點 › 盤查表單 › ${arg === '_rest' ? '其他盤點項目' : TREE?.sheets?.tabs.find((t) => t.key === arg)?.name || arg}`;
     if (sub === 'tpc') return `${pre}盤點 › 電 › 台電`;
     if (sub === 'zones') return `${pre}盤點 › 電 › 分區`;
     const kindMap = { asset: 'asset', group: 'group', building: 'building', floor: 'floor' };
@@ -236,7 +365,7 @@
   }
   function focus(f, side) {
     FOCUS = f;
-    document.querySelectorAll('.tv-card.sel, .tv-th.sel').forEach((n) => n.classList.remove('sel'));
+    document.querySelectorAll('.tv-card.sel, .tv-th.sel, .tv-table tr.sel').forEach((n) => n.classList.remove('sel'));
     if (f.el) f.el.classList.add('sel');
     renderSide(side);
   }
@@ -1100,7 +1229,7 @@
   window.EMSInvTree = {
     load, navNode, render, labelFor,
     get ready() { return READY; },
-    defaultSection: () => `tree:dom:${OPEN}`,
+    defaultSection: () => (MODE === 'sheet' ? `tree:sheet:${OPEN_TAB}` : `tree:dom:${OPEN}`),
     isSection: (id) => /^(tree|mng):/.test(String(id || '')),
   };
 })();

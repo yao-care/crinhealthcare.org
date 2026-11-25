@@ -15,6 +15,7 @@ import { DOMAINS, ASSET_TYPES, ASSET_ATTRS } from './seed/dictionary.js';
 import { DEFAULT_FUEL } from './calc.js';
 import { comparison } from './observations.js';
 import { PROFILE_FIELDS } from './profile.js';
+import { tabsTree } from './ghg-sheets.js';
 
 const today = () => new Date().toISOString().slice(0, 10);
 // 結束關係時 valid_to 記當天（assets.unlinkAssets 同規則），當天起就不算
@@ -102,7 +103,8 @@ export function tree(ctx, orgId) {
     return { key, label: d.name, icon: d.icon, children, count: assets.filter((a) => a.domain === key).length };
   });
   const site = q.get('SELECT id, name FROM sites WHERE org_id = ? ORDER BY created_at LIMIT 1', orgId);
-  return { orgId, site, domains };
+  // 另一種排法：依環境部盤查表單的頁籤（類別1(固定)、類別1(移動)…）
+  return { orgId, site, domains, sheets: tabsTree(assets) };
 }
 
 // ── 右欄：報告欄位對照 ──

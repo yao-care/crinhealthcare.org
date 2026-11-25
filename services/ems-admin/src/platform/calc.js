@@ -280,7 +280,11 @@ const KINDS = {
     // 共用油槽：同槽任一設備（或油槽本身）已有消耗採用值，其他設備不算缺（不可把同一槽重複算給每台）
     const sharedCovered = (a) => q.all("SELECT parent_id FROM asset_links WHERE child_id = ? AND relation IN ('feeds','supplies') AND valid_to IS NULL", a.id)
       .some((l) => covered.has(l.parent_id) || q.all("SELECT child_id FROM asset_links WHERE parent_id = ? AND relation IN ('feeds','supplies') AND valid_to IS NULL", l.parent_id).some((s) => covered.has(s.child_id)));
-    const lacking = as.filter((a) => a.applicability === 'applicable' && !covered.has(a.id) && FUEL_ACTIVITY[a.attrs.fuel || DEFAULT_FUEL[a.item_code]] && !['fuel_tank'].includes(a.asset_type) && !sharedCovered(a));
+    // 彙總標的（attrs.aggregate：以報告書總數建的「14 輛合計」這類）：本身沒資料不算缺；它有資料時，同項目同油種的逐車標的也不算缺（已含在合計裡）
+    const fuelOf = (a) => a.attrs.fuel || DEFAULT_FUEL[a.item_code];
+    const aggCovered = (a) => as.some((b) => b.attrs.aggregate && covered.has(b.id) && b.item_code === a.item_code && fuelOf(b) === fuelOf(a));
+    const lacking = as.filter((a) => a.applicability === 'applicable' && !covered.has(a.id) && FUEL_ACTIVITY[fuelOf(a)] && !['fuel_tank'].includes(a.asset_type) && !sharedCovered(a)
+      && !a.attrs.aggregate && !aggCovered(a));
     if (lacking.length) { state = worse(state, sources.length ? 'partial' : 'missing'); notes.push(`缺活動數據：${lacking.map((a) => a.name).join('、')}`); }
     if (!sources.length && !lacking.length) return result(cx, def.unit, null, state === 'blocked' ? 'blocked' : emptyState(cx, def.items), { formula: '查無燃料消耗採用值', inputs, factors, notes });
     if (!sources.length) return result(cx, def.unit, null, state, { formula: '', inputs, factors, notes });
@@ -326,6 +330,8 @@ const KINDS = {
     const method = cx.settings.refrigerantMethod || 'recharge';
     const inputs = []; const factors = []; const notes = []; let state = 'measured'; const sources = [];
     const as = assetsFor(cx, def.items).filter((a) => a.applicability !== 'not_applicable' && a.status !== 'archived');
+    // 彙總標的（attrs.aggregate）有補充紀錄時，同項目的逐台設備沒紀錄不算缺；彙總標的本身沒紀錄也不算缺
+    const aggItems = new Set(as.filter((a) => a.attrs.aggregate && cx.facts.some((f) => f.asset_id === a.id && ['ref_recharge_kg', 'fire_ext_refill_kg'].includes(f.metric_code))).map((a) => a.item_code));
     for (const a of as) {
       let gas = a.attrs.refrigerant || a.attrs.agent;
       if (!gas) { if (a.item_code === 'GAS-FIRE' && /乾粉|ABC|BC|KBC/i.test(a.attrs.type || '')) continue; notes.push(`${a.name} 未填冷媒／藥劑種類`); state = worse(state, 'partial'); continue; }
@@ -351,6 +357,8 @@ const KINDS = {
         sources.push(makeSource(cx, { assetId: a.id, asset: a.name, itemCode: a.item_code, scope: 1, type: '逸散 (F)', category: '溶劑、噴霧劑及冷媒排放源', material: gas, ad: kg / 1000, adUnit: '公噸', facts: [plate],
           method: `充填量 × 年逸散率 ${a.attrs.leakRatePct}%（核准的推估方法）`, gases: [{ gas, cls, ef: a.attrs.leakRatePct / 100, efClass: '6國際排放係數', efSource: 'IPCC 2006 Vol.3 Ch.7 Table 7.9（設備逸散率）', efUnit: '公噸/公噸', gwp }] }));
         inputs.push(inp(plate, { gas })); state = worse(state, 'estimated');
+      } else if (a.attrs.aggregate || aggItems.has(a.item_code)) {
+        continue;
       } else {
         notes.push(`${a.name}：逸散量所需活動資料不足（有設備資訊但無補充／回收紀錄；銘牌充填量不等於逸散量）`);
         state = worse(state, sources.length ? 'partial' : 'missing');

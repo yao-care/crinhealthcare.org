@@ -15,7 +15,7 @@ const el = (tag, props = {}, kids = []) => {
     if (k === 'class') n.className = v;
     else if (k === 'text') n.textContent = v;
     else if (k === 'html') n.innerHTML = v;
-    else if (k.startsWith('data-') || k === 'role') n.setAttribute(k, v);
+    else if (k.startsWith('data-') || k.startsWith('aria-') || k === 'role') n.setAttribute(k, v);
     else n[k] = v;
   }
   for (const c of Array.isArray(kids) ? kids : [kids]) if (c) n.append(c);
